@@ -1,0 +1,21 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+      target: dev
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./apps/server/src:/app/apps/server/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - server_data:/app/apps/server/data
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - WEB_ORIGIN=http://localhost:3000
+      - JWT_SECRET=dev-secret-change-me
+    command: pnpm --filter server dev
+
+volumes:
+  server_data:

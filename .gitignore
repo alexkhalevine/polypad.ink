@@ -1,0 +1,68 @@
+.gitignore for polypad root
+gitignore# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# SQLite database (server data)
+apps/server/data/
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Testing & coverage
+coverage/
+.nyc_output/
+
+# IDE / editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Vercel
+.vercel/
+
+# Turbo / build caches
+.turbo/
+.cache/
+
+# Docker
+# (don't ignore Dockerfile or compose files)
+
+# Runtime / temp
+tmp/
+temp/
+*.pid
+*.seed
