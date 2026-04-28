@@ -1,60 +1,77 @@
-import * as THREE from "three";
-import React, { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { ThreeElements } from "@react-three/fiber";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { Menu } from "@/app/components/menu";
+import { Scene } from "./scene";
+import { useBoxDraw } from "./use-box-draw";
+import { useCylinderDraw } from "./use-cylinder-draw";
+import { useSphereDraw } from "./use-sphere-draw";
+import { DrawState, ToolType } from "./types";
 
-function Box(props: ThreeElements["mesh"]) {
-  const meshRef = useRef<THREE.Mesh>(null!);
-  const [hovered, setHover] = useState(false);
-  const [active, setActive] = useState(false);
-  useFrame((state, delta) => (meshRef.current.rotation.x += delta));
-
-  return (
-    <mesh
-      {...props}
-      ref={meshRef}
-      scale={active ? 1.5 : 1}
-      onClick={() => setActive(!active)}
-      onPointerOver={() => setHover(true)}
-      onPointerOut={() => setHover(false)}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? "hotpink" : "#2f74c0"} />
-    </mesh>
-  );
-}
+const idleState: DrawState = { phase: "idle" };
+const noop = () => {};
 
 export const Room = () => {
+  const [selectedTool, setSelectedTool] = useState<ToolType | null>(null);
+  const [snapEnabled, setSnapEnabled] = useState(false);
+
+  const boxDraw = useBoxDraw();
+  const cylinderDraw = useCylinderDraw();
+  const sphereDraw = useSphereDraw();
+
+  const handleToolSelect = (tool: ToolType) => {
+    boxDraw.cancelDraw();
+    cylinderDraw.cancelDraw();
+    sphereDraw.cancelDraw();
+    setSelectedTool(tool);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        boxDraw.cancelDraw();
+        cylinderDraw.cancelDraw();
+        sphereDraw.cancelDraw();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw]);
+
+  const activeDraw =
+    selectedTool === "box"
+      ? boxDraw
+      : selectedTool === "cylinder"
+        ? cylinderDraw
+        : selectedTool === "sphere"
+          ? sphereDraw
+          : null;
+
   return (
-    <div>
-      <div className="flex justify-center w-auto">
-        <Canvas
-          style={{ width: "1000px", height: "400px" }}
-          id="main-drawing-area"
-        >
-          <ambientLight intensity={Math.PI / 2} />
-          <spotLight
-            position={[10, 10, 10]}
-            angle={0.15}
-            penumbra={1}
-            decay={0}
-            intensity={Math.PI}
-          />
-          <pointLight
-            position={[-10, -10, -10]}
-            decay={0}
-            intensity={Math.PI}
-          />
-          <Box position={[-1.2, 0, 0]} />
-          <Box position={[1.2, 0, 0]} />
-        </Canvas>
+    <div className="relative w-full h-full flex flex-col">
+      <div className="flex-1">
+        <Scene
+          selectedTool={selectedTool}
+          snapEnabled={snapEnabled}
+          drawState={activeDraw?.drawState ?? idleState}
+          placedBoxes={boxDraw.placedBoxes}
+          placedCylinders={cylinderDraw.placedCylinders}
+          placedSpheres={sphereDraw.placedSpheres}
+          onGroundRightClick={activeDraw?.handleGroundRightClick ?? noop}
+          onGroundPointerMove={activeDraw?.handleGroundPointerMove ?? noop}
+          onGroundClick={activeDraw?.handleGroundClick ?? noop}
+          onHeightPointerMove={activeDraw?.handleHeightPointerMove ?? noop}
+          onHeightClick={activeDraw?.handleHeightClick ?? noop}
+        />
       </div>
 
-      <div className="flex justify-center w-full">
-        <div className="absolute bottom-8 h-24 flex justify-center items-center ">
-          <Menu />
-        </div>
+      <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+        <Menu
+          selectedTool={selectedTool}
+          onToolSelect={handleToolSelect}
+          snapEnabled={snapEnabled}
+          onSnapToggle={() => setSnapEnabled((v) => !v)}
+        />
       </div>
     </div>
   );
