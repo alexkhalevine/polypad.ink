@@ -4,14 +4,12 @@ import { Room } from "./_client/room";
 
 function RoomPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <h1 className="text-center w-full text-lg">Room</h1>
+    <div className="border-2 border-cyan-700 rounded-md flex flex-col flex-1 bg-zinc-50 font-sans dark:bg-black overflow-hidden">
+      <main>
         <Room />
       </main>
     </div>
-  )
+  );
 }
 
 export default RoomPage;
-
