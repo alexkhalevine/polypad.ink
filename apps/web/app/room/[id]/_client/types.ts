@@ -28,6 +28,7 @@ export interface PlacedBox {
   width: number;
   height: number;
   depth: number;
+  color: string | null;
 }
 
 export interface PlacedCylinder {
@@ -35,10 +36,12 @@ export interface PlacedCylinder {
   center: THREE.Vector3; // (centerX, height/2, centerZ) — sits on ground
   radius: number;
   height: number;
+  color: string | null;
 }
 
 export interface PlacedSphere {
   id: string;
   center: THREE.Vector3; // (centerX, radius, centerZ) — sits on ground
   radius: number;
+  color: string | null;
 }

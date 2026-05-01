@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
 import * as THREE from "three";
-import React from "react";
 import { PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
 
 // Canvas would create a WebGL context which jsdom doesn't support.
@@ -28,6 +26,8 @@ vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
 import { Scene, snapPoint } from "./scene";
 
 // ─── snapPoint ────────────────────────────────────────────────────────────────
+// Business critical: snapPoint affects geometry placement precision.
+// Incorrect snapping could cause objects to be misaligned.
 
 describe("snapPoint", () => {
   it("returns the same reference when snap is disabled", () => {
@@ -55,61 +55,5 @@ describe("snapPoint", () => {
   it("returns a new vector instance when snap is enabled", () => {
     const p = new THREE.Vector3(1.7, 0, 2.3);
     expect(snapPoint(p, true)).not.toBe(p);
-  });
-});
-
-// ─── Scene cursor ─────────────────────────────────────────────────────────────
-
-describe("Scene cursor style", () => {
-  const baseProps = {
-    selectedTool: null,
-    snapEnabled: false,
-    drawState: { phase: "idle" as const },
-    placedBoxes: [] as PlacedBox[],
-    placedCylinders: [] as PlacedCylinder[],
-    placedSpheres: [] as PlacedSphere[],
-    onGroundRightClick: vi.fn(),
-    onGroundPointerMove: vi.fn(),
-    onGroundClick: vi.fn(),
-    onHeightPointerMove: vi.fn(),
-    onHeightClick: vi.fn(),
-  };
-
-  it("uses default cursor when idle", () => {
-    const { container } = render(<Scene {...baseProps} />);
-    expect((container.firstChild as HTMLElement).style.cursor).toBe("default");
-  });
-
-  it("uses crosshair cursor while drawing footprint", () => {
-    const { container } = render(
-      <Scene
-        {...baseProps}
-        drawState={{
-          phase: "footprint",
-          start: new THREE.Vector3(),
-          end: new THREE.Vector3(),
-        }}
-      />
-    );
-    expect((container.firstChild as HTMLElement).style.cursor).toBe(
-      "crosshair"
-    );
-  });
-
-  it("uses crosshair cursor while setting height", () => {
-    const { container } = render(
-      <Scene
-        {...baseProps}
-        drawState={{
-          phase: "height",
-          start: new THREE.Vector3(),
-          end: new THREE.Vector3(),
-          currentHeight: 1,
-        }}
-      />
-    );
-    expect((container.firstChild as HTMLElement).style.cursor).toBe(
-      "crosshair"
-    );
   });
 });

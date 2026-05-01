@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { DrawState, PlacedBox, HeightState } from "./types";
 
@@ -11,11 +11,21 @@ export interface UseBoxDrawReturn {
   handleHeightPointerMove: (worldY: number) => void;
   handleHeightClick: (worldY: number) => void;
   cancelDraw: () => void;
+  rollback: (id: string) => void;
 }
 
-export function useBoxDraw(): UseBoxDrawReturn {
+interface UseBoxDrawOptions {
+  onPlace?: (box: PlacedBox) => void;
+  onRollback?: (id: string) => void;
+}
+
+export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
   const [placedBoxes, setPlacedBoxes] = useState<PlacedBox[]>([]);
+  const onPlaceRef = useRef(options?.onPlace);
+  useEffect(() => {
+    onPlaceRef.current = options?.onPlace;
+  }, [options?.onPlace]);
 
   const handleGroundRightClick = useCallback((point: THREE.Vector3) => {
     setDrawState({
@@ -65,10 +75,16 @@ export function useBoxDraw(): UseBoxDrawReturn {
         width: Math.max(0.01, Math.abs(prev.end.x - prev.start.x)),
         height,
         depth: Math.max(0.01, Math.abs(prev.end.z - prev.start.z)),
+        color: null,
       };
       setPlacedBoxes((boxes) => [...boxes, box]);
+      onPlaceRef.current?.(box);
       return { phase: "idle" };
     });
+  }, []);
+
+  const rollback = useCallback((id: string) => {
+    setPlacedBoxes((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
   const cancelDraw = useCallback(() => {
@@ -84,5 +100,6 @@ export function useBoxDraw(): UseBoxDrawReturn {
     handleHeightPointerMove,
     handleHeightClick,
     cancelDraw,
+    rollback,
   };
 }

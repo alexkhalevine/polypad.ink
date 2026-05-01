@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { DrawState, PlacedSphere } from "./types";
 
@@ -15,11 +15,20 @@ export interface UseSphereDrawReturn {
   handleHeightPointerMove: (worldY: number) => void;
   handleHeightClick: (worldY: number) => void;
   cancelDraw: () => void;
+  rollback: (id: string) => void;
 }
 
-export function useSphereDraw(): UseSphereDrawReturn {
+interface UseSphereDrawOptions {
+  onPlace?: (sphere: PlacedSphere) => void;
+}
+
+export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
   const [placedSpheres, setPlacedSpheres] = useState<PlacedSphere[]>([]);
+  const onPlaceRef = useRef(options?.onPlace);
+  useEffect(() => {
+    onPlaceRef.current = options?.onPlace;
+  }, [options?.onPlace]);
 
   const handleGroundRightClick = useCallback((point: THREE.Vector3) => {
     setDrawState({
@@ -45,14 +54,20 @@ export function useSphereDraw(): UseSphereDrawReturn {
         id: crypto.randomUUID(),
         center: new THREE.Vector3(prev.start.x, radius, prev.start.z),
         radius,
+        color: null,
       };
       setPlacedSpheres((ss) => [...ss, sphere]);
+      onPlaceRef.current?.(sphere);
       return { phase: "idle" };
     });
   }, []);
 
   const handleHeightPointerMove = useCallback(() => {}, []);
   const handleHeightClick = useCallback(() => {}, []);
+
+  const rollback = useCallback((id: string) => {
+    setPlacedSpheres((prev) => prev.filter((s) => s.id !== id));
+  }, []);
 
   const cancelDraw = useCallback(() => {
     setDrawState({ phase: "idle" });
@@ -67,5 +82,6 @@ export function useSphereDraw(): UseSphereDrawReturn {
     handleHeightPointerMove,
     handleHeightClick,
     cancelDraw,
+    rollback,
   };
 }

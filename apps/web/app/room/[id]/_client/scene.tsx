@@ -71,15 +71,21 @@ export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
 interface SceneProps {
   selectedTool: ToolType | null;
   snapEnabled: boolean;
+  wireframeEnabled: boolean;
   drawState: DrawState;
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  selectedObjectId: string | null;
+  hoveredObjectId: string | null;
+  selectionMode: "draw" | "select";
   onGroundRightClick: (point: THREE.Vector3) => void;
   onGroundPointerMove: (point: THREE.Vector3) => void;
   onGroundClick: (point: THREE.Vector3) => void;
   onHeightPointerMove: (worldY: number) => void;
   onHeightClick: (worldY: number) => void;
+  onObjectClick: (objectId: string) => void;
+  onObjectHover: (objectId: string | null) => void;
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
@@ -87,15 +93,21 @@ interface SceneProps {
 function SceneContent({
   selectedTool,
   snapEnabled,
+  wireframeEnabled,
   drawState,
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  selectedObjectId,
+  hoveredObjectId,
+  selectionMode,
   onGroundRightClick,
   onGroundPointerMove,
   onGroundClick,
   onHeightPointerMove,
   onHeightClick,
+  onObjectClick,
+  onObjectHover,
 }: SceneProps) {
   const heightAnchorX =
     drawState.phase === "height"
@@ -144,13 +156,43 @@ function SceneContent({
       {selectedTool === "sphere" && <PreviewSphere drawState={drawState} />}
 
       {placedBoxes.map((box) => (
-        <PlacedBoxMesh key={box.id} box={box} />
+        <PlacedBoxMesh
+          key={box.id}
+          box={box}
+          color={box.color}
+          isSelected={box.id === selectedObjectId}
+          isHovered={selectionMode === "select" && box.id === hoveredObjectId}
+          wireframe={wireframeEnabled}
+          onClick={() => { if (selectionMode === "select") onObjectClick(box.id); }}
+          onPointerEnter={() => { if (selectionMode === "select") onObjectHover(box.id); }}
+          onPointerLeave={() => { if (selectionMode === "select") onObjectHover(null); }}
+        />
       ))}
       {placedCylinders.map((cylinder) => (
-        <PlacedCylinderMesh key={cylinder.id} cylinder={cylinder} />
+        <PlacedCylinderMesh
+          key={cylinder.id}
+          cylinder={cylinder}
+          color={cylinder.color}
+          isSelected={cylinder.id === selectedObjectId}
+          isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
+          wireframe={wireframeEnabled}
+          onClick={() => { if (selectionMode === "select") onObjectClick(cylinder.id); }}
+          onPointerEnter={() => { if (selectionMode === "select") onObjectHover(cylinder.id); }}
+          onPointerLeave={() => { if (selectionMode === "select") onObjectHover(null); }}
+        />
       ))}
       {placedSpheres.map((sphere) => (
-        <PlacedSphereMesh key={sphere.id} sphere={sphere} />
+        <PlacedSphereMesh
+          key={sphere.id}
+          sphere={sphere}
+          color={sphere.color}
+          isSelected={sphere.id === selectedObjectId}
+          isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
+          wireframe={wireframeEnabled}
+          onClick={() => { if (selectionMode === "select") onObjectClick(sphere.id); }}
+          onPointerEnter={() => { if (selectionMode === "select") onObjectHover(sphere.id); }}
+          onPointerLeave={() => { if (selectionMode === "select") onObjectHover(null); }}
+        />
       ))}
     </>
   );

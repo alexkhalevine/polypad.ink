@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { DrawState, PlacedCylinder, HeightState } from "./types";
 
@@ -15,11 +15,20 @@ export interface UseCylinderDrawReturn {
   handleHeightPointerMove: (worldY: number) => void;
   handleHeightClick: (worldY: number) => void;
   cancelDraw: () => void;
+  rollback: (id: string) => void;
 }
 
-export function useCylinderDraw(): UseCylinderDrawReturn {
+interface UseCylinderDrawOptions {
+  onPlace?: (cylinder: PlacedCylinder) => void;
+}
+
+export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
   const [placedCylinders, setPlacedCylinders] = useState<PlacedCylinder[]>([]);
+  const onPlaceRef = useRef(options?.onPlace);
+  useEffect(() => {
+    onPlaceRef.current = options?.onPlace;
+  }, [options?.onPlace]);
 
   const handleGroundRightClick = useCallback((point: THREE.Vector3) => {
     setDrawState({
@@ -65,10 +74,16 @@ export function useCylinderDraw(): UseCylinderDrawReturn {
         center: new THREE.Vector3(prev.start.x, height / 2, prev.start.z),
         radius,
         height,
+        color: null,
       };
       setPlacedCylinders((cs) => [...cs, cylinder]);
+      onPlaceRef.current?.(cylinder);
       return { phase: "idle" };
     });
+  }, []);
+
+  const rollback = useCallback((id: string) => {
+    setPlacedCylinders((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
   const cancelDraw = useCallback(() => {
@@ -84,5 +99,6 @@ export function useCylinderDraw(): UseCylinderDrawReturn {
     handleHeightPointerMove,
     handleHeightClick,
     cancelDraw,
+    rollback,
   };
 }

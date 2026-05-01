@@ -4,7 +4,20 @@ import * as THREE from "three";
 import { useMemo } from "react";
 import { PlacedCylinder } from "@/app/room/[id]/_client/types";
 
-export function PlacedCylinderMesh({ cylinder }: { cylinder: PlacedCylinder }) {
+interface PlacedCylinderMeshProps {
+  cylinder: PlacedCylinder;
+  color?: string | null;
+  isSelected?: boolean;
+  isHovered?: boolean;
+  wireframe?: boolean;
+  onClick?: () => void;
+  onPointerEnter?: () => void;
+  onPointerLeave?: () => void;
+}
+
+const DEFAULT_COLOR = "#2f74c0";
+
+export function PlacedCylinderMesh({ cylinder, color, isSelected, isHovered, wireframe, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
   const geo = useMemo(
     () => new THREE.CylinderGeometry(cylinder.radius, cylinder.radius, cylinder.height, 32),
     [cylinder.radius, cylinder.height]
@@ -12,12 +25,12 @@ export function PlacedCylinderMesh({ cylinder }: { cylinder: PlacedCylinder }) {
 
   return (
     <group position={[cylinder.center.x, cylinder.center.y, cylinder.center.z]}>
-      <mesh geometry={geo}>
-        <meshStandardMaterial color="#2f74c0" />
+      <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
       </mesh>
       <lineSegments>
         <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color="#1a3a5c" />
+        <lineBasicMaterial color={isSelected || isHovered ? "#ffffff" : "#1a3a5c"} />
       </lineSegments>
     </group>
   );
