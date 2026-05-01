@@ -14,9 +14,9 @@ CMD ["pnpm", "--filter", "server", "dev"]
 FROM base AS prod
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/server/package.json ./apps/server/
-RUN pnpm install --prod=false
+RUN CI=true pnpm install --prod=false
 COPY . .
 RUN pnpm --filter server build
-RUN pnpm install --prod
+RUN CI=true pnpm install --prod
 EXPOSE 4000
 CMD ["node", "apps/server/dist/index.js"]
