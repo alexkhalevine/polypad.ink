@@ -32,11 +32,19 @@ export const Room = () => {
         boxDraw.cancelDraw();
         cylinderDraw.cancelDraw();
         sphereDraw.cancelDraw();
+        setSelectedTool(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw]);
+  }, [
+    boxDraw,
+    boxDraw.cancelDraw,
+    cylinderDraw,
+    cylinderDraw.cancelDraw,
+    sphereDraw,
+    sphereDraw.cancelDraw,
+  ]);
 
   const activeDraw =
     selectedTool === "box"
@@ -49,6 +57,16 @@ export const Room = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col">
+      <div className={`p-4 ${selectedTool ? "" : "hidden"}`} id="help-text-container">
+        <div className="status status-info animate-bounce"></div>{" "}
+        <span id="help-text">
+          {activeDraw?.drawState.phase === "height"
+            ? "drag mouse to define the height of the primitive, left click to confirm"
+            : activeDraw?.drawState.phase === "footprint"
+              ? "drag the mouse to define the geometry base, left click to confirm"
+              : "click right mouse button somewhere on the ground plate to start drawing, left click to place the primitive"}
+        </span>
+      </div>
       <div className="flex-1">
         <Scene
           selectedTool={selectedTool}

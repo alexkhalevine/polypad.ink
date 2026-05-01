@@ -35,15 +35,14 @@ export const Menu = ({
         ))}
       </div>
       <div id="snap-controls">
-        <div id="snap-to-grid">
-          <span>{`snap to grid: ${snapEnabled ? "on" : "off"}`}</span>
-          <button
-            id="snap-btn"
-            onClick={onSnapToggle}
-            className={`px-2 py-5 text-black ${snapEnabled ? "bg-green-400" : "bg-red-500"}`}
-          >
-            snap to grid
-          </button>
+        <div id="snap-to-grid" className="flex items-center gap-2">
+          <span>snap to grid</span>
+          <input
+            type="checkbox"
+            checked={snapEnabled}
+            onChange={onSnapToggle}
+            className="toggle"
+          />
         </div>
       </div>
     </div>
