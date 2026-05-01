@@ -1,4 +1,5 @@
-FROM node:22-alpine AS base
+FROM node:22-slim AS base
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 RUN npm i -g pnpm
 WORKDIR /app
 
@@ -17,7 +18,7 @@ COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
 RUN pnpm install --prod=false
 COPY . .
-RUN pnpm --filter @polypad/shared build && pnpm --filter server build
+RUN pnpm --filter server build
 RUN pnpm install --prod
 EXPOSE 4000
 CMD ["node", "apps/server/dist/index.js"]
