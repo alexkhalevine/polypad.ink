@@ -100,10 +100,10 @@ function wireToInsert(roomId: string, body: WireObject): NewObject {
   }
 }
 
-router.get("/:id/objects", (req, res) => {
+router.get("/:id/objects", async (req, res) => {
   const { id } = req.params;
 
-  const rows = db
+  const rows = await db
     .select()
     .from(geometryObjects)
     .where(eq(geometryObjects.roomId, id))
@@ -134,7 +134,7 @@ router.get("/:id/objects", (req, res) => {
   res.json(response);
 });
 
-router.post("/:id/objects", (req, res) => {
+router.post("/:id/objects", async (req, res) => {
   const { id } = req.params;
   const body = req.body as WireObject;
 
@@ -144,9 +144,9 @@ router.post("/:id/objects", (req, res) => {
   }
 
   // Ensure room exists before inserting geometry object
-  db.insert(rooms).values({ id, name: `Room ${id}` }).onConflictDoNothing().run();
+  await db.insert(rooms).values({ id, name: `Room ${id}` }).onConflictDoNothing().run();
 
-  const currentCount = db
+  const currentCount = await db
     .select({ count: count() })
     .from(geometryObjects)
     .where(eq(geometryObjects.roomId, id))
@@ -159,12 +159,12 @@ router.post("/:id/objects", (req, res) => {
     return;
   }
 
-  db.insert(geometryObjects).values(wireToInsert(id, body)).run();
+  await db.insert(geometryObjects).values(wireToInsert(id, body)).run();
 
   res.status(201).json({ ok: true });
 });
 
-router.patch("/:id/objects/:objectId", (req, res) => {
+router.patch("/:id/objects/:objectId", async (req, res) => {
   const { objectId } = req.params;
   const { color } = req.body as { color: string };
 
@@ -175,14 +175,14 @@ router.patch("/:id/objects/:objectId", (req, res) => {
     return;
   }
 
-  const existing = db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
+  const existing = await db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
 
   if (!existing) {
     res.status(404).json({ error: "Object not found" });
     return;
   }
 
-  db.update(geometryObjects).set({ color }).where(eq(geometryObjects.id, objectId)).run();
+  await db.update(geometryObjects).set({ color }).where(eq(geometryObjects.id, objectId)).run();
 
   res.json({ ok: true });
 });

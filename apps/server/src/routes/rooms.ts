@@ -5,12 +5,12 @@ import { rooms } from "../schema.js";
 
 const router = Router();
 
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
-  db.insert(rooms).values({ id, name: `Room ${id}` }).onConflictDoNothing().run();
+  await db.insert(rooms).values({ id, name: `Room ${id}` }).onConflictDoNothing().run();
 
-  const row = db.select().from(rooms).where(eq(rooms.id, id)).get();
+  const row = await db.select().from(rooms).where(eq(rooms.id, id)).get();
 
   if (!row) {
     res.status(404).json({ error: "Room not found" });

@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import "./db.js"; // initialize db on startup
+import { initDb, saveDb } from "./db.js"; // initialize db on startup
 import roomsRouter from "./routes/rooms.js";
 import geometryObjectsRouter from "./routes/geometryObjects.js";
 import { rateLimitMiddleware } from "./middleware/rateLimit.js";
@@ -17,6 +17,21 @@ app.use(rateLimitMiddleware);
 app.use("/rooms", roomsRouter);
 app.use("/rooms", geometryObjectsRouter);
 
-app.listen(PORT, () => {
-  console.log(`listening on ${PORT}`);
+// Graceful shutdown to save DB
+process.on("SIGINT", () => {
+  saveDb();
+  process.exit(0);
 });
+process.on("SIGTERM", () => {
+  saveDb();
+  process.exit(0);
+});
+
+async function start() {
+  await initDb();
+  app.listen(PORT, () => {
+    console.log(`listening on ${PORT}`);
+  });
+}
+
+start();
