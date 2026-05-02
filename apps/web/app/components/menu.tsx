@@ -32,6 +32,8 @@ export const Menu = ({
   onMouseUpColorPicked,
   moveEnabled,
   onMoveClick,
+  livePosition,
+  onPositionCommit,
 }: {
   selectedTool: ToolType | null;
   onToolSelect: (tool: ToolType) => void;
@@ -47,10 +49,35 @@ export const Menu = ({
   onMouseUpColorPicked: () => void;
   moveEnabled: boolean;
   onMoveClick: () => void;
+  livePosition: { x: number; y: number; z: number } | null;
+  onPositionCommit: (x: number, y: number, z: number) => void;
 }) => {
   return (
     <div className="flex justify-between w-full items-end p-4 bg-indigo-600/25">
       <div className="flex flex-col gap-4">
+        {moveEnabled && livePosition && (
+          <div className="flex gap-2 items-center">
+            {(["x", "y", "z"] as const).map((axis) => (
+              <div key={axis} className="flex flex-col items-center">
+                <span className="text-xs text-blue-700 uppercase">{axis}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={livePosition[axis].toFixed(2)}
+                  onChange={(e) =>
+                    onPositionCommit(
+                      axis === "x" ? parseFloat(e.target.value) : livePosition.x,
+                      axis === "y" ? parseFloat(e.target.value) : livePosition.y,
+                      axis === "z" ? parseFloat(e.target.value) : livePosition.z
+                    )
+                  }
+                  onBlur={() => onPositionCommit(livePosition.x, livePosition.y, livePosition.z)}
+                  className="input input-bordered input-sm w-20 text-center text-blue-700 font-mono"
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-8">
           {objectOperationItems.map((item) => (
             <button

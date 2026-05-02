@@ -41,6 +41,7 @@ export const Room = () => {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [transforming, setTransforming] = useState(false);
+  const [livePositions, setLivePositions] = useState<Record<string, { x: number; y: number; z: number }>>({});
 
   const { data: serverObjects } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
@@ -105,11 +106,12 @@ export const Room = () => {
   };
 
   const handleObjectMove = (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
+    const pos = { x: newPosition.x, y: newPosition.y, z: newPosition.z };
     if (persist) {
-      updateObjectPosition.mutate({
-        objectId,
-        position: { x: newPosition.x, y: newPosition.y, z: newPosition.z },
-      });
+      updateObjectPosition.mutate({ objectId, position: pos });
+      setLivePositions((prev) => ({ ...prev, [objectId]: pos }));
+    } else {
+      setLivePositions((prev) => ({ ...prev, [objectId]: pos }));
     }
   };
 
@@ -173,6 +175,21 @@ export const Room = () => {
     ? `X: ${selectedObject.center.x.toFixed(2)}, Y: ${selectedObject.center.y.toFixed(2)}, Z: ${selectedObject.center.z.toFixed(2)}`
     : null;
 
+  const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
+
+  const handlePositionCommit = (x: number, y: number, z: number) => {
+    if (selectedObjectId) {
+      updateObjectPosition.mutate({
+        objectId: selectedObjectId,
+        position: { x, y, z },
+      });
+      setLivePositions((prev) => ({
+        ...prev,
+        [selectedObjectId]: { x, y, z },
+      }));
+    }
+  };
+
   return (
     <>
       {(selectedTool || showSelectHelp || showObjectSelected) && (
@@ -235,6 +252,8 @@ export const Room = () => {
             onMouseUpColorPicked={onMouseUpColorPicked}
             moveEnabled={!!selectedObjectId}
             onMoveClick={() => setSelectedTool("move")}
+            livePosition={livePosition}
+            onPositionCommit={handlePositionCommit}
           />
         </div>
       </div>

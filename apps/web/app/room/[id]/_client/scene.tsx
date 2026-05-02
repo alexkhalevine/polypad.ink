@@ -97,6 +97,7 @@ function TransformGizmo({
     if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
     const pos = transformRef.current.object?.position;
     if (pos) {
+      pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos.clone(), false);
     }
     // Track dragging state
@@ -115,6 +116,7 @@ function TransformGizmo({
     if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
     const pos = transformRef.current.object?.position;
     if (pos) {
+      pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos.clone(), true);
     }
     draggingRef.current = false;
