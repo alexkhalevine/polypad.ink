@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere";
+export type ToolType = "box" | "cylinder" | "sphere" | "move";
 export type DrawPhase = "idle" | "footprint" | "height";
 
 export interface IdleState {

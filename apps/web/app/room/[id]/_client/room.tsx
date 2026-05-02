@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import * as THREE from "three";
 import { useParams } from "next/navigation";
 import { Menu } from "@/app/components/menu";
 import { Scene } from "./scene";
@@ -17,11 +18,13 @@ import {
 import { useRoomObjects } from "./queries/use-room-objects";
 import { usePlaceObject } from "./queries/use-place-object";
 import { useUpdateObjectColor } from "./queries/use-update-object-color";
+import { useUpdateObjectPosition } from "./queries/use-update-object-position";
 import {
   toWireBox,
   toWireCylinder,
   toWireSphere,
 } from "./queries/wire-converters";
+import { getHelpText } from "@/app/utils";
 
 const idleState: DrawState = { phase: "idle" };
 const noop = () => {};
@@ -37,10 +40,12 @@ export const Room = () => {
   const [selectionMode, setSelectionMode] = useState<"draw" | "select">("draw");
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
+  const [transforming, setTransforming] = useState(false);
 
   const { data: serverObjects } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
+  const updateObjectPosition = useUpdateObjectPosition(roomId);
 
   const handleBoxPlace = (box: PlacedBox) => {
     placeObject.mutate(
@@ -99,6 +104,19 @@ export const Room = () => {
     setSelectedColor(color);
   };
 
+  const handleObjectMove = (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
+    if (persist) {
+      updateObjectPosition.mutate({
+        objectId,
+        position: { x: newPosition.x, y: newPosition.y, z: newPosition.z },
+      });
+    }
+  };
+
+  const handleTransformingChange = (isTransforming: boolean) => {
+    setTransforming(isTransforming);
+  };
+
   const onMouseUpColorPicked = () => {
     if (selectedObjectId) {
       updateObjectColor.mutate({
@@ -149,69 +167,73 @@ export const Room = () => {
     : null;
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <>
       {(selectedTool || showSelectHelp || showObjectSelected) && (
-        <div className="p-4" id="help-text-container">
+        <div className="p-4 absolute z-10 text-blue-200" id="help-text-container">
           <div className="status status-info animate-bounce"></div>{" "}
-          <span id="help-text">
-            {activeDraw?.drawState.phase === "height"
-              ? "drag mouse to define the height of the primitive, left click to confirm"
-              : activeDraw?.drawState.phase === "footprint"
-                ? "drag the mouse to define the geometry base, left click to confirm"
-                : showSelectHelp
-                  ? "select object you like to edit"
-                  : showObjectSelected
-                    ? `object selected ${selectedObjectCoords}`
-                    : "click right mouse button somewhere on the ground plate to start drawing, left click to place the primitive"}
+          <span id="help-text" className="text-sm">
+            {getHelpText({
+              phase: activeDraw?.drawState.phase,
+              showSelectHelp: !!showSelectHelp,
+              showObjectSelected: !!showObjectSelected,
+              selectedObjectCoords,
+              selectedTool,
+            })}
           </span>
         </div>
       )}
-      {(updateObjectColor.isPending || placeObject.isPending) && (
-        <div className="absolute top-4 right-4">
-          <span className="loading loading-spinner loading-xs"></span>
+      <div className="relative w-full h-full flex flex-col">
+        {(updateObjectColor.isPending || placeObject.isPending) && (
+          <div className="absolute top-4 right-4">
+            <span className="loading loading-spinner loading-xs"></span>
+          </div>
+        )}
+        <div className="flex-1">
+          <Scene
+            selectedTool={selectedTool}
+            snapEnabled={snapEnabled}
+            wireframeEnabled={wireframeEnabled}
+            drawState={activeDraw?.drawState ?? idleState}
+            placedBoxes={[...serverBoxes, ...boxDraw.placedBoxes]}
+            placedCylinders={[
+              ...serverCylinders,
+              ...cylinderDraw.placedCylinders,
+            ]}
+            placedSpheres={[...serverSpheres, ...sphereDraw.placedSpheres]}
+            selectedObjectId={selectedObjectId}
+            hoveredObjectId={hoveredObjectId}
+            selectionMode={selectionMode}
+            onGroundRightClick={activeDraw?.handleGroundRightClick ?? noop}
+            onGroundPointerMove={activeDraw?.handleGroundPointerMove ?? noop}
+            onGroundClick={activeDraw?.handleGroundClick ?? noop}
+            onHeightPointerMove={activeDraw?.handleHeightPointerMove ?? noop}
+            onHeightClick={activeDraw?.handleHeightClick ?? noop}
+            onObjectClick={handleObjectClick}
+            onObjectHover={handleObjectHover}
+            onObjectMove={handleObjectMove}
+            transforming={transforming}
+          />
         </div>
-      )}
-      <div className="flex-1">
-        <Scene
-          selectedTool={selectedTool}
-          snapEnabled={snapEnabled}
-          wireframeEnabled={wireframeEnabled}
-          drawState={activeDraw?.drawState ?? idleState}
-          placedBoxes={[...serverBoxes, ...boxDraw.placedBoxes]}
-          placedCylinders={[
-            ...serverCylinders,
-            ...cylinderDraw.placedCylinders,
-          ]}
-          placedSpheres={[...serverSpheres, ...sphereDraw.placedSpheres]}
-          selectedObjectId={selectedObjectId}
-          hoveredObjectId={hoveredObjectId}
-          selectionMode={selectionMode}
-          onGroundRightClick={activeDraw?.handleGroundRightClick ?? noop}
-          onGroundPointerMove={activeDraw?.handleGroundPointerMove ?? noop}
-          onGroundClick={activeDraw?.handleGroundClick ?? noop}
-          onHeightPointerMove={activeDraw?.handleHeightPointerMove ?? noop}
-          onHeightClick={activeDraw?.handleHeightClick ?? noop}
-          onObjectClick={handleObjectClick}
-          onObjectHover={handleObjectHover}
-        />
-      </div>
 
-      <div className="absolute bottom-0 left-0 right-0 flex justify-center">
-        <Menu
-          selectedTool={selectedTool}
-          onToolSelect={handleToolSelect}
-          snapEnabled={snapEnabled}
-          onSnapToggle={() => setSnapEnabled((v) => !v)}
-          wireframeEnabled={wireframeEnabled}
-          onWireframeToggle={() => setWireframeEnabled((v) => !v)}
-          selectionMode={selectionMode}
-          onSelectClick={handleSelectClick}
-          colorPickerEnabled={!!selectedObjectId}
-          currentColor={selectedObject?.color ?? "#2f74c0"}
-          onColorChange={handleColorChange}
-          onMouseUpColorPicked={onMouseUpColorPicked}
-        />
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center">
+          <Menu
+            selectedTool={selectedTool}
+            onToolSelect={handleToolSelect}
+            snapEnabled={snapEnabled}
+            onSnapToggle={() => setSnapEnabled((v) => !v)}
+            wireframeEnabled={wireframeEnabled}
+            onWireframeToggle={() => setWireframeEnabled((v) => !v)}
+            selectionMode={selectionMode}
+            onSelectClick={handleSelectClick}
+            colorPickerEnabled={!!selectedObjectId}
+            currentColor={selectedObject?.color ?? "#2f74c0"}
+            onColorChange={handleColorChange}
+            onMouseUpColorPicked={onMouseUpColorPicked}
+            moveEnabled={!!selectedObjectId}
+            onMoveClick={() => setSelectedTool("move")}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };

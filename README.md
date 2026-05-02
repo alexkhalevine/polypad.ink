@@ -23,55 +23,21 @@ pnpm install
 
 ## Running locally
 
-### Web only (no server required)
-
-The web app runs standalone with in-memory data — no backend setup needed:
+The web app runs with:
 
 ```sh
-pnpm dev:web
+pnpm --filter web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-### Full stack with Docker (web + server)
-
-Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
-
-```sh
-pnpm dev
-```
-
-This starts:
-- **Web** at [http://localhost:3000](http://localhost:3000)
-- **Server** at [http://localhost:4000](http://localhost:4000)
-
-### Full stack without Docker (web + server)
-
-Run the server and web app directly on your machine — no Docker required.
-
-**1. Build the native SQLite addon** (once, after `pnpm install`):
-
-```sh
-cd node_modules/.pnpm/better-sqlite3@12.9.0/node_modules/better-sqlite3 && npm run build-release && cd -
-```
-
-This compiles `better-sqlite3` for your local Node.js version. Only needed once per machine; re-run if you upgrade Node.
-
-**2. Start the server:**
+Open [http://localhost:3000](http://localhost:3000). And start server with
 
 ```sh
 pnpm --filter server dev
 ```
 
-The server starts at [http://localhost:4000](http://localhost:4000) and creates a SQLite database at `apps/server/data/dev.sqlite` by default.
-
-**2. Start the web app** (in a separate terminal):
-
-```sh
-pnpm dev:web
-```
-
-The web app opens at [http://localhost:3000](http://localhost:3000) and will connect to the server automatically.
+This starts:
+- **Web** at [http://localhost:3000](http://localhost:3000)
+- **Server** at [http://localhost:4000](http://localhost:4000)
 
 **Environment variables** (all optional — defaults shown):
 
@@ -80,12 +46,6 @@ The web app opens at [http://localhost:3000](http://localhost:3000) and will con
 | `PORT` | `4000` | Server HTTP port |
 | `WEB_ORIGIN` | `http://localhost:3000` | CORS allowed origin |
 | `DB_PATH` | `data/dev.sqlite` | SQLite file path (relative to `apps/server/`) |
-
-To override, set them before the command or use a `.env` file in `apps/server/`:
-
-```sh
-PORT=4001 DB_PATH=data/local.sqlite pnpm --filter server dev
-```
 
 ## Project structure
 
@@ -105,4 +65,6 @@ pnpm --filter web test
 
 ## Few project details:
 
+- nextjs for UI
+- express for API server
 - we use daisyUI for UI components

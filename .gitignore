@@ -67,3 +67,4 @@ temp/
 *.pid
 *.seed
 .deployment
+redeploy.sh

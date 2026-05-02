@@ -4,6 +4,7 @@ import * as THREE from "three";
 import React, { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "@react-three/drei";
 import { DrawState, DrawPhase, PlacedBox, PlacedCylinder, PlacedSphere, ToolType } from "./types";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
@@ -29,7 +30,7 @@ function ContextMenuBlocker() {
 
 // ─── Orbit controls ───────────────────────────────────────────────────────────
 
-function CameraControls({ phase }: { phase: DrawPhase }) {
+function CameraControls({ phase, orbitEnabled }: { phase: DrawPhase; orbitEnabled: boolean }) {
   const { camera, gl } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
 
@@ -48,15 +49,87 @@ function CameraControls({ phase }: { phase: DrawPhase }) {
 
   useEffect(() => {
     if (controlsRef.current) {
-      controlsRef.current.enabled = phase === "idle";
+      controlsRef.current.enabled = orbitEnabled && phase === "idle";
     }
-  }, [phase]);
+  }, [phase, orbitEnabled]);
 
   useFrame(() => {
     controlsRef.current?.update();
   });
 
   return null;
+}
+
+// ─── Transform Controls (for move tool) ──────────────────────────────────────
+
+function TransformGizmo({
+  selectedObjectId,
+  placedBoxes,
+  placedCylinders,
+  placedSpheres,
+  onObjectMove,
+  onTransforming,
+}: {
+  selectedObjectId: string | null;
+  placedBoxes: PlacedBox[];
+  placedCylinders: PlacedCylinder[];
+  placedSpheres: PlacedSphere[];
+  onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
+  onTransforming?: (isTransforming: boolean) => void;
+}) {
+  const { camera, gl } = useThree();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transformRef = useRef<any>(null);
+
+  // Find the selected object
+  const allObjects = [
+    ...placedBoxes.map((b) => ({ id: b.id, center: b.center })),
+    ...placedCylinders.map((c) => ({ id: c.id, center: c.center })),
+    ...placedSpheres.map((s) => ({ id: s.id, center: s.center })),
+  ];
+
+  const selected = selectedObjectId
+    ? allObjects.find((o) => o.id === selectedObjectId)
+    : null;
+
+  const handleChange = () => {
+    if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
+    const pos = transformRef.current.object?.position;
+    if (pos) {
+      onObjectMove(selectedObjectId, pos.clone(), false);
+    }
+    // Check if dragging started and disable orbit
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isDragging = (transformRef.current as any).dragging;
+    if (isDragging && onTransforming) {
+      onTransforming(true);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
+    const pos = transformRef.current.object?.position;
+    if (pos) {
+      onObjectMove(selectedObjectId, pos.clone(), true);
+    }
+    if (onTransforming) {
+      onTransforming(false);
+    }
+  };
+
+  if (!selected) return null;
+
+  return (
+    <TransformControls
+      ref={transformRef}
+      camera={camera}
+      domElement={gl.domElement}
+      mode="translate"
+      position={[selected.center.x, selected.center.y, selected.center.z]}
+      onChange={handleChange}
+      onMouseUp={handleMouseUp}
+    />
+  );
 }
 
 // ─── Snap utility ─────────────────────────────────────────────────────────────
@@ -86,6 +159,9 @@ interface SceneProps {
   onHeightClick: (worldY: number) => void;
   onObjectClick: (objectId: string) => void;
   onObjectHover: (objectId: string | null) => void;
+  onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
+  onTransforming?: (isTransforming: boolean) => void;
+  transforming?: boolean;
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
@@ -108,6 +184,9 @@ function SceneContent({
   onHeightClick,
   onObjectClick,
   onObjectHover,
+  onObjectMove,
+  onTransforming,
+  transforming,
 }: SceneProps) {
   const heightAnchorX =
     drawState.phase === "height"
@@ -121,7 +200,7 @@ function SceneContent({
   return (
     <>
       <ContextMenuBlocker />
-      <CameraControls phase={drawState.phase} />
+      <CameraControls phase={drawState.phase} orbitEnabled={!transforming} />
 
       <ambientLight intensity={Math.PI / 2} />
       <spotLight
@@ -134,6 +213,17 @@ function SceneContent({
       <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} />
 
       <primitive object={new THREE.GridHelper(20, 20, "#444", "#333")} />
+
+      {selectedTool === "move" && (
+        <TransformGizmo
+          selectedObjectId={selectedObjectId}
+          placedBoxes={placedBoxes}
+          placedCylinders={placedCylinders}
+          placedSpheres={placedSpheres}
+          onObjectMove={onObjectMove}
+          onTransforming={onTransforming}
+        />
+      )}
 
       <GroundPlane
         phase={drawState.phase}
@@ -207,7 +297,7 @@ export function Scene(props: SceneProps) {
     <div className="w-full h-full" style={{ cursor }}>
       <Canvas
         camera={{ position: [5, 5, 8], fov: 50 }}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", background: "#1a1a1a" }}
       >
         <SceneContent {...props} />
       </Canvas>

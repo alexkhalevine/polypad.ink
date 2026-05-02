@@ -166,14 +166,7 @@ router.post("/:id/objects", async (req, res) => {
 
 router.patch("/:id/objects/:objectId", async (req, res) => {
   const { objectId } = req.params;
-  const { color } = req.body as { color: string };
-
-  // Validate hex color format (#RGB or #RRGGBB)
-  const hexColorRegex = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
-  if (!color || typeof color !== "string" || !hexColorRegex.test(color)) {
-    res.status(400).json({ error: "Invalid color format: must be a valid hex color (e.g., #fff or #ffffff)" });
-    return;
-  }
+  const body = req.body as { color?: string; center?: { x: number; y: number; z: number } };
 
   const existing = await db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
 
@@ -182,7 +175,30 @@ router.patch("/:id/objects/:objectId", async (req, res) => {
     return;
   }
 
-  await db.update(geometryObjects).set({ color }).where(eq(geometryObjects.id, objectId)).run();
+  const updates: Partial<ObjectRow> = {};
+
+  if (body.color !== undefined) {
+    // Validate hex color format (#RGB or #RRGGBB)
+    const hexColorRegex = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
+    if (typeof body.color !== "string" || !hexColorRegex.test(body.color)) {
+      res.status(400).json({ error: "Invalid color format: must be a valid hex color (e.g., #fff or #ffffff)" });
+      return;
+    }
+    updates.color = body.color;
+  }
+
+  if (body.center !== undefined) {
+    updates.cx = body.center.x;
+    updates.cy = body.center.y;
+    updates.cz = body.center.z;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid update fields provided" });
+    return;
+  }
+
+  await db.update(geometryObjects).set(updates).where(eq(geometryObjects.id, objectId)).run();
 
   res.json({ ok: true });
 });
