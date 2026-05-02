@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useParams } from "next/navigation";
 import { Menu } from "@/app/components/menu";
@@ -113,12 +113,8 @@ export const Room = () => {
     }
   };
 
-  const handleTransformingChange = (isTransforming: boolean) => {
-    setTransforming(isTransforming);
-  };
-
   const onMouseUpColorPicked = () => {
-    if (selectedObjectId) {
+    if (selectedObjectId && selectedObject?.color !== selectedColor) {
       updateObjectColor.mutate({
         objectId: selectedObjectId,
         color: selectedColor,
@@ -126,8 +122,7 @@ export const Room = () => {
     }
   };
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
       if (e.key === "Escape") {
         boxDraw.cancelDraw();
         cylinderDraw.cancelDraw();
@@ -136,10 +131,13 @@ export const Room = () => {
         setSelectedObjectId(null);
         setSelectionMode("draw");
       }
-    };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw]);
+
+  useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw]);
+  }, [onKeyDown]);
 
   const activeDraw =
     selectedTool === "box"
@@ -150,16 +148,25 @@ export const Room = () => {
           ? sphereDraw
           : null;
 
-  const serverBoxes = serverObjects?.boxes ?? [];
-  const serverCylinders = serverObjects?.cylinders ?? [];
-  const serverSpheres = serverObjects?.spheres ?? [];
+  const placedBoxes = useMemo(
+    () => [...(serverObjects?.boxes ?? []), ...boxDraw.placedBoxes],
+    [serverObjects, boxDraw.placedBoxes]
+  );
+  const placedCylinders = useMemo(
+    () => [...(serverObjects?.cylinders ?? []), ...cylinderDraw.placedCylinders],
+    [serverObjects, cylinderDraw.placedCylinders]
+  );
+  const placedSpheres = useMemo(
+    () => [...(serverObjects?.spheres ?? []), ...sphereDraw.placedSpheres],
+    [serverObjects, sphereDraw.placedSpheres]
+  );
 
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;
   const showObjectSelected = selectionMode === "select" && selectedObjectId;
   const selectedObject = [
-    ...serverBoxes,
-    ...serverCylinders,
-    ...serverSpheres,
+    ...placedBoxes,
+    ...placedCylinders,
+    ...placedSpheres,
   ].find((o) => o.id === selectedObjectId);
 
   const selectedObjectCoords = selectedObject
@@ -194,12 +201,9 @@ export const Room = () => {
             snapEnabled={snapEnabled}
             wireframeEnabled={wireframeEnabled}
             drawState={activeDraw?.drawState ?? idleState}
-            placedBoxes={[...serverBoxes, ...boxDraw.placedBoxes]}
-            placedCylinders={[
-              ...serverCylinders,
-              ...cylinderDraw.placedCylinders,
-            ]}
-            placedSpheres={[...serverSpheres, ...sphereDraw.placedSpheres]}
+            placedBoxes={placedBoxes}
+            placedCylinders={placedCylinders}
+            placedSpheres={placedSpheres}
             selectedObjectId={selectedObjectId}
             hoveredObjectId={hoveredObjectId}
             selectionMode={selectionMode}

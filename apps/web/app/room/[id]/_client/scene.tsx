@@ -80,6 +80,7 @@ function TransformGizmo({
   const { camera, gl } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transformRef = useRef<any>(null);
+  const draggingRef = useRef(false);
 
   // Find the selected object
   const allObjects = [
@@ -98,11 +99,15 @@ function TransformGizmo({
     if (pos) {
       onObjectMove(selectedObjectId, pos.clone(), false);
     }
-    // Check if dragging started and disable orbit
+    // Track dragging state
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isDragging = (transformRef.current as any).dragging;
-    if (isDragging && onTransforming) {
+    if (isDragging && !draggingRef.current && onTransforming) {
+      draggingRef.current = true;
       onTransforming(true);
+    } else if (!isDragging && draggingRef.current && onTransforming) {
+      draggingRef.current = false;
+      onTransforming(false);
     }
   };
 
@@ -112,6 +117,7 @@ function TransformGizmo({
     if (pos) {
       onObjectMove(selectedObjectId, pos.clone(), true);
     }
+    draggingRef.current = false;
     if (onTransforming) {
       onTransforming(false);
     }
