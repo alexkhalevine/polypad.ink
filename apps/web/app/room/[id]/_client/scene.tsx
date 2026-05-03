@@ -1,11 +1,10 @@
 "use client";
 
 import * as THREE from "three";
-import React, { useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "@react-three/drei";
-import { DrawState, DrawPhase, PlacedBox, PlacedCylinder, PlacedSphere, ToolType } from "./types";
+import { useEffect, useRef } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { TransformControls, OrbitControls } from "@react-three/drei";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, ToolType } from "./types";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -28,38 +27,6 @@ function ContextMenuBlocker() {
   return null;
 }
 
-// ─── Orbit controls ───────────────────────────────────────────────────────────
-
-function CameraControls({ phase, orbitEnabled }: { phase: DrawPhase; orbitEnabled: boolean }) {
-  const { camera, gl } = useThree();
-  const controlsRef = useRef<OrbitControls | null>(null);
-
-  useEffect(() => {
-    const controls = new OrbitControls(camera, gl.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minPolarAngle = 0;
-    controls.maxPolarAngle = Math.PI / 2;
-    controlsRef.current = controls;
-    return () => {
-      controls.dispose();
-      controlsRef.current = null;
-    };
-  }, [camera, gl.domElement]);
-
-  useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.enabled = orbitEnabled && phase === "idle";
-    }
-  }, [phase, orbitEnabled]);
-
-  useFrame(() => {
-    controlsRef.current?.update();
-  });
-
-  return null;
-}
-
 // ─── Transform Controls (for move tool) ──────────────────────────────────────
 
 function TransformGizmo({
@@ -68,21 +35,17 @@ function TransformGizmo({
   placedCylinders,
   placedSpheres,
   onObjectMove,
-  onTransforming,
 }: {
   selectedObjectId: string | null;
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
-  onTransforming?: (isTransforming: boolean) => void;
 }) {
   const { camera, gl } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transformRef = useRef<any>(null);
-  const draggingRef = useRef(false);
 
-  // Find the selected object
   const allObjects = [
     ...placedBoxes.map((b) => ({ id: b.id, center: b.center })),
     ...placedCylinders.map((c) => ({ id: c.id, center: c.center })),
@@ -100,16 +63,6 @@ function TransformGizmo({
       pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos.clone(), false);
     }
-    // Track dragging state
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isDragging = (transformRef.current as any).dragging;
-    if (isDragging && !draggingRef.current && onTransforming) {
-      draggingRef.current = true;
-      onTransforming(true);
-    } else if (!isDragging && draggingRef.current && onTransforming) {
-      draggingRef.current = false;
-      onTransforming(false);
-    }
   };
 
   const handleMouseUp = () => {
@@ -118,10 +71,6 @@ function TransformGizmo({
     if (pos) {
       pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos.clone(), true);
-    }
-    draggingRef.current = false;
-    if (onTransforming) {
-      onTransforming(false);
     }
   };
 
@@ -147,6 +96,18 @@ export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
   return new THREE.Vector3(Math.round(p.x), p.y, Math.round(p.z));
 }
 
+// ─── Position override helper ──────────────────────────────────────────────────
+
+type PositionOverride = { x: number; y: number; z: number };
+
+function applyPositionOverride(
+  center: THREE.Vector3,
+  positionOverride: PositionOverride | undefined
+): [number, number, number] {
+  if (!positionOverride) return [center.x, center.y, center.z];
+  return [positionOverride.x, positionOverride.y, positionOverride.z];
+}
+
 // ─── Scene props ──────────────────────────────────────────────────────────────
 
 interface SceneProps {
@@ -168,8 +129,7 @@ interface SceneProps {
   onObjectClick: (objectId: string) => void;
   onObjectHover: (objectId: string | null) => void;
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
-  onTransforming?: (isTransforming: boolean) => void;
-  transforming?: boolean;
+  positionOverrides?: Record<string, { x: number; y: number; z: number }>;
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
@@ -193,8 +153,7 @@ function SceneContent({
   onObjectClick,
   onObjectHover,
   onObjectMove,
-  onTransforming,
-  transforming,
+  positionOverrides,
 }: SceneProps) {
   const heightAnchorX =
     drawState.phase === "height"
@@ -208,7 +167,13 @@ function SceneContent({
   return (
     <>
       <ContextMenuBlocker />
-      <CameraControls phase={drawState.phase} orbitEnabled={!transforming} />
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.08}
+        minPolarAngle={0}
+        maxPolarAngle={Math.PI / 2}
+      />
 
       <ambientLight intensity={Math.PI / 2} />
       <spotLight
@@ -229,7 +194,6 @@ function SceneContent({
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
           onObjectMove={onObjectMove}
-          onTransforming={onTransforming}
         />
       )}
 
@@ -257,6 +221,7 @@ function SceneContent({
         <PlacedBoxMesh
           key={box.id}
           box={box}
+          positionOverride={positionOverrides?.[box.id]}
           color={box.color}
           isSelected={box.id === selectedObjectId}
           isHovered={selectionMode === "select" && box.id === hoveredObjectId}
@@ -270,6 +235,7 @@ function SceneContent({
         <PlacedCylinderMesh
           key={cylinder.id}
           cylinder={cylinder}
+          positionOverride={positionOverrides?.[cylinder.id]}
           color={cylinder.color}
           isSelected={cylinder.id === selectedObjectId}
           isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
@@ -283,6 +249,7 @@ function SceneContent({
         <PlacedSphereMesh
           key={sphere.id}
           sphere={sphere}
+          positionOverride={positionOverrides?.[sphere.id]}
           color={sphere.color}
           isSelected={sphere.id === selectedObjectId}
           isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}

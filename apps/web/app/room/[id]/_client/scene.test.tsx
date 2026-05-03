@@ -9,19 +9,6 @@ vi.mock("@react-three/fiber", () => ({
   useThree: vi.fn(),
 }));
 
-// OrbitControls attaches DOM listeners on instantiation; mock to keep tests isolated.
-vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
-  OrbitControls: vi.fn().mockImplementation(() => ({
-    enableDamping: false,
-    dampingFactor: 0,
-    minPolarAngle: 0,
-    maxPolarAngle: 0,
-    enabled: true,
-    update: vi.fn(),
-    dispose: vi.fn(),
-  })),
-}));
-
 import { snapPoint } from "./scene";
 
 // ─── snapPoint ────────────────────────────────────────────────────────────────

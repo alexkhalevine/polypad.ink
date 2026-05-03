@@ -26,14 +26,10 @@ pnpm install
 The web app runs with:
 
 ```sh
-pnpm --filter web dev
+make dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). And start server with
-
-```sh
-pnpm --filter server dev
-```
+Open [http://localhost:3000](http://localhost:3000). 
 
 This starts:
 - **Web** at [http://localhost:3000](http://localhost:3000)

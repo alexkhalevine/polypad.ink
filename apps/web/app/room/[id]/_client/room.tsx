@@ -40,7 +40,6 @@ export const Room = () => {
   const [selectionMode, setSelectionMode] = useState<"draw" | "select">("draw");
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
-  const [transforming, setTransforming] = useState(false);
   const [livePositions, setLivePositions] = useState<Record<string, { x: number; y: number; z: number }>>({});
 
   const { data: serverObjects } = useRoomObjects(roomId);
@@ -232,7 +231,7 @@ export const Room = () => {
             onObjectClick={handleObjectClick}
             onObjectHover={handleObjectHover}
             onObjectMove={handleObjectMove}
-            transforming={transforming}
+            positionOverrides={livePositions}
           />
         </div>
 
