@@ -66,7 +66,7 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
       if (prev.phase !== "height") return prev;
       const height = Math.max(0.01, worldY);
       const box: PlacedBox = {
-        id: crypto.randomUUID()+Date.now().toString(),
+        id: crypto.randomUUID(),
         center: new THREE.Vector3(
           (prev.start.x + prev.end.x) / 2,
           height / 2,

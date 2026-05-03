@@ -1,10 +1,11 @@
 "use client";
 
 import * as THREE from "three";
-import { useEffect, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { TransformControls, OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, ToolType } from "./types";
+import { ContextMenuBlocker } from "./context-menu-blocker";
+import { TransformGizmo } from "./transform-gizmo";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -14,98 +15,11 @@ import { PlacedBoxMesh } from "@/app/components/placed-box-mesh";
 import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 
-// ─── Context menu blocker ─────────────────────────────────────────────────────
-
-function ContextMenuBlocker() {
-  const { gl } = useThree();
-  useEffect(() => {
-    const el = gl.domElement;
-    const prevent = (e: Event) => e.preventDefault();
-    el.addEventListener("contextmenu", prevent);
-    return () => el.removeEventListener("contextmenu", prevent);
-  }, [gl.domElement]);
-  return null;
-}
-
-// ─── Transform Controls (for move tool) ──────────────────────────────────────
-
-function TransformGizmo({
-  selectedObjectId,
-  placedBoxes,
-  placedCylinders,
-  placedSpheres,
-  onObjectMove,
-}: {
-  selectedObjectId: string | null;
-  placedBoxes: PlacedBox[];
-  placedCylinders: PlacedCylinder[];
-  placedSpheres: PlacedSphere[];
-  onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
-}) {
-  const { camera, gl } = useThree();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transformRef = useRef<any>(null);
-
-  const allObjects = [
-    ...placedBoxes.map((b) => ({ id: b.id, center: b.center })),
-    ...placedCylinders.map((c) => ({ id: c.id, center: c.center })),
-    ...placedSpheres.map((s) => ({ id: s.id, center: s.center })),
-  ];
-
-  const selected = selectedObjectId
-    ? allObjects.find((o) => o.id === selectedObjectId)
-    : null;
-
-  const handleChange = () => {
-    if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
-    const pos = transformRef.current.object?.position;
-    if (pos) {
-      pos.y = Math.max(0, pos.y);
-      onObjectMove(selectedObjectId, pos.clone(), false);
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (!transformRef.current || !selectedObjectId || !onObjectMove) return;
-    const pos = transformRef.current.object?.position;
-    if (pos) {
-      pos.y = Math.max(0, pos.y);
-      onObjectMove(selectedObjectId, pos.clone(), true);
-    }
-  };
-
-  if (!selected) return null;
-
-  return (
-    <TransformControls
-      ref={transformRef}
-      camera={camera}
-      domElement={gl.domElement}
-      mode="translate"
-      position={[selected.center.x, selected.center.y, selected.center.z]}
-      onChange={handleChange}
-      onMouseUp={handleMouseUp}
-    />
-  );
-}
-
 // ─── Snap utility ─────────────────────────────────────────────────────────────
 
 export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
   if (!enabled) return p;
   return new THREE.Vector3(Math.round(p.x), p.y, Math.round(p.z));
-}
-
-// ─── Position override helper ──────────────────────────────────────────────────
-
-type PositionOverride = { x: number; y: number; z: number };
-
-function applyPositionOverride(
-  center: THREE.Vector3,
-  positionOverride: PositionOverride | undefined
-): [number, number, number] {
-  if (!positionOverride) return [center.x, center.y, center.z];
-  return [positionOverride.x, positionOverride.y, positionOverride.z];
 }
 
 // ─── Scene props ──────────────────────────────────────────────────────────────

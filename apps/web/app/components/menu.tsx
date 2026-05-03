@@ -3,15 +3,64 @@ import cubeIcon from "@/app/assets/images/cube.png";
 import cylinderIcon from "@/app/assets/images/cilinder.png";
 import sphereIcon from "@/app/assets/images/sphere.png";
 import moveIcon from "@/app/assets/svg/move.svg";
-import rotateIcon from "@/app/assets/svg/rotate.svg";
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
+import { useState } from "react";
 
-const objectOperationItems: { name: string; label: string; icon: any }[] = [
+type IconSrc = ImageProps["src"];
+
+const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "move", label: "Move", icon: moveIcon },
-  { name: "rotate", label: "Rotate", icon: rotateIcon },
 ];
 
-const primitiveObjectMenuItems: { name: ToolType; label: string; icon: any }[] = [
+type Axis = "x" | "y" | "z";
+
+function PositionAxisInput({
+  axis,
+  value,
+  onCommit,
+}: {
+  axis: Axis;
+  value: number;
+  onCommit: (next: number) => void;
+}) {
+  // Derive draft from `value` during render — when the parent updates `value`
+  // (e.g. during a gizmo drag), reset the draft so the field reflects it.
+  // While the user is typing, only `draft` changes, so no reset triggers.
+  const [draft, setDraft] = useState(value.toFixed(2));
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(value.toFixed(2));
+  }
+
+  const commit = () => {
+    const parsed = parseFloat(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(value.toFixed(2));
+      return;
+    }
+    if (parsed !== value) onCommit(parsed);
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-xs text-blue-700 uppercase">{axis}</span>
+      <input
+        type="number"
+        step="0.1"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="input input-bordered input-sm w-20 text-center text-blue-700 font-mono"
+      />
+    </div>
+  );
+}
+
+const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }[] = [
   { name: "box", label: "Box", icon: cubeIcon },
   { name: "cylinder", label: "Cylinder", icon: cylinderIcon },
   { name: "sphere", label: "Sphere", icon: sphereIcon },
@@ -58,23 +107,18 @@ export const Menu = ({
         {moveEnabled && livePosition && (
           <div className="flex gap-2 items-center">
             {(["x", "y", "z"] as const).map((axis) => (
-              <div key={axis} className="flex flex-col items-center">
-                <span className="text-xs text-blue-700 uppercase">{axis}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={livePosition[axis].toFixed(2)}
-                  onChange={(e) =>
-                    onPositionCommit(
-                      axis === "x" ? parseFloat(e.target.value) : livePosition.x,
-                      axis === "y" ? parseFloat(e.target.value) : livePosition.y,
-                      axis === "z" ? parseFloat(e.target.value) : livePosition.z
-                    )
-                  }
-                  onBlur={() => onPositionCommit(livePosition.x, livePosition.y, livePosition.z)}
-                  className="input input-bordered input-sm w-20 text-center text-blue-700 font-mono"
-                />
-              </div>
+              <PositionAxisInput
+                key={axis}
+                axis={axis}
+                value={livePosition[axis]}
+                onCommit={(next) =>
+                  onPositionCommit(
+                    axis === "x" ? next : livePosition.x,
+                    axis === "y" ? next : livePosition.y,
+                    axis === "z" ? next : livePosition.z,
+                  )
+                }
+              />
             ))}
           </div>
         )}

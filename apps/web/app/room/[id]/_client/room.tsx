@@ -164,11 +164,11 @@ export const Room = () => {
 
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;
   const showObjectSelected = selectionMode === "select" && selectedObjectId;
-  const selectedObject = [
-    ...placedBoxes,
-    ...placedCylinders,
-    ...placedSpheres,
-  ].find((o) => o.id === selectedObjectId);
+  const selectedObject = selectedObjectId
+    ? [...placedBoxes, ...placedCylinders, ...placedSpheres].find(
+        (o) => o.id === selectedObjectId,
+      )
+    : undefined;
 
   const selectedObjectCoords = selectedObject
     ? `X: ${selectedObject.center.x.toFixed(2)}, Y: ${selectedObject.center.y.toFixed(2)}, Z: ${selectedObject.center.z.toFixed(2)}`
