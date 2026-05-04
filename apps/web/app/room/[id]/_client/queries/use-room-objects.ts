@@ -3,6 +3,7 @@ import { API_BASE } from "./api-base";
 import { roomKeys } from "./query-keys";
 import { fromWireBox, fromWireCylinder, fromWireSphere } from "./wire-converters";
 import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
+import { ApiError } from "./api-error";
 
 interface RoomObjects {
   boxes: PlacedBox[];
@@ -13,7 +14,7 @@ interface RoomObjects {
 async function fetchRoomObjects(id: string): Promise<RoomObjects> {
   const response = await fetch(`${API_BASE}/rooms/${id}/objects`);
   if (!response.ok) {
-    throw new Error("Failed to fetch room objects");
+    throw new ApiError("Failed to fetch room objects", response.status);
   }
   const data = await response.json();
   return {
