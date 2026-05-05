@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useParams } from "next/navigation";
 import { Menu } from "@/app/components/menu";
@@ -8,23 +8,15 @@ import { Scene } from "./scene";
 import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
-import {
-  DrawState,
-  ToolType,
-  PlacedBox,
-  PlacedCylinder,
-  PlacedSphere,
-} from "./types";
+import { DrawState, ToolType, PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
 import { useRoomObjects } from "./queries/use-room-objects";
 import { usePlaceObject } from "./queries/use-place-object";
 import { useUpdateObjectColor } from "./queries/use-update-object-color";
 import { useUpdateObjectPosition } from "./queries/use-update-object-position";
-import {
-  toWireBox,
-  toWireCylinder,
-  toWireSphere,
-} from "./queries/wire-converters";
+import { toWireBox, toWireCylinder, toWireSphere } from "./queries/wire-converters";
 import { getHelpText } from "@/app/utils";
+import { useRoomStore } from "./room-store";
+import { useErrorStore } from "@/app/error-store";
 
 const idleState: DrawState = { phase: "idle" };
 const noop = () => {};
@@ -33,16 +25,17 @@ export const Room = () => {
   const params = useParams();
   const roomId = typeof params.id === "string" ? params.id : "default";
 
-  const [selectedTool, setSelectedTool] = useState<ToolType | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string>("#000000");
-  const [snapEnabled, setSnapEnabled] = useState(false);
-  const [wireframeEnabled, setWireframeEnabled] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<"draw" | "select">("draw");
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
-  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
-  const [livePositions, setLivePositions] = useState<Record<string, { x: number; y: number; z: number }>>({});
+  const selectedTool = useRoomStore((s) => s.selectedTool);
+  const selectionMode = useRoomStore((s) => s.selectionMode);
+  const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
+  const selectedColor = useRoomStore((s) => s.selectedColor);
+  const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
+  const setSelectionMode = useRoomStore((s) => s.setSelectionMode);
+  const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
+  const resetEditorState = useRoomStore((s) => s.resetEditorState);
+  const setLivePosition = useRoomStore((s) => s.setLivePosition);
 
-  const { data: serverObjects } = useRoomObjects(roomId);
+  const { data: serverObjects, isError: isObjectsError } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
   const updateObjectPosition = useUpdateObjectPosition(roomId);
@@ -82,7 +75,7 @@ export const Room = () => {
   };
 
   const handleSelectClick = () => {
-    setSelectionMode((m) => (m === "select" ? "draw" : "select"));
+    setSelectionMode(selectionMode === "select" ? "draw" : "select");
     setSelectedObjectId(null);
     setSelectedTool(null);
     boxDraw.cancelDraw();
@@ -90,28 +83,12 @@ export const Room = () => {
     sphereDraw.cancelDraw();
   };
 
-  const handleObjectClick = (objectId: string) => {
-    if (selectionMode === "select") {
-      setSelectedObjectId(objectId);
-    }
-  };
-
-  const handleObjectHover = (objectId: string | null) => {
-    setHoveredObjectId(objectId);
-  };
-
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-  };
-
   const handleObjectMove = (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
     const pos = { x: newPosition.x, y: newPosition.y, z: newPosition.z };
     if (persist) {
       updateObjectPosition.mutate({ objectId, position: pos });
-      setLivePositions((prev) => ({ ...prev, [objectId]: pos }));
-    } else {
-      setLivePositions((prev) => ({ ...prev, [objectId]: pos }));
     }
+    setLivePosition(objectId, pos);
   };
 
   const onMouseUpColorPicked = () => {
@@ -128,17 +105,23 @@ export const Room = () => {
         boxDraw.cancelDraw();
         cylinderDraw.cancelDraw();
         sphereDraw.cancelDraw();
-        setSelectedTool(null);
-        setSelectedObjectId(null);
-        setSelectionMode("draw");
+        resetEditorState();
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw]);
+    }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw, resetEditorState]);
 
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
+
+  useEffect(() => {
+    if (isObjectsError) {
+      useErrorStore.getState().addError(
+        "Could not load 3D objects. Try refreshing the page."
+      );
+    }
+  }, [isObjectsError]);
 
   const activeDraw =
     selectedTool === "box"
@@ -174,18 +157,13 @@ export const Room = () => {
     ? `X: ${selectedObject.center.x.toFixed(2)}, Y: ${selectedObject.center.y.toFixed(2)}, Z: ${selectedObject.center.z.toFixed(2)}`
     : null;
 
-  const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
-
   const handlePositionCommit = (x: number, y: number, z: number) => {
     if (selectedObjectId) {
       updateObjectPosition.mutate({
         objectId: selectedObjectId,
         position: { x, y, z },
       });
-      setLivePositions((prev) => ({
-        ...prev,
-        [selectedObjectId]: { x, y, z },
-      }));
+      setLivePosition(selectedObjectId, { x, y, z });
     }
   };
 
@@ -213,45 +191,25 @@ export const Room = () => {
         )}
         <div className="flex-1">
           <Scene
-            selectedTool={selectedTool}
-            snapEnabled={snapEnabled}
-            wireframeEnabled={wireframeEnabled}
             drawState={activeDraw?.drawState ?? idleState}
             placedBoxes={placedBoxes}
             placedCylinders={placedCylinders}
             placedSpheres={placedSpheres}
-            selectedObjectId={selectedObjectId}
-            hoveredObjectId={hoveredObjectId}
-            selectionMode={selectionMode}
             onGroundRightClick={activeDraw?.handleGroundRightClick ?? noop}
             onGroundPointerMove={activeDraw?.handleGroundPointerMove ?? noop}
             onGroundClick={activeDraw?.handleGroundClick ?? noop}
             onHeightPointerMove={activeDraw?.handleHeightPointerMove ?? noop}
             onHeightClick={activeDraw?.handleHeightClick ?? noop}
-            onObjectClick={handleObjectClick}
-            onObjectHover={handleObjectHover}
             onObjectMove={handleObjectMove}
-            positionOverrides={livePositions}
           />
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 flex justify-center">
           <Menu
-            selectedTool={selectedTool}
-            onToolSelect={handleToolSelect}
-            snapEnabled={snapEnabled}
-            onSnapToggle={() => setSnapEnabled((v) => !v)}
-            wireframeEnabled={wireframeEnabled}
-            onWireframeToggle={() => setWireframeEnabled((v) => !v)}
-            selectionMode={selectionMode}
-            onSelectClick={handleSelectClick}
-            colorPickerEnabled={!!selectedObjectId}
             currentColor={selectedObject?.color ?? "#2f74c0"}
-            onColorChange={handleColorChange}
+            onToolSelect={handleToolSelect}
+            onSelectClick={handleSelectClick}
             onMouseUpColorPicked={onMouseUpColorPicked}
-            moveEnabled={!!selectedObjectId}
-            onMoveClick={() => setSelectedTool("move")}
-            livePosition={livePosition}
             onPositionCommit={handlePositionCommit}
           />
         </div>

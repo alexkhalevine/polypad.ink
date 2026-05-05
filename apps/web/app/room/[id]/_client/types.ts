@@ -45,3 +45,8 @@ export interface PlacedSphere {
   radius: number;
   color: string | null;
 }
+
+export interface RemoteUserPresence {
+  cursor: { x: number; y: number; z: number } | null;
+  selectedObjectId: string | null;
+}

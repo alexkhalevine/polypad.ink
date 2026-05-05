@@ -5,6 +5,7 @@ import sphereIcon from "@/app/assets/images/sphere.png";
 import moveIcon from "@/app/assets/svg/move.svg";
 import Image, { type ImageProps } from "next/image";
 import { useState } from "react";
+import { useRoomStore } from "@/app/room/[id]/_client/room-store";
 
 type IconSrc = ImageProps["src"];
 
@@ -67,40 +68,33 @@ const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }
 ];
 
 export const Menu = ({
-  selectedTool,
-  onToolSelect,
-  snapEnabled,
-  onSnapToggle,
-  wireframeEnabled,
-  onWireframeToggle,
-  selectionMode,
-  onSelectClick,
-  colorPickerEnabled,
   currentColor,
-  onColorChange,
+  onToolSelect,
+  onSelectClick,
   onMouseUpColorPicked,
-  moveEnabled,
-  onMoveClick,
-  livePosition,
   onPositionCommit,
 }: {
-  selectedTool: ToolType | null;
-  onToolSelect: (tool: ToolType) => void;
-  snapEnabled: boolean;
-  onSnapToggle: () => void;
-  wireframeEnabled: boolean;
-  onWireframeToggle: () => void;
-  selectionMode: "draw" | "select";
-  onSelectClick: () => void;
-  colorPickerEnabled: boolean;
   currentColor: string;
-  onColorChange: (color: string) => void;
+  onToolSelect: (tool: ToolType) => void;
+  onSelectClick: () => void;
   onMouseUpColorPicked: () => void;
-  moveEnabled: boolean;
-  onMoveClick: () => void;
-  livePosition: { x: number; y: number; z: number } | null;
   onPositionCommit: (x: number, y: number, z: number) => void;
 }) => {
+  const selectedTool = useRoomStore((s) => s.selectedTool);
+  const snapEnabled = useRoomStore((s) => s.snapEnabled);
+  const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
+  const selectionMode = useRoomStore((s) => s.selectionMode);
+  const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
+  const livePositions = useRoomStore((s) => s.livePositions);
+  const setSelectedColor = useRoomStore((s) => s.setSelectedColor);
+  const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
+  const toggleSnap = useRoomStore((s) => s.toggleSnap);
+  const toggleWireframe = useRoomStore((s) => s.toggleWireframe);
+
+  const moveEnabled = !!selectedObjectId;
+  const colorPickerEnabled = !!selectedObjectId;
+  const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
+
   return (
     <div className="flex justify-between w-full items-end p-4 bg-indigo-600/25">
       <div className="flex flex-col gap-4">
@@ -130,7 +124,7 @@ export const Menu = ({
               disabled={item.name === "move" && !moveEnabled}
               onClick={() => {
                 if (item.name === "move" && moveEnabled) {
-                  onMoveClick();
+                  setSelectedTool("move");
                 }
               }}
               className={`btn text-blue-100 ${
@@ -194,7 +188,7 @@ export const Menu = ({
           <input
             type="checkbox"
             checked={snapEnabled}
-            onChange={onSnapToggle}
+            onChange={toggleSnap}
             className="toggle"
           />
         </div>
@@ -206,7 +200,7 @@ export const Menu = ({
           <input
             type="checkbox"
             checked={wireframeEnabled}
-            onChange={onWireframeToggle}
+            onChange={toggleWireframe}
             className="toggle"
           />
         </div>
@@ -220,14 +214,9 @@ export const Menu = ({
             disabled={!colorPickerEnabled}
             value={currentColor}
             id="color-input"
-            onChange={(e) => onColorChange(e.target.value)}
+            onChange={(e) => setSelectedColor(e.target.value)}
             className={`w-8 h-8 ${!colorPickerEnabled ? "opacity-50" : ""}`}
-            onPointerUp={(e) => {
-              // onPointerUp fires when user releases within the picker
-              // We still use onMouseUpColorPicked as a fallback for blur
-            }}
             onBlur={() => {
-              // onBlur fires when picker closes - commit the mutation
               onMouseUpColorPicked();
             }}
           />

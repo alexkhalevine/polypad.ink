@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { setupRoom } from "./actions";
+import { RoomSetupForm } from "./room-setup-form";
 
 async function getHcaptchaTokenFromCookies(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -29,19 +29,7 @@ export default async function RoomSetupPage() {
           <h1 className="text-2xl font-sans font-semibold text-center mb-8">
             Name your room
           </h1>
-          <form action={setupRoom} className="flex flex-col gap-6 items-center">
-            <input type="hidden" name="token" value={token} />
-            <input
-              type="text"
-              name="roomName"
-              placeholder="room-name"
-              className="input input-bordered w-full font-sans text-black"
-              required
-            />
-            <button className="btn w-xs" type="submit">
-              Create Room
-            </button>
-          </form>
+          <RoomSetupForm token={token} />
         </div>
       </div>
     </>

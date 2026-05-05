@@ -164,6 +164,57 @@ router.post("/:id/objects", async (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+router.post("/:id/objects/batch", async (req, res) => {
+  const { id } = req.params;
+  const body = req.body as { objects?: WireObject[] };
+
+  if (!body.objects || !Array.isArray(body.objects) || body.objects.length === 0) {
+    res.status(400).json({ error: "Body must include a non-empty 'objects' array" });
+    return;
+  }
+
+  for (const obj of body.objects) {
+    if (!obj || !obj.type || !obj.data) {
+      res.status(400).json({ error: "Invalid object format in batch" });
+      return;
+    }
+  }
+
+  await db.insert(rooms).values({ id, name: `Room ${id}` }).onConflictDoNothing().run();
+
+  const currentCount = await db
+    .select({ count: count() })
+    .from(geometryObjects)
+    .where(eq(geometryObjects.roomId, id))
+    .get();
+
+  const existing = currentCount?.count ?? 0;
+  if (existing + body.objects.length > MAX_GEOMETRY_OBJECTS_PER_ROOM) {
+    res.status(400).json({
+      error: `Room cannot have more than ${MAX_GEOMETRY_OBJECTS_PER_ROOM} geometry objects`,
+    });
+    return;
+  }
+
+  const rows = body.objects.map((obj) => wireToInsert(id, obj));
+  await db.insert(geometryObjects).values(rows).run();
+
+  res.status(201).json({ ok: true, inserted: rows.length });
+});
+
+router.delete("/:id/objects/:objectId", async (req, res) => {
+  const { objectId } = req.params;
+
+  const existing = await db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
+  if (!existing) {
+    res.status(404).json({ error: "Object not found" });
+    return;
+  }
+
+  await db.delete(geometryObjects).where(eq(geometryObjects.id, objectId)).run();
+  res.status(204).end();
+});
+
 router.patch("/:id/objects/:objectId", async (req, res) => {
   const { objectId } = req.params;
   const body = req.body as { color?: string; center?: { x: number; y: number; z: number } };

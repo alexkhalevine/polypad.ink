@@ -33,20 +33,21 @@ async function verifyHcaptcha(token: string): Promise<boolean> {
   }
 }
 
-export async function setupRoom(formData: FormData) {
+export async function setupRoom(
+  _prevState: { error: string } | null,
+  formData: FormData
+): Promise<{ error: string } | null> {
   const token = formData.get("token") as string;
   const roomName = formData.get("roomName") as string;
 
   if (!token || !roomName) {
-    console.error("Missing token or room name");
-    redirect("/");
+    return { error: "Something went wrong. Please try again." };
   }
 
   const isValid = await verifyHcaptcha(token);
 
   if (!isValid) {
-    console.error("invalid hCaptcha token");
-    redirect("/");
+    return { error: "Verification failed. Please try again from the home page." };
   }
 
   redirect(`/room/${roomName}?name=${encodeURIComponent(roomName)}`);
