@@ -1,9 +1,10 @@
 .PHONY: dev dev-web dev-server test clean
 
 dev:
-	@pnpm --filter web dev &
-	@pnpm --filter server dev &
-	@wait
+	@trap 'kill 0' INT TERM; \
+	pnpm --filter web dev & \
+	pnpm --filter server dev & \
+	wait
 
 dev-web:
 	@pnpm --filter web dev
