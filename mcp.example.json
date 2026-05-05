@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "polypad": {
+      "command": "pnpm",
+      "args": ["--filter", "mcp", "start"],
+      "cwd": "/absolute/path/to/polypad.ink",
+      "env": {
+        "POLYPAD_API_URL": "http://localhost:4000",
+        "POLYPAD_DEFAULT_ROOM_ID": "demo"
+      }
+    }
+  }
+}

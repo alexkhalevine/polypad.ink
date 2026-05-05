@@ -29,5 +29,9 @@ export function useRoomObjects(id: string) {
     queryKey: roomKeys.objects(id),
     queryFn: () => fetchRoomObjects(id),
     enabled: !!id,
+    // Interim polling so AI/MCP-driven changes show up without a refresh.
+    // Remove when WebSocket sync lands.
+    refetchInterval: 2000,
+    refetchIntervalInBackground: false,
   });
 }
