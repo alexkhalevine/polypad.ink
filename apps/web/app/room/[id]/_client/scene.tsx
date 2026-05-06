@@ -36,6 +36,8 @@ interface SceneProps {
   onHeightPointerMove: (worldY: number) => void;
   onHeightClick: (worldY: number) => void;
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
+  onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
+  onDragEnd?: (objectId: string) => void;
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
@@ -51,6 +53,8 @@ function SceneContent({
   onHeightPointerMove,
   onHeightClick,
   onObjectMove,
+  onDragStart,
+  onDragEnd,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -101,6 +105,8 @@ function SceneContent({
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
           onObjectMove={onObjectMove}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         />
       )}
 

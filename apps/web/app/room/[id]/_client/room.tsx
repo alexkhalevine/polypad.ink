@@ -17,6 +17,7 @@ import { toWireBox, toWireCylinder, toWireSphere } from "./queries/wire-converte
 import { getHelpText } from "@/app/utils";
 import { useRoomStore } from "./room-store";
 import { useErrorStore } from "@/app/error-store";
+import { useRoomSocket } from "./realtime/use-room-socket";
 
 const idleState: DrawState = { phase: "idle" };
 const noop = () => {};
@@ -24,6 +25,8 @@ const noop = () => {};
 export const Room = () => {
   const params = useParams();
   const roomId = typeof params.id === "string" ? params.id : "default";
+
+  const socket = useRoomSocket(roomId);
 
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const selectionMode = useRoomStore((s) => s.selectionMode);
@@ -123,6 +126,16 @@ export const Room = () => {
     }
   }, [isObjectsError]);
 
+  useEffect(() => {
+    if (socket.connectionState === "full") {
+      useErrorStore.getState().addError("This room is full (max 5 users).");
+    }
+  }, [socket.connectionState]);
+
+  useEffect(() => {
+    socket.emitSelection(selectedObjectId);
+  }, [selectedObjectId, socket.emitSelection]);
+
   const activeDraw =
     selectedTool === "box"
       ? boxDraw
@@ -131,6 +144,25 @@ export const Room = () => {
         : selectedTool === "sphere"
           ? sphereDraw
           : null;
+
+  const handleGroundPointerMove = (point: THREE.Vector3) => {
+    socket.emitCursor({ x: point.x, y: point.y, z: point.z });
+    activeDraw?.handleGroundPointerMove(point);
+  };
+
+  const handleDragStart = useCallback(async (objectId: string) => {
+    const result = await socket.requestLock(objectId);
+    if (!result.ok) {
+      useErrorStore.getState().addError(
+        `Object is locked by another user — try again in a moment.`
+      );
+    }
+    return result;
+  }, [socket.requestLock]);
+
+  const handleDragEnd = useCallback((objectId: string) => {
+    socket.releaseLock(objectId);
+  }, [socket.releaseLock]);
 
   const placedBoxes = useMemo(
     () => [...(serverObjects?.boxes ?? []), ...boxDraw.placedBoxes],
@@ -189,18 +221,20 @@ export const Room = () => {
             <span className="loading loading-spinner loading-xs"></span>
           </div>
         )}
-        <div className="flex-1">
+        <div className="flex-1" onPointerLeave={() => socket.emitCursor(null)}>
           <Scene
             drawState={activeDraw?.drawState ?? idleState}
             placedBoxes={placedBoxes}
             placedCylinders={placedCylinders}
             placedSpheres={placedSpheres}
             onGroundRightClick={activeDraw?.handleGroundRightClick ?? noop}
-            onGroundPointerMove={activeDraw?.handleGroundPointerMove ?? noop}
+            onGroundPointerMove={handleGroundPointerMove}
             onGroundClick={activeDraw?.handleGroundClick ?? noop}
             onHeightPointerMove={activeDraw?.handleHeightPointerMove ?? noop}
             onHeightClick={activeDraw?.handleHeightClick ?? noop}
             onObjectMove={handleObjectMove}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           />
         </div>
 
