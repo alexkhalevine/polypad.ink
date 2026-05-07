@@ -75,10 +75,34 @@ pnpm --filter mcp build
 
 ### Register with Claude
 
-Copy [`mcp.example.json`](./mcp.example.json) into your MCP client config (e.g.
-`~/.config/Claude/claude_desktop_config.json` for Claude Desktop, or your Claude Code
-MCP settings) and replace `cwd` with the absolute path to this checkout. Restart the
-client.
+Add the `polypad` entry below to your MCP client's config under `mcpServers`. The exact
+config file depends on the client:
+
+- **Claude Desktop** — `~/.config/Claude/claude_desktop_config.json`
+- **Claude Code** — your project or user `.claude.json` (or run `claude mcp add`)
+
+The `cwd` value must be the absolute path to this checkout — run `pwd` from the repo
+root and paste the result. (See [`mcp.example.json`](./mcp.example.json) for the same
+snippet as a standalone file.)
+
+```jsonc
+{
+  "mcpServers": {
+    "polypad": {
+      "command": "pnpm",
+      "args": ["--filter", "mcp", "start"],
+      "cwd": "/absolute/path/to/polypad.ink",   // ← replace with the output of `pwd`
+      "env": {
+        "POLYPAD_API_URL": "http://localhost:4000",
+        "POLYPAD_DEFAULT_ROOM_ID": "demo"
+      }
+    }
+  }
+}
+```
+
+If your config already has other `mcpServers` entries, add `polypad` alongside them
+rather than overwriting the file. Restart the client after saving.
 
 ### Tools exposed
 

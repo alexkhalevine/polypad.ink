@@ -20,7 +20,7 @@ import { useErrorStore } from "@/app/error-store";
 import { useRoomSocket } from "./realtime/use-room-socket";
 
 const idleState: DrawState = { phase: "idle" };
-const noop = () => {};
+const noop = () => { };
 
 export const Room = () => {
   const params = useParams();
@@ -104,14 +104,14 @@ export const Room = () => {
   };
 
   const onKeyDown = useCallback((e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        boxDraw.cancelDraw();
-        cylinderDraw.cancelDraw();
-        sphereDraw.cancelDraw();
-        resetEditorState();
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw, resetEditorState]);
+    if (e.key === "Escape") {
+      boxDraw.cancelDraw();
+      cylinderDraw.cancelDraw();
+      sphereDraw.cancelDraw();
+      resetEditorState();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boxDraw.cancelDraw, cylinderDraw.cancelDraw, sphereDraw.cancelDraw, resetEditorState]);
 
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
@@ -181,8 +181,8 @@ export const Room = () => {
   const showObjectSelected = selectionMode === "select" && selectedObjectId;
   const selectedObject = selectedObjectId
     ? [...placedBoxes, ...placedCylinders, ...placedSpheres].find(
-        (o) => o.id === selectedObjectId,
-      )
+      (o) => o.id === selectedObjectId,
+    )
     : undefined;
 
   const selectedObjectCoords = selectedObject
@@ -203,16 +203,24 @@ export const Room = () => {
     <>
       {(selectedTool || showSelectHelp || showObjectSelected) && (
         <div className="p-4 absolute z-10 text-blue-200" id="help-text-container">
-          <div className="status status-info animate-bounce"></div>{" "}
-          <span id="help-text" className="text-sm">
-            {getHelpText({
-              phase: activeDraw?.drawState.phase,
-              showSelectHelp: !!showSelectHelp,
-              showObjectSelected: !!showObjectSelected,
-              selectedObjectCoords,
-              selectedTool,
-            })}
-          </span>
+          <div className="chat chat-start mt-2">
+            <div className="chat-bubble chat-bubble-primary text-xs py-2 px-4">
+              {getHelpText({
+                phase: activeDraw?.drawState.phase,
+                showSelectHelp: !!showSelectHelp,
+                showObjectSelected: !!showObjectSelected,
+                selectedObjectCoords,
+                selectedTool,
+              })}
+            </div>
+          </div>
+          {showObjectSelected && (
+            <div className="chat chat-start mt-2">
+              <div className="chat-bubble chat-bubble-accent text-xs py-2 px-4">
+                Press <kbd className="kbd kbd-xs">Esc</kbd> to deselect
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="relative w-full h-full flex flex-col">
