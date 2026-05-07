@@ -47,6 +47,7 @@ export interface PlacedSphere {
 }
 
 export interface RemoteUserPresence {
+  displayName: string;
   cursor: { x: number; y: number; z: number } | null;
   selectedObjectId: string | null;
 }

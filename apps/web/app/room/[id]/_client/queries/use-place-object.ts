@@ -4,13 +4,12 @@ import { roomKeys } from "./query-keys";
 import type { WireObject } from "./wire-types";
 import { ApiError } from "./api-error";
 import { useErrorStore } from "@/app/error-store";
+import { jsonHeaders } from "./api-headers";
 
 async function placeObject(roomId: string, object: WireObject): Promise<void> {
   const response = await fetch(`${API_BASE}/rooms/${roomId}/objects`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: jsonHeaders(),
     body: JSON.stringify(object),
   });
   if (!response.ok) {
