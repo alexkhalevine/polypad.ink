@@ -91,7 +91,14 @@ router.delete("/:id/objects/:objectId", async (req, res) => {
 
 router.patch("/:id/objects/:objectId", async (req, res) => {
   const { id, objectId } = req.params;
-  const body = req.body as { color?: string; center?: { x: number; y: number; z: number } };
+  const body = req.body as {
+    color?: string;
+    center?: { x: number; y: number; z: number };
+    width?: number;
+    height?: number;
+    depth?: number;
+    radius?: number;
+  };
   const actor = actorFor(req);
 
   if (!req.isMcp) {

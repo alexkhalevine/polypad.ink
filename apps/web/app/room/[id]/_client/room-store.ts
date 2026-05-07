@@ -24,6 +24,15 @@ interface RoomStore {
   setLivePosition: (objectId: string, pos: { x: number; y: number; z: number }) => void;
   clearLivePosition: (objectId: string) => void;
 
+  // Live dimension edits (overlay on server state while typing in resize inputs)
+  liveDimensions: Record<string, Partial<{ width: number; height: number; depth: number; radius: number }>>;
+  setLiveDimension: (
+    objectId: string,
+    field: "width" | "height" | "depth" | "radius",
+    value: number,
+  ) => void;
+  clearLiveDimensions: (objectId: string) => void;
+
   // Collaboration — stubs ready for WebSocket integration
   localUserId: string | null;
   remoteUsers: Record<string, RemoteUserPresence>;
@@ -62,6 +71,21 @@ export const useRoomStore = create<RoomStore>((set) => ({
       const next = { ...s.livePositions };
       delete next[objectId];
       return { livePositions: next };
+    }),
+
+  liveDimensions: {},
+  setLiveDimension: (objectId, field, value) =>
+    set((s) => ({
+      liveDimensions: {
+        ...s.liveDimensions,
+        [objectId]: { ...(s.liveDimensions[objectId] ?? {}), [field]: value },
+      },
+    })),
+  clearLiveDimensions: (objectId) =>
+    set((s) => {
+      const next = { ...s.liveDimensions };
+      delete next[objectId];
+      return { liveDimensions: next };
     }),
 
   localUserId: null,

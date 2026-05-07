@@ -218,10 +218,27 @@ export async function batchCreateObjects(
   return { ok: true, inserted: serverWires.length, ids };
 }
 
+type DimensionField = "width" | "height" | "depth" | "radius";
+
+const ALLOWED_DIMENSIONS: Record<ObjectRow["type"], DimensionField[]> = {
+  box: ["width", "height", "depth"],
+  cylinder: ["radius", "height"],
+  sphere: ["radius"],
+};
+
+export interface UpdatePatch {
+  color?: string;
+  center?: { x: number; y: number; z: number };
+  width?: number;
+  height?: number;
+  depth?: number;
+  radius?: number;
+}
+
 export async function updateObject(
   roomId: string,
   objectId: string,
-  patch: { color?: string; center?: { x: number; y: number; z: number } },
+  patch: UpdatePatch,
   { actor }: { actor: string },
 ): Promise<{ ok: true; existed: true } | { ok: false; existed: false } | { error: string; status: number }> {
   const where = and(eq(geometryObjects.roomId, roomId), eq(geometryObjects.id, objectId));
@@ -232,7 +249,7 @@ export async function updateObject(
   }
 
   const updates: Partial<ObjectRow> = {};
-  const appliedPatch: { color?: string; center?: { x: number; y: number; z: number } } = {};
+  const appliedPatch: UpdatePatch = {};
 
   if (patch.color !== undefined) {
     const hexColorRegex = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
@@ -251,6 +268,20 @@ export async function updateObject(
     updates.cy = patch.center.y;
     updates.cz = patch.center.z;
     appliedPatch.center = patch.center;
+  }
+
+  const allowed = ALLOWED_DIMENSIONS[existing.type];
+  for (const field of ["width", "height", "depth", "radius"] as const) {
+    const value = patch[field];
+    if (value === undefined) continue;
+    if (!allowed.includes(field)) {
+      return { error: `field '${field}' is not valid for type '${existing.type}'`, status: 400 };
+    }
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      return { error: `field '${field}' must be a positive finite number`, status: 400 };
+    }
+    updates[field] = value;
+    appliedPatch[field] = value;
   }
 
   if (Object.keys(updates).length === 0) {

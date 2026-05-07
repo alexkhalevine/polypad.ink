@@ -68,10 +68,13 @@ export const Room = () => {
         <div className="absolute bottom-0 left-0 right-0 flex justify-center">
           <Menu
             currentColor={editor.selectedObject?.color ?? "#2f74c0"}
+            selectedObject={editor.selectedObject ?? null}
+            selectedObjectType={editor.selectedObjectType}
             onToolSelect={editor.handleToolSelect}
             onSelectClick={editor.handleSelectClick}
             onMouseUpColorPicked={editor.onMouseUpColorPicked}
             onPositionCommit={editor.handlePositionCommit}
+            onDimensionCommit={editor.handleDimensionCommit}
           />
         </div>
       </div>

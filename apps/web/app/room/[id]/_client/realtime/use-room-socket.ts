@@ -155,32 +155,39 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     socket.on("object:updated", (payload: ObjectUpdatedPayload) => {
       queryClient.setQueryData<RoomObjects>(roomKeys.objects(roomId), (prev) => {
         if (!prev) return prev;
-        const patchCenter = payload.patch.center
-          ? new THREE.Vector3(payload.patch.center.x, payload.patch.center.y, payload.patch.center.z)
+        const { color, center, width, height, depth, radius } = payload.patch;
+        const patchCenter = center
+          ? new THREE.Vector3(center.x, center.y, center.z)
           : undefined;
         return {
           boxes: prev.boxes.map((b) => {
             if (b.id !== payload.objectId) return b;
             return {
               ...b,
-              ...(payload.patch.color !== undefined ? { color: payload.patch.color } : {}),
+              ...(color !== undefined ? { color } : {}),
               ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(width !== undefined ? { width } : {}),
+              ...(height !== undefined ? { height } : {}),
+              ...(depth !== undefined ? { depth } : {}),
             };
           }),
           cylinders: prev.cylinders.map((c) => {
             if (c.id !== payload.objectId) return c;
             return {
               ...c,
-              ...(payload.patch.color !== undefined ? { color: payload.patch.color } : {}),
+              ...(color !== undefined ? { color } : {}),
               ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(radius !== undefined ? { radius } : {}),
+              ...(height !== undefined ? { height } : {}),
             };
           }),
           spheres: prev.spheres.map((s) => {
             if (s.id !== payload.objectId) return s;
             return {
               ...s,
-              ...(payload.patch.color !== undefined ? { color: payload.patch.color } : {}),
+              ...(color !== undefined ? { color } : {}),
               ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(radius !== undefined ? { radius } : {}),
             };
           }),
         };

@@ -49,7 +49,14 @@ export interface ObjectCreatedPayload {
 
 export interface ObjectUpdatedPayload {
   objectId: string;
-  patch: { color?: string; center?: Vec3 };
+  patch: {
+    color?: string;
+    center?: Vec3;
+    width?: number;
+    height?: number;
+    depth?: number;
+    radius?: number;
+  };
   by: string;
 }
 

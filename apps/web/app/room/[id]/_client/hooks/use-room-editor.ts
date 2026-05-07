@@ -8,6 +8,7 @@ import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
 import { useUpdateObjectPosition } from "../queries/use-update-object-position";
+import { useUpdateObjectDimensions } from "../queries/use-update-object-dimensions";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
 import { useErrorStore } from "@/app/error-store";
@@ -27,12 +28,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const resetEditorState = useRoomStore((s) => s.resetEditorState);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
+  const liveDimensions = useRoomStore((s) => s.liveDimensions);
+  const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
   const addError = useErrorStore((s) => s.addError);
 
   const { data: serverObjects, isError: isObjectsError } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
   const updateObjectPosition = useUpdateObjectPosition(roomId);
+  const updateObjectDimensions = useUpdateObjectDimensions(roomId);
 
   // Refs break the onPlace → draw hook → rollback cycle so onPlace can be stable.
   const boxDrawRef = useRef<ReturnType<typeof useBoxDraw> | null>(null);
@@ -86,17 +90,37 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   }, [selectedTool, boxDraw, cylinderDraw, sphereDraw]);
 
   const placedBoxes = useMemo(
-    () => [...(serverObjects?.boxes ?? []), ...boxDraw.placedBoxes],
-    [serverObjects, boxDraw.placedBoxes],
+    () =>
+      [...(serverObjects?.boxes ?? []), ...boxDraw.placedBoxes].map((b) => {
+        const live = liveDimensions[b.id];
+        return live ? { ...b, ...live } : b;
+      }),
+    [serverObjects, boxDraw.placedBoxes, liveDimensions],
   );
   const placedCylinders = useMemo(
-    () => [...(serverObjects?.cylinders ?? []), ...cylinderDraw.placedCylinders],
-    [serverObjects, cylinderDraw.placedCylinders],
+    () =>
+      [...(serverObjects?.cylinders ?? []), ...cylinderDraw.placedCylinders].map((c) => {
+        const live = liveDimensions[c.id];
+        return live ? { ...c, ...live } : c;
+      }),
+    [serverObjects, cylinderDraw.placedCylinders, liveDimensions],
   );
   const placedSpheres = useMemo(
-    () => [...(serverObjects?.spheres ?? []), ...sphereDraw.placedSpheres],
-    [serverObjects, sphereDraw.placedSpheres],
+    () =>
+      [...(serverObjects?.spheres ?? []), ...sphereDraw.placedSpheres].map((s) => {
+        const live = liveDimensions[s.id];
+        return live ? { ...s, ...live } : s;
+      }),
+    [serverObjects, sphereDraw.placedSpheres, liveDimensions],
   );
+
+  const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | null>(() => {
+    if (!selectedObjectId) return null;
+    if (placedBoxes.some((b) => b.id === selectedObjectId)) return "box";
+    if (placedCylinders.some((c) => c.id === selectedObjectId)) return "cylinder";
+    if (placedSpheres.some((s) => s.id === selectedObjectId)) return "sphere";
+    return null;
+  }, [selectedObjectId, placedBoxes, placedCylinders, placedSpheres]);
 
   const selectedObject = useMemo(
     () =>
@@ -185,6 +209,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     [selectedObjectId, updateObjectPosition, setLivePosition],
   );
 
+  const handleDimensionCommit = useCallback(
+    (field: "width" | "height" | "depth" | "radius", value: number) => {
+      if (!selectedObjectId) return;
+      updateObjectDimensions.mutate({ objectId: selectedObjectId, dimensions: { [field]: value } });
+      setLiveDimension(selectedObjectId, field, value);
+    },
+    [selectedObjectId, updateObjectDimensions, setLiveDimension],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -218,6 +251,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     placedCylinders,
     placedSpheres,
     selectedObject,
+    selectedObjectType,
     selectedTool,
     showSelectHelp,
     showObjectSelected,
@@ -231,5 +265,6 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleDragStart,
     handleDragEnd,
     handlePositionCommit,
+    handleDimensionCommit,
   };
 };
