@@ -1,10 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
-import { DrawState, PlacedBox, HeightState } from "./types";
+import { DrawState, PlacedCylinder, HeightState } from "../types";
 
-export interface UseBoxDrawReturn {
+function xzDist(a: THREE.Vector3, b: THREE.Vector3): number {
+  return Math.max(0.01, Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2));
+}
+
+export interface UseCylinderDrawReturn {
   drawState: DrawState;
-  placedBoxes: PlacedBox[];
+  placedCylinders: PlacedCylinder[];
   handleGroundRightClick: (point: THREE.Vector3) => void;
   handleGroundPointerMove: (point: THREE.Vector3) => void;
   handleGroundClick: (point: THREE.Vector3) => void;
@@ -14,14 +18,13 @@ export interface UseBoxDrawReturn {
   rollback: (id: string) => void;
 }
 
-interface UseBoxDrawOptions {
-  onPlace?: (box: PlacedBox) => void;
-  onRollback?: (id: string) => void;
+interface UseCylinderDrawOptions {
+  onPlace?: (cylinder: PlacedCylinder) => void;
 }
 
-export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
+export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
-  const [placedBoxes, setPlacedBoxes] = useState<PlacedBox[]>([]);
+  const [placedCylinders, setPlacedCylinders] = useState<PlacedCylinder[]>([]);
   const onPlaceRef = useRef(options?.onPlace);
   useEffect(() => {
     onPlaceRef.current = options?.onPlace;
@@ -65,26 +68,22 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
     setDrawState((prev) => {
       if (prev.phase !== "height") return prev;
       const height = Math.max(0.01, worldY);
-      const box: PlacedBox = {
+      const radius = xzDist(prev.start, prev.end);
+      const cylinder: PlacedCylinder = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(
-          (prev.start.x + prev.end.x) / 2,
-          height / 2,
-          (prev.start.z + prev.end.z) / 2
-        ),
-        width: Math.max(0.01, Math.abs(prev.end.x - prev.start.x)),
+        center: new THREE.Vector3(prev.start.x, height / 2, prev.start.z),
+        radius,
         height,
-        depth: Math.max(0.01, Math.abs(prev.end.z - prev.start.z)),
         color: null,
       };
-      setPlacedBoxes((boxes) => [...boxes, box]);
-      onPlaceRef.current?.(box);
+      setPlacedCylinders((cs) => [...cs, cylinder]);
+      onPlaceRef.current?.(cylinder);
       return { phase: "idle" };
     });
   }, []);
 
   const rollback = useCallback((id: string) => {
-    setPlacedBoxes((prev) => prev.filter((b) => b.id !== id));
+    setPlacedCylinders((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
   const cancelDraw = useCallback(() => {
@@ -93,7 +92,7 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
 
   return {
     drawState,
-    placedBoxes,
+    placedCylinders,
     handleGroundRightClick,
     handleGroundPointerMove,
     handleGroundClick,

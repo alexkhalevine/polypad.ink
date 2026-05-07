@@ -9,7 +9,7 @@ vi.mock("@react-three/fiber", () => ({
   useThree: vi.fn(),
 }));
 
-import { snapPoint } from "./scene";
+import { snapPoint } from "../scene";
 
 // ─── snapPoint ────────────────────────────────────────────────────────────────
 // Business critical: snapPoint affects geometry placement precision.

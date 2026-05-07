@@ -1,14 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
-import { DrawState, PlacedCylinder, HeightState } from "./types";
+import { DrawState, PlacedSphere } from "../types";
 
 function xzDist(a: THREE.Vector3, b: THREE.Vector3): number {
   return Math.max(0.01, Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2));
 }
 
-export interface UseCylinderDrawReturn {
+export interface UseSphereDrawReturn {
   drawState: DrawState;
-  placedCylinders: PlacedCylinder[];
+  placedSpheres: PlacedSphere[];
   handleGroundRightClick: (point: THREE.Vector3) => void;
   handleGroundPointerMove: (point: THREE.Vector3) => void;
   handleGroundClick: (point: THREE.Vector3) => void;
@@ -18,13 +18,13 @@ export interface UseCylinderDrawReturn {
   rollback: (id: string) => void;
 }
 
-interface UseCylinderDrawOptions {
-  onPlace?: (cylinder: PlacedCylinder) => void;
+interface UseSphereDrawOptions {
+  onPlace?: (sphere: PlacedSphere) => void;
 }
 
-export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDrawReturn {
+export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
-  const [placedCylinders, setPlacedCylinders] = useState<PlacedCylinder[]>([]);
+  const [placedSpheres, setPlacedSpheres] = useState<PlacedSphere[]>([]);
   const onPlaceRef = useRef(options?.onPlace);
   useEffect(() => {
     onPlaceRef.current = options?.onPlace;
@@ -45,45 +45,28 @@ export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDr
     });
   }, []);
 
+  // Commits immediately — no height phase for sphere
   const handleGroundClick = useCallback((point: THREE.Vector3) => {
     setDrawState((prev) => {
       if (prev.phase !== "footprint") return prev;
-      return {
-        phase: "height",
-        start: prev.start,
-        end: point.clone(),
-        currentHeight: 0.01,
-      } satisfies HeightState;
-    });
-  }, []);
-
-  const handleHeightPointerMove = useCallback((worldY: number) => {
-    setDrawState((prev) => {
-      if (prev.phase !== "height") return prev;
-      return { ...prev, currentHeight: Math.max(0.01, worldY) };
-    });
-  }, []);
-
-  const handleHeightClick = useCallback((worldY: number) => {
-    setDrawState((prev) => {
-      if (prev.phase !== "height") return prev;
-      const height = Math.max(0.01, worldY);
-      const radius = xzDist(prev.start, prev.end);
-      const cylinder: PlacedCylinder = {
+      const radius = xzDist(prev.start, point);
+      const sphere: PlacedSphere = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(prev.start.x, height / 2, prev.start.z),
+        center: new THREE.Vector3(prev.start.x, radius, prev.start.z),
         radius,
-        height,
         color: null,
       };
-      setPlacedCylinders((cs) => [...cs, cylinder]);
-      onPlaceRef.current?.(cylinder);
+      setPlacedSpheres((ss) => [...ss, sphere]);
+      onPlaceRef.current?.(sphere);
       return { phase: "idle" };
     });
   }, []);
 
+  const handleHeightPointerMove = useCallback(() => {}, []);
+  const handleHeightClick = useCallback(() => {}, []);
+
   const rollback = useCallback((id: string) => {
-    setPlacedCylinders((prev) => prev.filter((c) => c.id !== id));
+    setPlacedSpheres((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
   const cancelDraw = useCallback(() => {
@@ -92,7 +75,7 @@ export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDr
 
   return {
     drawState,
-    placedCylinders,
+    placedSpheres,
     handleGroundRightClick,
     handleGroundPointerMove,
     handleGroundClick,

@@ -1,14 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as THREE from "three";
-import { DrawState, PlacedSphere } from "./types";
+import { DrawState, PlacedBox, HeightState } from "../types";
 
-function xzDist(a: THREE.Vector3, b: THREE.Vector3): number {
-  return Math.max(0.01, Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2));
-}
-
-export interface UseSphereDrawReturn {
+export interface UseBoxDrawReturn {
   drawState: DrawState;
-  placedSpheres: PlacedSphere[];
+  placedBoxes: PlacedBox[];
   handleGroundRightClick: (point: THREE.Vector3) => void;
   handleGroundPointerMove: (point: THREE.Vector3) => void;
   handleGroundClick: (point: THREE.Vector3) => void;
@@ -18,13 +14,14 @@ export interface UseSphereDrawReturn {
   rollback: (id: string) => void;
 }
 
-interface UseSphereDrawOptions {
-  onPlace?: (sphere: PlacedSphere) => void;
+interface UseBoxDrawOptions {
+  onPlace?: (box: PlacedBox) => void;
+  onRollback?: (id: string) => void;
 }
 
-export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawReturn {
+export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
-  const [placedSpheres, setPlacedSpheres] = useState<PlacedSphere[]>([]);
+  const [placedBoxes, setPlacedBoxes] = useState<PlacedBox[]>([]);
   const onPlaceRef = useRef(options?.onPlace);
   useEffect(() => {
     onPlaceRef.current = options?.onPlace;
@@ -45,28 +42,49 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
     });
   }, []);
 
-  // Commits immediately — no height phase for sphere
   const handleGroundClick = useCallback((point: THREE.Vector3) => {
     setDrawState((prev) => {
       if (prev.phase !== "footprint") return prev;
-      const radius = xzDist(prev.start, point);
-      const sphere: PlacedSphere = {
+      return {
+        phase: "height",
+        start: prev.start,
+        end: point.clone(),
+        currentHeight: 0.01,
+      } satisfies HeightState;
+    });
+  }, []);
+
+  const handleHeightPointerMove = useCallback((worldY: number) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "height") return prev;
+      return { ...prev, currentHeight: Math.max(0.01, worldY) };
+    });
+  }, []);
+
+  const handleHeightClick = useCallback((worldY: number) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "height") return prev;
+      const height = Math.max(0.01, worldY);
+      const box: PlacedBox = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(prev.start.x, radius, prev.start.z),
-        radius,
+        center: new THREE.Vector3(
+          (prev.start.x + prev.end.x) / 2,
+          height / 2,
+          (prev.start.z + prev.end.z) / 2
+        ),
+        width: Math.max(0.01, Math.abs(prev.end.x - prev.start.x)),
+        height,
+        depth: Math.max(0.01, Math.abs(prev.end.z - prev.start.z)),
         color: null,
       };
-      setPlacedSpheres((ss) => [...ss, sphere]);
-      onPlaceRef.current?.(sphere);
+      setPlacedBoxes((boxes) => [...boxes, box]);
+      onPlaceRef.current?.(box);
       return { phase: "idle" };
     });
   }, []);
 
-  const handleHeightPointerMove = useCallback(() => {}, []);
-  const handleHeightClick = useCallback(() => {}, []);
-
   const rollback = useCallback((id: string) => {
-    setPlacedSpheres((prev) => prev.filter((s) => s.id !== id));
+    setPlacedBoxes((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
   const cancelDraw = useCallback(() => {
@@ -75,7 +93,7 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
 
   return {
     drawState,
-    placedSpheres,
+    placedBoxes,
     handleGroundRightClick,
     handleGroundPointerMove,
     handleGroundClick,

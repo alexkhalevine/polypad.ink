@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
-import { toWireBox, toWireCylinder, toWireSphere, fromWireBox, fromWireCylinder, fromWireSphere } from "./queries/wire-converters";
-import type { PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
+import { toWireBox, toWireCylinder, toWireSphere, fromWireBox, fromWireCylinder, fromWireSphere } from "../queries/wire-converters";
+import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
 
 // ─── Wire converters ────────────────────────────────────────────────────────────
 // TODO: Critical: these serialize 3D object state for server round-trips.
