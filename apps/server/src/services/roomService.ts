@@ -1,8 +1,9 @@
-import { eq, asc, count } from "drizzle-orm";
+import { eq, and, asc, count } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
 import { geometryObjects, rooms } from "../schema.js";
 import type { ObjectRow, NewObject } from "../schema.js";
-import type { WireObject, GetObjectsResponse, WireBox, WireCylinder, WireSphere } from "../types.js";
+import type { WireObject, GetObjectsResponse } from "../types.js";
 import { MAX_GEOMETRY_OBJECTS_PER_ROOM } from "../constants.js";
 import { getEmitter, getLockManager } from "../realtime/registry.js";
 
@@ -50,50 +51,63 @@ function rowToWire(row: ObjectRow): WireObject {
   }
 }
 
-function wireToInsert(roomId: string, body: WireObject): NewObject {
-  switch (body.type) {
+function wireToInsert(roomId: string, wire: WireObject): NewObject {
+  switch (wire.type) {
     case "box": {
-      const data = body.data as WireBox;
+      const d = wire.data;
       return {
-        id: data.id,
+        id: d.id,
         roomId,
         type: "box",
-        cx: data.cx,
-        cy: data.cy,
-        cz: data.cz,
-        width: data.width,
-        height: data.height,
-        depth: data.depth,
-        color: data.color ?? null,
+        cx: d.cx,
+        cy: d.cy,
+        cz: d.cz,
+        width: d.width,
+        height: d.height,
+        depth: d.depth,
+        color: d.color ?? null,
       };
     }
     case "cylinder": {
-      const data = body.data as WireCylinder;
+      const d = wire.data;
       return {
-        id: data.id,
+        id: d.id,
         roomId,
         type: "cylinder",
-        cx: data.cx,
-        cy: data.cy,
-        cz: data.cz,
-        radius: data.radius,
-        height: data.height,
-        color: data.color ?? null,
+        cx: d.cx,
+        cy: d.cy,
+        cz: d.cz,
+        radius: d.radius,
+        height: d.height,
+        color: d.color ?? null,
       };
     }
     case "sphere": {
-      const data = body.data as WireSphere;
+      const d = wire.data;
       return {
-        id: data.id,
+        id: d.id,
         roomId,
         type: "sphere",
-        cx: data.cx,
-        cy: data.cy,
-        cz: data.cz,
-        radius: data.radius,
-        color: data.color ?? null,
+        cx: d.cx,
+        cy: d.cy,
+        cz: d.cz,
+        radius: d.radius,
+        color: d.color ?? null,
       };
     }
+  }
+}
+
+// Returns a wire object with the server-assigned id substituted in.
+// IDs from the request body are ignored to prevent client-controlled primary keys.
+function withServerId(wire: WireObject, id: string): WireObject {
+  switch (wire.type) {
+    case "box":
+      return { type: "box", data: { ...wire.data, id } };
+    case "cylinder":
+      return { type: "cylinder", data: { ...wire.data, id } };
+    case "sphere":
+      return { type: "sphere", data: { ...wire.data, id } };
   }
 }
 
@@ -133,58 +147,75 @@ export async function createObject(
   roomId: string,
   wire: WireObject,
   { actor }: { actor: string },
-): Promise<{ ok: true } | { error: string; status: number }> {
-  await db.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
+): Promise<{ ok: true; id: string } | { error: string; status: number }> {
+  const id = randomUUID();
+  const serverWire = withServerId(wire, id);
 
-  const currentCount = await db
-    .select({ count: count() })
-    .from(geometryObjects)
-    .where(eq(geometryObjects.roomId, roomId))
-    .get();
+  type TxResult = { ok: true } | { error: string; status: number };
+  const result: TxResult = db.transaction((tx): TxResult => {
+    tx.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
 
-  if ((currentCount?.count ?? 0) >= MAX_GEOMETRY_OBJECTS_PER_ROOM) {
-    return {
-      error: `Room cannot have more than ${MAX_GEOMETRY_OBJECTS_PER_ROOM} geometry objects`,
-      status: 400,
-    };
-  }
+    const current = tx
+      .select({ count: count() })
+      .from(geometryObjects)
+      .where(eq(geometryObjects.roomId, roomId))
+      .get();
 
-  await db.insert(geometryObjects).values(wireToInsert(roomId, wire)).run();
+    if ((current?.count ?? 0) >= MAX_GEOMETRY_OBJECTS_PER_ROOM) {
+      return {
+        error: `Room cannot have more than ${MAX_GEOMETRY_OBJECTS_PER_ROOM} geometry objects`,
+        status: 400,
+      };
+    }
 
-  getEmitter().emit(roomId, "object:created", { object: wire, by: actor });
+    tx.insert(geometryObjects).values(wireToInsert(roomId, serverWire)).run();
+    return { ok: true };
+  });
 
-  return { ok: true };
+  if ("error" in result) return result;
+
+  getEmitter().emit(roomId, "object:created", { object: serverWire, by: actor });
+  return { ok: true, id };
 }
 
 export async function batchCreateObjects(
   roomId: string,
   wires: WireObject[],
   { actor }: { actor: string },
-): Promise<{ ok: true; inserted: number } | { error: string; status: number }> {
-  await db.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
+): Promise<{ ok: true; inserted: number; ids: string[] } | { error: string; status: number }> {
+  const ids = wires.map(() => randomUUID());
+  const serverWires = wires.map((w, i) => withServerId(w, ids[i]!));
 
-  const currentCount = await db
-    .select({ count: count() })
-    .from(geometryObjects)
-    .where(eq(geometryObjects.roomId, roomId))
-    .get();
+  type TxResult = { ok: true } | { error: string; status: number };
+  const result: TxResult = db.transaction((tx): TxResult => {
+    tx.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
 
-  const existing = currentCount?.count ?? 0;
-  if (existing + wires.length > MAX_GEOMETRY_OBJECTS_PER_ROOM) {
-    return {
-      error: `Room cannot have more than ${MAX_GEOMETRY_OBJECTS_PER_ROOM} geometry objects`,
-      status: 400,
-    };
+    const current = tx
+      .select({ count: count() })
+      .from(geometryObjects)
+      .where(eq(geometryObjects.roomId, roomId))
+      .get();
+
+    const existing = current?.count ?? 0;
+    if (existing + serverWires.length > MAX_GEOMETRY_OBJECTS_PER_ROOM) {
+      return {
+        error: `Room cannot have more than ${MAX_GEOMETRY_OBJECTS_PER_ROOM} geometry objects`,
+        status: 400,
+      };
+    }
+
+    const rows = serverWires.map((w) => wireToInsert(roomId, w));
+    tx.insert(geometryObjects).values(rows).run();
+    return { ok: true };
+  });
+
+  if ("error" in result) return result;
+
+  for (const w of serverWires) {
+    getEmitter().emit(roomId, "object:created", { object: w, by: actor });
   }
 
-  const rows = wires.map((wire) => wireToInsert(roomId, wire));
-  await db.insert(geometryObjects).values(rows).run();
-
-  for (const wire of wires) {
-    getEmitter().emit(roomId, "object:created", { object: wire, by: actor });
-  }
-
-  return { ok: true, inserted: rows.length };
+  return { ok: true, inserted: serverWires.length, ids };
 }
 
 export async function updateObject(
@@ -193,7 +224,8 @@ export async function updateObject(
   patch: { color?: string; center?: { x: number; y: number; z: number } },
   { actor }: { actor: string },
 ): Promise<{ ok: true; existed: true } | { ok: false; existed: false } | { error: string; status: number }> {
-  const existing = await db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
+  const where = and(eq(geometryObjects.roomId, roomId), eq(geometryObjects.id, objectId));
+  const existing = await db.select().from(geometryObjects).where(where).get();
 
   if (!existing) {
     return { ok: false, existed: false };
@@ -225,7 +257,7 @@ export async function updateObject(
     return { error: "No valid update fields provided", status: 400 };
   }
 
-  await db.update(geometryObjects).set(updates).where(eq(geometryObjects.id, objectId)).run();
+  await db.update(geometryObjects).set(updates).where(where).run();
 
   getLockManager().touch(roomId, objectId, actor);
   getEmitter().emit(roomId, "object:updated", { objectId, patch: appliedPatch, by: actor });
@@ -238,13 +270,14 @@ export async function deleteObject(
   objectId: string,
   { actor }: { actor: string },
 ): Promise<{ ok: true } | { ok: false; existed: false } | { error: string; status: number }> {
-  const existing = await db.select().from(geometryObjects).where(eq(geometryObjects.id, objectId)).get();
+  const where = and(eq(geometryObjects.roomId, roomId), eq(geometryObjects.id, objectId));
+  const existing = await db.select().from(geometryObjects).where(where).get();
 
   if (!existing) {
     return { ok: false, existed: false };
   }
 
-  await db.delete(geometryObjects).where(eq(geometryObjects.id, objectId)).run();
+  await db.delete(geometryObjects).where(where).run();
 
   getLockManager().release(roomId, objectId, actor);
   getEmitter().emit(roomId, "object:deleted", { objectId, by: actor });

@@ -30,27 +30,29 @@ export async function listObjects(roomId: string): Promise<GetObjectsResponse> {
   return (await res.json()) as GetObjectsResponse;
 }
 
-export async function createObject(roomId: string, object: WireObject): Promise<void> {
+export async function createObject(roomId: string, object: WireObject): Promise<{ id: string }> {
   const res = await fetch(`${API_URL}/rooms/${encodeURIComponent(roomId)}/objects`, {
     method: "POST",
     headers: headers({ "Content-Type": "application/json" }),
     body: JSON.stringify(object),
   });
   await ensureOk(res);
+  const body = (await res.json()) as { ok: true; id: string };
+  return { id: body.id };
 }
 
 export async function createObjectsBatch(
   roomId: string,
   objects: WireObject[]
-): Promise<{ inserted: number }> {
+): Promise<{ inserted: number; ids: string[] }> {
   const res = await fetch(`${API_URL}/rooms/${encodeURIComponent(roomId)}/objects/batch`, {
     method: "POST",
     headers: headers({ "Content-Type": "application/json" }),
     body: JSON.stringify({ objects }),
   });
   await ensureOk(res);
-  const body = (await res.json()) as { inserted?: number };
-  return { inserted: body.inserted ?? objects.length };
+  const body = (await res.json()) as { ok: true; inserted: number; ids: string[] };
+  return { inserted: body.inserted, ids: body.ids };
 }
 
 export async function patchObject(

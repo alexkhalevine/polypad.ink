@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
@@ -80,7 +79,8 @@ const BatchObjectSchema = z.discriminatedUnion("type", [
 type BatchInput = z.infer<typeof BatchObjectSchema>;
 
 function toWireFromBatch(input: BatchInput): WireObject {
-  const id = randomUUID();
+  // id is assigned server-side; placeholder satisfies the wire type.
+  const id = "";
   if (input.type === "box") {
     const d = input.data;
     return {
@@ -149,11 +149,10 @@ export function registerTools(server: McpServer): void {
     async (args) => {
       try {
         const roomId = resolveRoomId(args.room_id);
-        const id = randomUUID();
         const wire: WireObject = {
           type: "box",
           data: {
-            id,
+            id: "",
             cx: args.center.x,
             cy: args.center.y,
             cz: args.center.z,
@@ -163,7 +162,7 @@ export function registerTools(server: McpServer): void {
             color: args.color?.toLowerCase() ?? null,
           },
         };
-        await createObject(roomId, wire);
+        const { id } = await createObject(roomId, wire);
         return ok(JSON.stringify({ ok: true, id, type: "box", room_id: roomId }));
       } catch (err) {
         return fail(err);
@@ -178,11 +177,10 @@ export function registerTools(server: McpServer): void {
     async (args) => {
       try {
         const roomId = resolveRoomId(args.room_id);
-        const id = randomUUID();
         const wire: WireObject = {
           type: "cylinder",
           data: {
-            id,
+            id: "",
             cx: args.center.x,
             cy: args.center.y,
             cz: args.center.z,
@@ -191,7 +189,7 @@ export function registerTools(server: McpServer): void {
             color: args.color?.toLowerCase() ?? null,
           },
         };
-        await createObject(roomId, wire);
+        const { id } = await createObject(roomId, wire);
         return ok(JSON.stringify({ ok: true, id, type: "cylinder", room_id: roomId }));
       } catch (err) {
         return fail(err);
@@ -206,11 +204,10 @@ export function registerTools(server: McpServer): void {
     async (args) => {
       try {
         const roomId = resolveRoomId(args.room_id);
-        const id = randomUUID();
         const wire: WireObject = {
           type: "sphere",
           data: {
-            id,
+            id: "",
             cx: args.center.x,
             cy: args.center.y,
             cz: args.center.z,
@@ -218,7 +215,7 @@ export function registerTools(server: McpServer): void {
             color: args.color?.toLowerCase() ?? null,
           },
         };
-        await createObject(roomId, wire);
+        const { id } = await createObject(roomId, wire);
         return ok(JSON.stringify({ ok: true, id, type: "sphere", room_id: roomId }));
       } catch (err) {
         return fail(err);
@@ -243,7 +240,7 @@ export function registerTools(server: McpServer): void {
             ok: true,
             room_id: roomId,
             inserted: result.inserted,
-            ids: wires.map((w) => w.data.id),
+            ids: result.ids,
           })
         );
       } catch (err) {

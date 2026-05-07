@@ -33,7 +33,7 @@ router.post("/:id/objects", async (req, res) => {
     return;
   }
 
-  res.status(201).json({ ok: true });
+  res.status(201).json({ ok: true, id: result.id });
 });
 
 router.post("/:id/objects/batch", async (req, res) => {
@@ -59,7 +59,7 @@ router.post("/:id/objects/batch", async (req, res) => {
     return;
   }
 
-  res.status(201).json({ ok: true, inserted: result.inserted });
+  res.status(201).json({ ok: true, inserted: result.inserted, ids: result.ids });
 });
 
 router.delete("/:id/objects/:objectId", async (req, res) => {
