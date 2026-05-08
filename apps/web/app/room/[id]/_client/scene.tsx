@@ -15,6 +15,7 @@ import { PlacedBoxMesh } from "@/app/components/placed-box-mesh";
 import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { useRoomStore } from "./room-store";
+import { RemoteCursors } from "./remote-cursors";
 
 // ─── Snap utility ─────────────────────────────────────────────────────────────
 
@@ -172,6 +173,8 @@ function SceneContent({
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
         />
       ))}
+
+      <RemoteCursors />
     </>
   );
 }
