@@ -6,6 +6,7 @@ import { Scene } from "./scene";
 import { getHelpText } from "@/app/utils";
 import { useRoomSocket } from "./realtime/use-room-socket";
 import { useRoomEditor } from "./hooks/use-room-editor";
+import { UserAvatars } from "./user-avatars";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -43,6 +44,9 @@ export const Room = () => {
         </div>
       )}
       <div className="relative w-full h-full flex flex-col">
+        <div className="absolute top-3 right-4 z-10">
+          <UserAvatars />
+        </div>
         {editor.isPending && (
           <div className="absolute top-4 right-4">
             <span className="loading loading-spinner loading-xs"></span>
