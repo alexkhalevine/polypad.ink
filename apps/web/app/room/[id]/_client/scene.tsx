@@ -17,6 +17,8 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
 
+const CURSOR_COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#34d399", "#f472b6", "#facc15"];
+
 // ─── Snap utility ─────────────────────────────────────────────────────────────
 
 export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
@@ -66,6 +68,18 @@ function SceneContent({
   const livePositions = useRoomStore((s) => s.livePositions);
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const setHoveredObjectId = useRoomStore((s) => s.setHoveredObjectId);
+  const objectLocks = useRoomStore((s) => s.objectLocks);
+  const remoteUsers = useRoomStore((s) => s.remoteUsers);
+  const localUserId = useRoomStore((s) => s.localUserId);
+
+  const remoteUserEntries = Object.entries(remoteUsers);
+  function getLockInfo(objectId: string) {
+    const lockingUserId = objectLocks[objectId];
+    if (!lockingUserId || lockingUserId === localUserId) return undefined;
+    const idx = remoteUserEntries.findIndex(([uid]) => uid === lockingUserId);
+    if (idx === -1) return undefined;
+    return { color: CURSOR_COLORS[idx % CURSOR_COLORS.length], displayName: remoteUserEntries[idx][1].displayName };
+  }
 
   const heightAnchorX =
     drawState.phase === "height"
@@ -140,6 +154,7 @@ function SceneContent({
           isSelected={box.id === selectedObjectId}
           isHovered={selectionMode === "select" && box.id === hoveredObjectId}
           wireframe={wireframeEnabled}
+          lockInfo={getLockInfo(box.id)}
           onClick={() => { if (selectionMode === "select") setSelectedObjectId(box.id); }}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(box.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
@@ -154,6 +169,7 @@ function SceneContent({
           isSelected={cylinder.id === selectedObjectId}
           isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
           wireframe={wireframeEnabled}
+          lockInfo={getLockInfo(cylinder.id)}
           onClick={() => { if (selectionMode === "select") setSelectedObjectId(cylinder.id); }}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(cylinder.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
@@ -168,6 +184,7 @@ function SceneContent({
           isSelected={sphere.id === selectedObjectId}
           isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
           wireframe={wireframeEnabled}
+          lockInfo={getLockInfo(sphere.id)}
           onClick={() => { if (selectionMode === "select") setSelectedObjectId(sphere.id); }}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(sphere.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
