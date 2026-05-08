@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Menu } from "@/app/components/menu";
 import { Scene } from "./scene";
@@ -7,6 +8,7 @@ import { getHelpText } from "@/app/utils";
 import { useRoomSocket } from "./realtime/use-room-socket";
 import { useRoomEditor } from "./hooks/use-room-editor";
 import { UserAvatars } from "./user-avatars";
+import { ContextMenu } from "./context-menu";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -18,6 +20,13 @@ export const Room = () => {
 
   const socket = useRoomSocket(id);
   const editor = useRoomEditor(id, socket);
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const openContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
   return (
     <>
@@ -52,13 +61,17 @@ export const Room = () => {
             <span className="loading loading-spinner loading-xs"></span>
           </div>
         )}
-        <div className="flex-1" onPointerLeave={() => socket.emitCursor(null)}>
+        <div
+          className="flex-1"
+          onPointerLeave={() => socket.emitCursor(null)}
+          onContextMenu={openContextMenu}
+        >
           <Scene
             drawState={editor.activeDraw?.drawState ?? idleState}
             placedBoxes={editor.placedBoxes}
             placedCylinders={editor.placedCylinders}
             placedSpheres={editor.placedSpheres}
-            onGroundRightClick={editor.activeDraw?.handleGroundRightClick ?? noop}
+            onGroundRightClick={noop}
             onGroundPointerMove={editor.handleGroundPointerMove}
             onGroundClick={editor.activeDraw?.handleGroundClick ?? noop}
             onHeightPointerMove={editor.activeDraw?.handleHeightPointerMove ?? noop}
@@ -68,6 +81,9 @@ export const Room = () => {
             onDragEnd={editor.handleDragEnd}
           />
         </div>
+        {contextMenu && (
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} />
+        )}
 
         <div className="absolute bottom-0 left-0 right-0 flex justify-center">
           <Menu
