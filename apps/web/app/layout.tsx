@@ -34,7 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
         data-theme="cupcake"
       >
-        <body className="h-full flex flex-col p-8">
+        <body className="h-full flex flex-col">
           <Providers>{children}</Providers>
         </body>
       </html>
