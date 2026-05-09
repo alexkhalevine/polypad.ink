@@ -27,13 +27,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col hp-bg">
-      {/* Minimal nav */}
-      <nav className="w-full px-6 py-4 flex items-center justify-center">
-        <span className="font-sans font-medium text-base text-base-content/80">
-          Polypad
-        </span>
-      </nav>
-
       {/* Hero section */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="max-w-xl w-full flex flex-col items-center text-center gap-8">
