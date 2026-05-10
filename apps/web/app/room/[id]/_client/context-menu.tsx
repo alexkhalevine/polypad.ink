@@ -45,7 +45,11 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
           <button onClick={handleSelectObject} className="font-medium text-lg text-indigo-200 hover:text-amber-300">Select object</button>
         </li>
         <li>
-          <button className="font-medium text-lg text-indigo-200 hover:text-amber-300" onClick={handleMoveObject} disabled={!selectedObjectId}>
+          <button
+            onClick={handleMoveObject}
+            disabled={!selectedObjectId}
+            className="font-medium text-lg text-indigo-200 hover:text-amber-300 disabled:text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-indigo-400"
+          >
             Move object
           </button>
         </li>

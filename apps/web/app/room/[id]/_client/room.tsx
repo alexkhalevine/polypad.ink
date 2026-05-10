@@ -33,7 +33,7 @@ export const Room = () => {
       {(editor.selectedTool || editor.showSelectHelp || editor.showObjectSelected) && (
         <div className="p-4 absolute z-10 text-blue-200" id="help-text-container">
           <div className="chat chat-start mt-2">
-            <div className="chat-bubble chat-bubble-primary text-xs py-2 px-4">
+            <div className="chat-bubble chat-bubble-primary text-md py-2 px-5 font-mono">
               {getHelpText({
                 phase: editor.activeDraw?.drawState.phase,
                 showSelectHelp: editor.showSelectHelp,
@@ -45,7 +45,7 @@ export const Room = () => {
           </div>
           {editor.showObjectSelected && (
             <div className="chat chat-start mt-2">
-              <div className="chat-bubble chat-bubble-accent text-xs py-2 px-4">
+              <div className="chat-bubble chat-bubble-accent text-md py-2 px-5 font-mono">
                 Press <kbd className="kbd kbd-xs">Esc</kbd> to deselect
               </div>
             </div>
