@@ -71,7 +71,7 @@ export const Room = () => {
             placedBoxes={editor.placedBoxes}
             placedCylinders={editor.placedCylinders}
             placedSpheres={editor.placedSpheres}
-            onGroundRightClick={noop}
+            onGroundStartDraw={editor.activeDraw?.handleGroundStartDraw ?? noop}
             onGroundPointerMove={editor.handleGroundPointerMove}
             onGroundClick={editor.activeDraw?.handleGroundClick ?? noop}
             onHeightPointerMove={editor.activeDraw?.handleHeightPointerMove ?? noop}

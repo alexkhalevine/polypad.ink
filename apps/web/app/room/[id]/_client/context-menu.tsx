@@ -38,15 +38,15 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <ul
-        className="menu bg-base-200 rounded-box shadow-lg w-44 p-1 fixed z-50"
+        className="menu rounded-box shadow-sm w-44 p-1 fixed z-50 bg-indigo-950 shadow-indigo-500"
         style={{ left: x, top: y }}
       >
         <li>
-          <button onClick={handleSelectObject}>select object</button>
+          <button onClick={handleSelectObject} className="font-medium text-lg text-indigo-200 hover:text-amber-300">Select object</button>
         </li>
         <li>
-          <button onClick={handleMoveObject} disabled={!selectedObjectId}>
-            move object
+          <button className="font-medium text-lg text-indigo-200 hover:text-amber-300" onClick={handleMoveObject} disabled={!selectedObjectId}>
+            Move object
           </button>
         </li>
       </ul>

@@ -45,7 +45,7 @@ function PositionAxisInput({
 
   return (
     <div className="flex flex-col items-center">
-      <span className="text-xs text-blue-700 uppercase">{axis}</span>
+      <span className="text-xs text-blue-100 uppercase">{axis}-axis</span>
       <input
         type="number"
         step="0.1"
@@ -55,7 +55,7 @@ function PositionAxisInput({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="input input-bordered input-sm w-20 text-center text-blue-700 font-mono"
+        className="input input-bordered input-sm w-36 text-center text-blue-700 font-mono"
       />
     </div>
   );
@@ -90,7 +90,7 @@ function DimensionInput({
 
   return (
     <div className="flex flex-col items-center">
-      <span className="text-xs text-blue-700 uppercase">{label}</span>
+      <span className="text-xs text-blue-100 uppercase">{label}</span>
       <input
         type="number"
         step="0.1"
@@ -101,7 +101,7 @@ function DimensionInput({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="input input-bordered input-sm w-20 text-center text-blue-700 font-mono"
+        className="input input-bordered input-sm w-36 text-center text-blue-700 font-mono"
       />
     </div>
   );

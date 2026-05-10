@@ -6,7 +6,7 @@ import { DrawPhase } from "@/app/room/[id]/_client/types";
 interface GroundPlaneProps {
   phase: DrawPhase;
   toolActive: boolean;
-  onRightClick: (point: THREE.Vector3) => void;
+  onStartDraw: (point: THREE.Vector3) => void;
   onPointerMove: (point: THREE.Vector3) => void;
   onClick: (point: THREE.Vector3) => void;
 }
@@ -14,7 +14,7 @@ interface GroundPlaneProps {
 export function GroundPlane({
   phase,
   toolActive,
-  onRightClick,
+  onStartDraw,
   onPointerMove,
   onClick,
 }: GroundPlaneProps) {
@@ -22,18 +22,14 @@ export function GroundPlane({
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
       visible={false}
-      onContextMenu={(e) => {
-        e.nativeEvent.preventDefault();
-        e.stopPropagation();
-        if (phase === "idle" && toolActive) onRightClick(e.point);
-      }}
       onPointerMove={(e) => {
         e.stopPropagation();
         if (phase === "footprint") onPointerMove(e.point);
       }}
       onClick={(e) => {
         e.stopPropagation();
-        if (phase === "footprint") onClick(e.point);
+        if (phase === "idle" && toolActive) onStartDraw(e.point);
+        else if (phase === "footprint") onClick(e.point);
       }}
     >
       <planeGeometry args={[500, 500]} />

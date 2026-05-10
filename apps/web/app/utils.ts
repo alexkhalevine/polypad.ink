@@ -26,5 +26,5 @@ export function getHelpText(ctx: HelpContext): string {
   if (showObjectSelected && selectedObjectCoords) {
     return `object selected ${selectedObjectCoords}`;
   }
-  return "click right mouse button somewhere on the ground plate to start drawing, left click to place the primitive";
+  return "click left mouse button somewhere on the ground plate to start drawing, left click to place the primitive";
 }

@@ -33,7 +33,7 @@ interface SceneProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
-  onGroundRightClick: (point: THREE.Vector3) => void;
+  onGroundStartDraw: (point: THREE.Vector3) => void;
   onGroundPointerMove: (point: THREE.Vector3) => void;
   onGroundClick: (point: THREE.Vector3) => void;
   onHeightPointerMove: (worldY: number) => void;
@@ -50,7 +50,7 @@ function SceneContent({
   placedBoxes,
   placedCylinders,
   placedSpheres,
-  onGroundRightClick,
+  onGroundStartDraw,
   onGroundPointerMove,
   onGroundClick,
   onHeightPointerMove,
@@ -128,7 +128,7 @@ function SceneContent({
       <GroundPlane
         phase={drawState.phase}
         toolActive={selectedTool !== null}
-        onRightClick={(p) => onGroundRightClick(snapPoint(p, snapEnabled))}
+        onStartDraw={(p) => onGroundStartDraw(snapPoint(p, snapEnabled))}
         onPointerMove={(p) => onGroundPointerMove(snapPoint(p, snapEnabled))}
         onClick={(p) => onGroundClick(snapPoint(p, snapEnabled))}
       />
@@ -199,7 +199,11 @@ function SceneContent({
 // ─── Canvas wrapper ───────────────────────────────────────────────────────────
 
 export function Scene(props: SceneProps) {
-  const cursor = props.drawState.phase !== "idle" ? "crosshair" : "default";
+  const selectionMode = useRoomStore((s) => s.selectionMode);
+  const cursor =
+    props.drawState.phase !== "idle" || selectionMode === "select"
+      ? "crosshair"
+      : "default";
 
   return (
     <div className="w-full h-full" style={{ cursor }}>

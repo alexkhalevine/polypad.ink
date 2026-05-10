@@ -9,7 +9,7 @@ function xzDist(a: THREE.Vector3, b: THREE.Vector3): number {
 export interface UseSphereDrawReturn {
   drawState: DrawState;
   placedSpheres: PlacedSphere[];
-  handleGroundRightClick: (point: THREE.Vector3) => void;
+  handleGroundStartDraw: (point: THREE.Vector3) => void;
   handleGroundPointerMove: (point: THREE.Vector3) => void;
   handleGroundClick: (point: THREE.Vector3) => void;
   handleHeightPointerMove: (worldY: number) => void;
@@ -30,7 +30,7 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
     onPlaceRef.current = options?.onPlace;
   }, [options?.onPlace]);
 
-  const handleGroundRightClick = useCallback((point: THREE.Vector3) => {
+  const handleGroundStartDraw = useCallback((point: THREE.Vector3) => {
     setDrawState({
       phase: "footprint",
       start: point.clone(),
@@ -76,7 +76,7 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
   return {
     drawState,
     placedSpheres,
-    handleGroundRightClick,
+    handleGroundStartDraw,
     handleGroundPointerMove,
     handleGroundClick,
     handleHeightPointerMove,

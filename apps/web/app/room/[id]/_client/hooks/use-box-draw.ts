@@ -5,7 +5,7 @@ import { DrawState, PlacedBox, HeightState } from "../types";
 export interface UseBoxDrawReturn {
   drawState: DrawState;
   placedBoxes: PlacedBox[];
-  handleGroundRightClick: (point: THREE.Vector3) => void;
+  handleGroundStartDraw: (point: THREE.Vector3) => void;
   handleGroundPointerMove: (point: THREE.Vector3) => void;
   handleGroundClick: (point: THREE.Vector3) => void;
   handleHeightPointerMove: (worldY: number) => void;
@@ -27,7 +27,7 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
     onPlaceRef.current = options?.onPlace;
   }, [options?.onPlace]);
 
-  const handleGroundRightClick = useCallback((point: THREE.Vector3) => {
+  const handleGroundStartDraw = useCallback((point: THREE.Vector3) => {
     setDrawState({
       phase: "footprint",
       start: point.clone(),
@@ -94,7 +94,7 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
   return {
     drawState,
     placedBoxes,
-    handleGroundRightClick,
+    handleGroundStartDraw,
     handleGroundPointerMove,
     handleGroundClick,
     handleHeightPointerMove,
