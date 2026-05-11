@@ -28,21 +28,25 @@ export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHove
 
   const [x, y, z] = positionOverride
     ? [positionOverride.x, positionOverride.y, positionOverride.z]
-    : [box.center.x, box.center.y, box.center.z];
+    : [box.position.x, box.position.y, box.position.z];
+
+  const hw = box.width / 2;
+  const hh = box.height / 2;
+  const hd = box.depth / 2;
 
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+      <mesh geometry={geo} position={[hw, hh, hd]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
         <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
       </mesh>
-      <lineSegments>
+      <lineSegments position={[hw, hh, hd]}>
         <edgesGeometry args={[geo]} />
         <lineBasicMaterial color={edgeColor} />
       </lineSegments>
       {lockInfo && (
-        <Html position={[0, box.height / 2 + 0.5, 0]} center pointerEvents="none">
+        <Html position={[hw, box.height + 0.5, hd]} center pointerEvents="none">
           <div style={{
             pointerEvents: "none",
             userSelect: "none",

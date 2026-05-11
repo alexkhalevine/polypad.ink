@@ -10,14 +10,14 @@ import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
 describe("toWireBox / fromWireBox", () => {
   const box: PlacedBox = {
     id: "box-1",
-    center: new THREE.Vector3(1.5, 2.5, 3.5),
+    position: new THREE.Vector3(1.5, 2.5, 3.5),
     width: 2,
     height: 3,
     depth: 4,
     color: "#ff0000",
   };
 
-  it("toWireBox extracts center components and flattens the object", () => {
+  it("toWireBox extracts position components and flattens the object", () => {
     const wire = toWireBox(box);
     expect(wire.id).toBe("box-1");
     expect(wire.cx).toBe(1.5);
@@ -29,13 +29,13 @@ describe("toWireBox / fromWireBox", () => {
     expect(wire.color).toBe("#ff0000");
   });
 
-  it("fromWireBox reconstructs the PlacedBox with a Vector3 center", () => {
+  it("fromWireBox reconstructs the PlacedBox with a Vector3 position", () => {
     const reconstructed = fromWireBox(toWireBox(box));
     expect(reconstructed.id).toBe("box-1");
-    expect(reconstructed.center).toBeInstanceOf(THREE.Vector3);
-    expect(reconstructed.center.x).toBeCloseTo(1.5);
-    expect(reconstructed.center.y).toBeCloseTo(2.5);
-    expect(reconstructed.center.z).toBeCloseTo(3.5);
+    expect(reconstructed.position).toBeInstanceOf(THREE.Vector3);
+    expect(reconstructed.position.x).toBeCloseTo(1.5);
+    expect(reconstructed.position.y).toBeCloseTo(2.5);
+    expect(reconstructed.position.z).toBeCloseTo(3.5);
     expect(reconstructed.width).toBe(2);
     expect(reconstructed.height).toBe(3);
     expect(reconstructed.depth).toBe(4);
@@ -45,7 +45,7 @@ describe("toWireBox / fromWireBox", () => {
   it("round-trips with sub-centimeter precision", () => {
     const precise: PlacedBox = {
       id: "p",
-      center: new THREE.Vector3(1.001, 2.999, 3.14159),
+      position: new THREE.Vector3(1.001, 2.999, 3.14159),
       width: 0.5,
       height: 0.5,
       depth: 0.5,
@@ -53,22 +53,22 @@ describe("toWireBox / fromWireBox", () => {
     };
     const wire = toWireBox(precise);
     const restored = fromWireBox(wire);
-    expect(restored.center.x).toBeCloseTo(1.001, 3);
-    expect(restored.center.y).toBeCloseTo(2.999, 3);
-    expect(restored.center.z).toBeCloseTo(3.14159, 3);
+    expect(restored.position.x).toBeCloseTo(1.001, 3);
+    expect(restored.position.y).toBeCloseTo(2.999, 3);
+    expect(restored.position.z).toBeCloseTo(3.14159, 3);
   });
 });
 
 describe("toWireCylinder / fromWireCylinder", () => {
   const cylinder: PlacedCylinder = {
     id: "cyl-1",
-    center: new THREE.Vector3(0, 1.5, 0),
+    position: new THREE.Vector3(0, 1.5, 0),
     radius: 0.75,
     height: 3,
     color: "#00ff00",
   };
 
-  it("toWireCylinder extracts center components", () => {
+  it("toWireCylinder extracts position components", () => {
     const wire = toWireCylinder(cylinder);
     expect(wire.id).toBe("cyl-1");
     expect(wire.cx).toBe(0);
@@ -79,13 +79,13 @@ describe("toWireCylinder / fromWireCylinder", () => {
     expect(wire.color).toBe("#00ff00");
   });
 
-  it("fromWireCylinder reconstructs the Vector3 center", () => {
+  it("fromWireCylinder reconstructs the Vector3 position", () => {
     const restored = fromWireCylinder(toWireCylinder(cylinder));
     expect(restored.id).toBe("cyl-1");
-    expect(restored.center).toBeInstanceOf(THREE.Vector3);
-    expect(restored.center.x).toBeCloseTo(0);
-    expect(restored.center.y).toBeCloseTo(1.5);
-    expect(restored.center.z).toBeCloseTo(0);
+    expect(restored.position).toBeInstanceOf(THREE.Vector3);
+    expect(restored.position.x).toBeCloseTo(0);
+    expect(restored.position.y).toBeCloseTo(1.5);
+    expect(restored.position.z).toBeCloseTo(0);
     expect(restored.radius).toBeCloseTo(0.75);
     expect(restored.height).toBe(3);
   });
@@ -94,12 +94,12 @@ describe("toWireCylinder / fromWireCylinder", () => {
 describe("toWireSphere / fromWireSphere", () => {
   const sphere: PlacedSphere = {
     id: "sph-1",
-    center: new THREE.Vector3(-1, -2, -3),
+    position: new THREE.Vector3(-1, -2, -3),
     radius: 1.25,
     color: "#0000ff",
   };
 
-  it("toWireSphere extracts center components", () => {
+  it("toWireSphere extracts position components", () => {
     const wire = toWireSphere(sphere);
     expect(wire.id).toBe("sph-1");
     expect(wire.cx).toBe(-1);
@@ -109,13 +109,13 @@ describe("toWireSphere / fromWireSphere", () => {
     expect(wire.color).toBe("#0000ff");
   });
 
-  it("fromWireSphere reconstructs the Vector3 center", () => {
+  it("fromWireSphere reconstructs the Vector3 position", () => {
     const restored = fromWireSphere(toWireSphere(sphere));
     expect(restored.id).toBe("sph-1");
-    expect(restored.center).toBeInstanceOf(THREE.Vector3);
-    expect(restored.center.x).toBeCloseTo(-1);
-    expect(restored.center.y).toBeCloseTo(-2);
-    expect(restored.center.z).toBeCloseTo(-3);
+    expect(restored.position).toBeInstanceOf(THREE.Vector3);
+    expect(restored.position.x).toBeCloseTo(-1);
+    expect(restored.position.y).toBeCloseTo(-2);
+    expect(restored.position.z).toBeCloseTo(-3);
     expect(restored.radius).toBeCloseTo(1.25);
   });
 });

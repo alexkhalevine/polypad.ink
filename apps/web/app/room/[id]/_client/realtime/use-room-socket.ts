@@ -155,8 +155,9 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     socket.on("object:updated", (payload: ObjectUpdatedPayload) => {
       queryClient.setQueryData<RoomObjects>(roomKeys.objects(roomId), (prev) => {
         if (!prev) return prev;
+        // Wire patch still keys position as `center` for backwards compat; locally we store it as `position`.
         const { color, center, width, height, depth, radius } = payload.patch;
-        const patchCenter = center
+        const patchPosition = center
           ? new THREE.Vector3(center.x, center.y, center.z)
           : undefined;
         return {
@@ -165,7 +166,7 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
             return {
               ...b,
               ...(color !== undefined ? { color } : {}),
-              ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(patchPosition !== undefined ? { position: patchPosition } : {}),
               ...(width !== undefined ? { width } : {}),
               ...(height !== undefined ? { height } : {}),
               ...(depth !== undefined ? { depth } : {}),
@@ -176,7 +177,7 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
             return {
               ...c,
               ...(color !== undefined ? { color } : {}),
-              ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(patchPosition !== undefined ? { position: patchPosition } : {}),
               ...(radius !== undefined ? { radius } : {}),
               ...(height !== undefined ? { height } : {}),
             };
@@ -186,7 +187,7 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
             return {
               ...s,
               ...(color !== undefined ? { color } : {}),
-              ...(patchCenter !== undefined ? { center: patchCenter } : {}),
+              ...(patchPosition !== undefined ? { position: patchPosition } : {}),
               ...(radius !== undefined ? { radius } : {}),
             };
           }),

@@ -15,19 +15,20 @@ export function PreviewBox({ drawState }: PreviewBoxProps) {
 
   const width = Math.max(0.01, Math.abs(end.x - start.x));
   const depth = Math.max(0.01, Math.abs(end.z - start.z));
-  const cx = (start.x + end.x) / 2;
-  const cz = (start.z + end.z) / 2;
-  const cy = height / 2;
+  const px = Math.min(start.x, end.x);
+  const pz = Math.min(start.z, end.z);
 
   return (
-    <mesh position={[cx, cy, cz]}>
-      <boxGeometry args={[width, height, depth]} />
-      <meshStandardMaterial
-        color="#2f74c0"
-        transparent
-        opacity={0.4}
-        depthWrite={false}
-      />
-    </mesh>
+    <group position={[px, 0, pz]}>
+      <mesh position={[width / 2, height / 2, depth / 2]}>
+        <boxGeometry args={[width, height, depth]} />
+        <meshStandardMaterial
+          color="#2f74c0"
+          transparent
+          opacity={0.4}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }

@@ -52,7 +52,7 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
       const radius = xzDist(prev.start, point);
       const sphere: PlacedSphere = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(prev.start.x, radius, prev.start.z),
+        position: new THREE.Vector3(prev.start.x, 0, prev.start.z),
         radius,
         color: null,
       };

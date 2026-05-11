@@ -28,21 +28,21 @@ export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, 
 
   const [x, y, z] = positionOverride
     ? [positionOverride.x, positionOverride.y, positionOverride.z]
-    : [sphere.center.x, sphere.center.y, sphere.center.z];
+    : [sphere.position.x, sphere.position.y, sphere.position.z];
 
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+      <mesh geometry={geo} position={[0, sphere.radius, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
         <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
       </mesh>
-      <lineSegments>
+      <lineSegments position={[0, sphere.radius, 0]}>
         <edgesGeometry args={[geo]} />
         <lineBasicMaterial color={edgeColor} />
       </lineSegments>
       {lockInfo && (
-        <Html position={[0, sphere.radius + 0.5, 0]} center pointerEvents="none">
+        <Html position={[0, sphere.radius * 2 + 0.5, 0]} center pointerEvents="none">
           <div style={{
             pointerEvents: "none",
             userSelect: "none",

@@ -35,9 +35,9 @@ export function TransformGizmo({
   const isRemoteLocked = selectedObjectId ? Boolean(objectLocks[selectedObjectId]) : false;
 
   const allObjects = [
-    ...placedBoxes.map((b) => ({ id: b.id, center: b.center })),
-    ...placedCylinders.map((c) => ({ id: c.id, center: c.center })),
-    ...placedSpheres.map((s) => ({ id: s.id, center: s.center })),
+    ...placedBoxes.map((b) => ({ id: b.id, position: b.position })),
+    ...placedCylinders.map((c) => ({ id: c.id, position: c.position })),
+    ...placedSpheres.map((s) => ({ id: s.id, position: s.position })),
   ];
 
   const selected = selectedObjectId
@@ -87,7 +87,7 @@ export function TransformGizmo({
       camera={camera}
       domElement={gl.domElement}
       mode="translate"
-      position={[selected.center.x, selected.center.y, selected.center.z]}
+      position={[selected.position.x, selected.position.y, selected.position.z]}
       onChange={handleChange}
       onMouseUp={handleMouseUp}
     />

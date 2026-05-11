@@ -24,7 +24,8 @@ export type DrawState = IdleState | FootprintState | HeightState;
 
 export interface PlacedBox {
   id: string;
-  center: THREE.Vector3;
+  // Bottom-min corner of the footprint at ground level: (min(start.x,end.x), 0, min(start.z,end.z))
+  position: THREE.Vector3;
   width: number;
   height: number;
   depth: number;
@@ -33,7 +34,8 @@ export interface PlacedBox {
 
 export interface PlacedCylinder {
   id: string;
-  center: THREE.Vector3; // (centerX, height/2, centerZ) — sits on ground
+  // Base of the cylinder (axis point at ground level): (centerX, 0, centerZ)
+  position: THREE.Vector3;
   radius: number;
   height: number;
   color: string | null;
@@ -41,7 +43,8 @@ export interface PlacedCylinder {
 
 export interface PlacedSphere {
   id: string;
-  center: THREE.Vector3; // (centerX, radius, centerZ) — sits on ground
+  // Bottom point of the sphere on the ground: (centerX, 0, centerZ)
+  position: THREE.Vector3;
   radius: number;
   color: string | null;
 }

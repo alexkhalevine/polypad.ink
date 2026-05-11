@@ -107,7 +107,7 @@ describe("selectedObjectType discriminator", () => {
 
   const makeBox = (id: string): PlacedBox => ({
     id,
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     width: 1,
     height: 1,
     depth: 1,
@@ -115,14 +115,14 @@ describe("selectedObjectType discriminator", () => {
   });
   const makeCylinder = (id: string): PlacedCylinder => ({
     id,
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     radius: 1,
     height: 1,
     color: null,
   });
   const makeSphere = (id: string): PlacedSphere => ({
     id,
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     radius: 1,
     color: null,
   });
@@ -176,7 +176,7 @@ describe("WS object:updated dimension merge", () => {
 
   const baseBox: PlacedBox = {
     id: "b",
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     width: 1,
     height: 1,
     depth: 1,
@@ -184,14 +184,14 @@ describe("WS object:updated dimension merge", () => {
   };
   const baseCylinder: PlacedCylinder = {
     id: "c",
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     radius: 1,
     height: 1,
     color: null,
   };
   const baseSphere: PlacedSphere = {
     id: "s",
-    center: new THREE.Vector3(),
+    position: new THREE.Vector3(),
     radius: 1,
     color: null,
   };

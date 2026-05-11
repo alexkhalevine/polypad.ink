@@ -71,7 +71,7 @@ export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDr
       const radius = xzDist(prev.start, prev.end);
       const cylinder: PlacedCylinder = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(prev.start.x, height / 2, prev.start.z),
+        position: new THREE.Vector3(prev.start.x, 0, prev.start.z),
         radius,
         height,
         color: null,

@@ -28,21 +28,23 @@ export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelect
 
   const [x, y, z] = positionOverride
     ? [positionOverride.x, positionOverride.y, positionOverride.z]
-    : [cylinder.center.x, cylinder.center.y, cylinder.center.z];
+    : [cylinder.position.x, cylinder.position.y, cylinder.position.z];
+
+  const hh = cylinder.height / 2;
 
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+      <mesh geometry={geo} position={[0, hh, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
         <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
       </mesh>
-      <lineSegments>
+      <lineSegments position={[0, hh, 0]}>
         <edgesGeometry args={[geo]} />
         <lineBasicMaterial color={edgeColor} />
       </lineSegments>
       {lockInfo && (
-        <Html position={[0, cylinder.height / 2 + 0.5, 0]} center pointerEvents="none">
+        <Html position={[0, cylinder.height + 0.5, 0]} center pointerEvents="none">
           <div style={{
             pointerEvents: "none",
             userSelect: "none",

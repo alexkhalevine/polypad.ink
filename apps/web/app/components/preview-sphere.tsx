@@ -14,14 +14,16 @@ export function PreviewSphere({ drawState }: { drawState: DrawState }) {
   const radius = xzDist(start, end);
 
   return (
-    <mesh position={[start.x, radius, start.z]}>
-      <sphereGeometry args={[radius, 32, 16]} />
-      <meshStandardMaterial
-        color="#2f74c0"
-        transparent
-        opacity={0.4}
-        depthWrite={false}
-      />
-    </mesh>
+    <group position={[start.x, 0, start.z]}>
+      <mesh position={[0, radius, 0]}>
+        <sphereGeometry args={[radius, 32, 16]} />
+        <meshStandardMaterial
+          color="#2f74c0"
+          transparent
+          opacity={0.4}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }

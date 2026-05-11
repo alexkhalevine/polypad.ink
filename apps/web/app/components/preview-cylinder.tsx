@@ -14,17 +14,18 @@ export function PreviewCylinder({ drawState }: { drawState: DrawState }) {
   const radius = xzDist(start, end);
   const height =
     drawState.phase === "footprint" ? 0.05 : drawState.currentHeight;
-  const cy = height / 2;
 
   return (
-    <mesh position={[start.x, cy, start.z]}>
-      <cylinderGeometry args={[radius, radius, height, 32]} />
-      <meshStandardMaterial
-        color="#2f74c0"
-        transparent
-        opacity={0.4}
-        depthWrite={false}
-      />
-    </mesh>
+    <group position={[start.x, 0, start.z]}>
+      <mesh position={[0, height / 2, 0]}>
+        <cylinderGeometry args={[radius, radius, height, 32]} />
+        <meshStandardMaterial
+          color="#2f74c0"
+          transparent
+          opacity={0.4}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }

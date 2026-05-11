@@ -13,7 +13,7 @@ type DimensionField = "width" | "height" | "depth" | "radius";
 interface DimensionHelpersProps {
   selectedObject: PlacedBox | PlacedCylinder | PlacedSphere;
   selectedObjectType: "box" | "cylinder" | "sphere";
-  centerOverride?: { x: number; y: number; z: number };
+  positionOverride?: { x: number; y: number; z: number };
   onDimensionCommit: (field: DimensionField, value: number) => void;
 }
 
@@ -25,20 +25,21 @@ const TICK = 0.12;
 export function DimensionHelpers({
   selectedObject,
   selectedObjectType,
-  centerOverride,
+  positionOverride,
   onDimensionCommit,
 }: DimensionHelpersProps) {
-  const cx = centerOverride?.x ?? selectedObject.center.x;
-  const cy = centerOverride?.y ?? selectedObject.center.y;
-  const cz = centerOverride?.z ?? selectedObject.center.z;
+  const px = positionOverride?.x ?? selectedObject.position.x;
+  const py = positionOverride?.y ?? selectedObject.position.y;
+  const pz = positionOverride?.z ?? selectedObject.position.z;
 
   if (selectedObjectType === "box") {
     const box = selectedObject as PlacedBox;
     const hw = box.width / 2;
     const hh = box.height / 2;
     const hd = box.depth / 2;
+    // Outer group sits at the geometric center so existing bracket anchors still work.
     return (
-      <group position={[cx, cy, cz]}>
+      <group position={[px + hw, py + hh, pz + hd]}>
         <DimensionBracket
           axis="x"
           length={box.width}
@@ -74,7 +75,7 @@ export function DimensionHelpers({
     const cyl = selectedObject as PlacedCylinder;
     const hh = cyl.height / 2;
     return (
-      <group position={[cx, cy, cz]}>
+      <group position={[px, py + hh, pz]}>
         <DimensionBracket
           axis="x"
           length={cyl.radius * 2}
@@ -100,7 +101,7 @@ export function DimensionHelpers({
   // sphere
   const sph = selectedObject as PlacedSphere;
   return (
-    <group position={[cx, cy, cz]}>
+    <group position={[px, py + sph.radius, pz]}>
       <DimensionBracket
         axis="x"
         length={sph.radius * 2}

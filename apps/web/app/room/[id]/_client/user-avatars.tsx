@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRoomStore } from "./room-store";
 import { getDisplayName } from "./realtime/socket";
 
@@ -8,23 +9,30 @@ const LOCAL_COLOR = "#6366f1";
 
 export function UserAvatars() {
   const remoteUsers = useRoomStore((s) => s.remoteUsers);
-  const localName = getDisplayName();
+  // Display name lives in localStorage, so it's only available after mount.
+  // Reading it during SSR/first render would cause a hydration mismatch.
+  const [localName, setLocalName] = useState<string | null>(null);
+  useEffect(() => {
+    setLocalName(getDisplayName());
+  }, []);
 
   const remoteEntries = Object.entries(remoteUsers);
 
   return (
     <div className="flex gap-3 items-start">
-      <div className="flex flex-col items-center gap-1">
-        <div className="avatar avatar-placeholder">
-          <div
-            className="w-10 rounded-full text-white"
-            style={{ backgroundColor: LOCAL_COLOR }}
-          >
-            <span className="text-sm">{localName[0].toUpperCase()}</span>
+      {localName && (
+        <div className="flex flex-col items-center gap-1">
+          <div className="avatar avatar-placeholder">
+            <div
+              className="w-10 rounded-full text-white"
+              style={{ backgroundColor: LOCAL_COLOR }}
+            >
+              <span className="text-sm">{localName[0].toUpperCase()}</span>
+            </div>
           </div>
+          <span className="text-xs text-white/70 whitespace-nowrap">{localName}</span>
         </div>
-        <span className="text-xs text-white/70 whitespace-nowrap">{localName}</span>
-      </div>
+      )}
 
       {remoteEntries.map(([userId, presence], index) => {
         const color = CURSOR_COLORS[index % CURSOR_COLORS.length];

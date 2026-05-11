@@ -136,7 +136,7 @@ function SceneContent({
         <DimensionHelpers
           selectedObject={selectedObject}
           selectedObjectType={selectedObjectType}
-          centerOverride={livePositions[selectedObject.id]}
+          positionOverride={livePositions[selectedObject.id]}
           onDimensionCommit={onDimensionCommit}
         />
       )}

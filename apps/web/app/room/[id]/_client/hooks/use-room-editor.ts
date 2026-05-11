@@ -133,7 +133,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   );
 
   const selectedObjectCoords = selectedObject
-    ? `X: ${selectedObject.center.x.toFixed(2)}, Y: ${selectedObject.center.y.toFixed(2)}, Z: ${selectedObject.center.z.toFixed(2)}`
+    ? `X: ${selectedObject.position.x.toFixed(2)}, Y: ${selectedObject.position.y.toFixed(2)}, Z: ${selectedObject.position.z.toFixed(2)}`
     : null;
 
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;

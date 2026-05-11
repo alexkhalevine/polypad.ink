@@ -2,12 +2,15 @@ import * as THREE from "three";
 import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
 import type { WireBox, WireCylinder, WireSphere } from "./wire-types";
 
+// Wire fields cx/cy/cz are kept for backward compatibility with the server schema,
+// but they now carry the bottom-anchor (corner / base), not the geometric center.
+
 export function toWireBox(box: PlacedBox): WireBox {
   return {
     id: box.id,
-    cx: box.center.x,
-    cy: box.center.y,
-    cz: box.center.z,
+    cx: box.position.x,
+    cy: box.position.y,
+    cz: box.position.z,
     width: box.width,
     height: box.height,
     depth: box.depth,
@@ -18,7 +21,7 @@ export function toWireBox(box: PlacedBox): WireBox {
 export function fromWireBox(wire: WireBox): PlacedBox {
   return {
     id: wire.id,
-    center: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
     width: wire.width,
     height: wire.height,
     depth: wire.depth,
@@ -29,9 +32,9 @@ export function fromWireBox(wire: WireBox): PlacedBox {
 export function toWireCylinder(cylinder: PlacedCylinder): WireCylinder {
   return {
     id: cylinder.id,
-    cx: cylinder.center.x,
-    cy: cylinder.center.y,
-    cz: cylinder.center.z,
+    cx: cylinder.position.x,
+    cy: cylinder.position.y,
+    cz: cylinder.position.z,
     radius: cylinder.radius,
     height: cylinder.height,
     color: cylinder.color,
@@ -41,7 +44,7 @@ export function toWireCylinder(cylinder: PlacedCylinder): WireCylinder {
 export function fromWireCylinder(wire: WireCylinder): PlacedCylinder {
   return {
     id: wire.id,
-    center: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
     radius: wire.radius,
     height: wire.height,
     color: wire.color,
@@ -51,9 +54,9 @@ export function fromWireCylinder(wire: WireCylinder): PlacedCylinder {
 export function toWireSphere(sphere: PlacedSphere): WireSphere {
   return {
     id: sphere.id,
-    cx: sphere.center.x,
-    cy: sphere.center.y,
-    cz: sphere.center.z,
+    cx: sphere.position.x,
+    cy: sphere.position.y,
+    cz: sphere.position.z,
     radius: sphere.radius,
     color: sphere.color,
   };
@@ -62,7 +65,7 @@ export function toWireSphere(sphere: PlacedSphere): WireSphere {
 export function fromWireSphere(wire: WireSphere): PlacedSphere {
   return {
     id: wire.id,
-    center: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
     radius: wire.radius,
     color: wire.color,
   };

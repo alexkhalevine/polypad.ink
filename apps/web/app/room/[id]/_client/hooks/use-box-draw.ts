@@ -67,10 +67,10 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
       const height = Math.max(0.01, worldY);
       const box: PlacedBox = {
         id: crypto.randomUUID(),
-        center: new THREE.Vector3(
-          (prev.start.x + prev.end.x) / 2,
-          height / 2,
-          (prev.start.z + prev.end.z) / 2
+        position: new THREE.Vector3(
+          Math.min(prev.start.x, prev.end.x),
+          0,
+          Math.min(prev.start.z, prev.end.z),
         ),
         width: Math.max(0.01, Math.abs(prev.end.x - prev.start.x)),
         height,
