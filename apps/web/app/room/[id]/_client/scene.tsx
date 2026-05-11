@@ -14,6 +14,7 @@ import { PreviewSphere } from "@/app/components/preview-sphere";
 import { PlacedBoxMesh } from "@/app/components/placed-box-mesh";
 import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
+import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
 
@@ -33,6 +34,8 @@ interface SceneProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | null;
   onGroundStartDraw: (point: THREE.Vector3) => void;
   onGroundPointerMove: (point: THREE.Vector3) => void;
   onGroundClick: (point: THREE.Vector3) => void;
@@ -41,6 +44,7 @@ interface SceneProps {
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
+  onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
@@ -50,6 +54,8 @@ function SceneContent({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  selectedObject,
+  selectedObjectType,
   onGroundStartDraw,
   onGroundPointerMove,
   onGroundClick,
@@ -58,6 +64,7 @@ function SceneContent({
   onObjectMove,
   onDragStart,
   onDragEnd,
+  onDimensionCommit,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -122,6 +129,15 @@ function SceneContent({
           onObjectMove={onObjectMove}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
+        />
+      )}
+
+      {selectionMode === "select" && selectedObject && selectedObjectType && (
+        <DimensionHelpers
+          selectedObject={selectedObject}
+          selectedObjectType={selectedObjectType}
+          centerOverride={livePositions[selectedObject.id]}
+          onDimensionCommit={onDimensionCommit}
         />
       )}
 

@@ -71,6 +71,8 @@ export const Room = () => {
             placedBoxes={editor.placedBoxes}
             placedCylinders={editor.placedCylinders}
             placedSpheres={editor.placedSpheres}
+            selectedObject={editor.selectedObject ?? null}
+            selectedObjectType={editor.selectedObjectType}
             onGroundStartDraw={editor.activeDraw?.handleGroundStartDraw ?? noop}
             onGroundPointerMove={editor.handleGroundPointerMove}
             onGroundClick={editor.activeDraw?.handleGroundClick ?? noop}
@@ -79,6 +81,7 @@ export const Room = () => {
             onObjectMove={editor.handleObjectMove}
             onDragStart={editor.handleDragStart}
             onDragEnd={editor.handleDragEnd}
+            onDimensionCommit={editor.handleDimensionCommit}
           />
         </div>
         {contextMenu && (
