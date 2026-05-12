@@ -25,6 +25,10 @@ export interface RoomFullPayload {
   max: number;
 }
 
+export interface RoomDeniedPayload {
+  reason: "invalid-invite";
+}
+
 export interface PresenceJoinedPayload {
   userId: string;
   displayName: string;
@@ -105,6 +109,7 @@ export type ClientSelectionAck = { ok: true } | { ok: false; selectedBy: string 
 export interface ServerToClientEvents {
   "room:state": (payload: RoomStatePayload) => void;
   "room:full": (payload: RoomFullPayload) => void;
+  "room:denied": (payload: RoomDeniedPayload) => void;
   "presence:joined": (payload: PresenceJoinedPayload) => void;
   "presence:left": (payload: PresenceLeftPayload) => void;
   "presence:cursor": (payload: PresenceCursorPayload) => void;

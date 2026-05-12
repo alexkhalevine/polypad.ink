@@ -4,7 +4,8 @@ import type { PresenceManager } from "./presence.js";
 import type { LockManager } from "./locks.js";
 import type { SelectionRegistry } from "./selections.js";
 import { SocketRateLimiter } from "./socketRateLimit.js";
-import { listObjects } from "../services/roomService.js";
+import { findRoomById, listObjects } from "../services/roomService.js";
+import { safeEqualCode } from "../services/inviteCode.js";
 import { MAX_USERS_PER_ROOM, WS_CURSOR_PER_SEC, WS_MUTATION_PER_SEC } from "../constants.js";
 import { recordJoinTiming } from "./metrics.js";
 
@@ -22,8 +23,16 @@ export function registerHandlers(
     const userId = typeof auth.userId === "string" ? auth.userId : null;
     const displayName = typeof auth.displayName === "string" ? auth.displayName : null;
     const roomId = typeof auth.roomId === "string" ? auth.roomId : null;
+    const inviteCode = typeof auth.inviteCode === "string" ? auth.inviteCode : null;
 
-    if (!userId || !displayName || !roomId) {
+    if (!userId || !displayName || !roomId || !inviteCode) {
+      socket.disconnect(true);
+      return;
+    }
+
+    const room = findRoomById(roomId);
+    if (!room || !safeEqualCode(inviteCode, room.inviteCode)) {
+      socket.emit("room:denied", { reason: "invalid-invite" });
       socket.disconnect(true);
       return;
     }

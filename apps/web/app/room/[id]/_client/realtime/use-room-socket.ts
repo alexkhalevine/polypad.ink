@@ -6,6 +6,7 @@ import { useRoomStore } from "../room-store";
 import { roomKeys } from "../queries/query-keys";
 import { fromWireBox, fromWireCylinder, fromWireSphere } from "../queries/wire-converters";
 import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
+import { useErrorStore } from "@/app/error-store";
 import {
   createRoomSocket,
   getOrCreateUserId,
@@ -32,7 +33,7 @@ interface RoomObjects {
   spheres: PlacedSphere[];
 }
 
-type ConnectionState = "connecting" | "connected" | "disconnected" | "full";
+type ConnectionState = "connecting" | "connected" | "disconnected" | "full" | "denied";
 
 export interface UseRoomSocketResult {
   connectionState: ConnectionState;
@@ -42,7 +43,7 @@ export interface UseRoomSocketResult {
   releaseLock: (objectId: string) => Promise<void>;
 }
 
-export function useRoomSocket(roomId: string): UseRoomSocketResult {
+export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocketResult {
   const queryClient = useQueryClient();
   const socketRef = useRef<RoomSocket | null>(null);
   const lastCursorEmitRef = useRef<number>(0);
@@ -61,7 +62,7 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     let firstPeerLogged = false;
     let firstStateLogged = false;
 
-    const socket = createRoomSocket(roomId, userId, displayName);
+    const socket = createRoomSocket(roomId, userId, displayName, inviteCode);
     socketRef.current = socket;
 
     socket.on("connect", () => {
@@ -87,6 +88,13 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
 
     socket.on("room:full", () => {
       setConnectionState("full");
+      socket.disconnect();
+    });
+
+    socket.on("room:denied", () => {
+      setConnectionState("denied");
+      useErrorStore.getState().addError("Invalid invite link for this room.");
+      socket.io.opts.reconnection = false;
       socket.disconnect();
     });
 
@@ -249,7 +257,7 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     return () => {
       socket.disconnect();
     };
-  }, [roomId, queryClient]);
+  }, [roomId, inviteCode, queryClient]);
 
   const emitCursor = useCallback((cursor: Vec3 | null) => {
     const socket = socketRef.current;

@@ -30,9 +30,10 @@ async function initDb() {
 
   sqlDb.run(`
     CREATE TABLE IF NOT EXISTS rooms (
-      id         TEXT PRIMARY KEY,
-      name       TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      invite_code TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS geometryObjects (

@@ -8,17 +8,18 @@ import { getHelpText } from "@/app/utils";
 import { useRoomSocket } from "./realtime/use-room-socket";
 import { useRoomEditor } from "./hooks/use-room-editor";
 import { UserAvatars } from "./user-avatars";
+import { InviteButton } from "./invite-button";
 import { ContextMenu } from "./context-menu";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
 
-export const Room = () => {
+export const Room = ({ inviteCode }: { inviteCode: string }) => {
   const params = useParams();
   const id = params.id;
   if (typeof id !== "string") throw new Error("invalid room id");
 
-  const socket = useRoomSocket(id);
+  const socket = useRoomSocket(id, inviteCode);
   const editor = useRoomEditor(id, socket);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -53,7 +54,8 @@ export const Room = () => {
         </div>
       )}
       <div className="relative w-full h-full flex flex-col">
-        <div className="absolute top-3 right-4 z-10">
+        <div className="absolute top-3 right-4 z-10 flex gap-3 items-start">
+          <InviteButton />
           <UserAvatars />
         </div>
         {editor.isPending && (

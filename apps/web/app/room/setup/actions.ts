@@ -50,7 +50,23 @@ export async function setupRoom(
     return { error: "Verification failed. Please try again from the home page." };
   }
 
-  redirect(`/room/${roomName}?name=${encodeURIComponent(roomName)}`);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const res = await fetch(`${apiBase}/rooms`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: roomName }),
+    cache: "no-store",
+  });
+
+  if (res.status === 409) {
+    return { error: "A room with that name already exists. Pick a different name." };
+  }
+  if (!res.ok) {
+    return { error: "Could not create room. Please try again." };
+  }
+
+  const { id, inviteCode } = (await res.json()) as { id: string; inviteCode: string };
+  redirect(`/room/${encodeURIComponent(id)}?invite=${encodeURIComponent(inviteCode)}`);
 }
 
 export { verifyHcaptcha };

@@ -35,9 +35,14 @@ export type RoomSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 // and avoids polling-then-upgrade buffering). If the first connect attempt fails (e.g. a proxy
 // strips WS upgrade), flip the manager's transports to include polling and let it retry — this
 // reuses all already-registered event listeners on the Socket.
-export function createRoomSocket(roomId: string, userId: string, displayName: string): RoomSocket {
+export function createRoomSocket(
+  roomId: string,
+  userId: string,
+  displayName: string,
+  inviteCode: string,
+): RoomSocket {
   const socket: RoomSocket = io(API_BASE, {
-    auth: { userId, displayName, roomId },
+    auth: { userId, displayName, roomId, inviteCode },
     path: "/socket.io",
     transports: ["websocket"],
     upgrade: false,

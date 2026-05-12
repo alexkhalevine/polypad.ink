@@ -6,6 +6,39 @@ import type { ObjectRow, NewObject } from "../schema.js";
 import type { WireObject, GetObjectsResponse } from "../types.js";
 import { MAX_GEOMETRY_OBJECTS_PER_ROOM } from "../constants.js";
 import { getEmitter, getLockManager } from "../realtime/registry.js";
+import { generateInviteCode } from "./inviteCode.js";
+
+export type CreateRoomResult =
+  | { ok: true; id: string; inviteCode: string }
+  | { error: "conflict"; status: 409 }
+  | { error: "invalid-name"; status: 400 };
+
+export function createRoom(name: string): CreateRoomResult {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "invalid-name", status: 400 };
+
+  const id = trimmed;
+  const inviteCode = generateInviteCode();
+
+  const result = db.transaction((tx): CreateRoomResult => {
+    const existing = tx.select({ id: rooms.id }).from(rooms).where(eq(rooms.id, id)).get();
+    if (existing) return { error: "conflict", status: 409 };
+    tx.insert(rooms).values({ id, name: trimmed, inviteCode }).run();
+    return { ok: true, id, inviteCode };
+  });
+
+  if ("ok" in result) markDirty();
+  return result;
+}
+
+export function findRoomById(id: string): { id: string; name: string; inviteCode: string } | null {
+  const row = db
+    .select({ id: rooms.id, name: rooms.name, inviteCode: rooms.inviteCode })
+    .from(rooms)
+    .where(eq(rooms.id, id))
+    .get();
+  return row ?? null;
+}
 
 function rowToWire(row: ObjectRow): WireObject {
   switch (row.type) {
@@ -153,8 +186,6 @@ export async function createObject(
 
   type TxResult = { ok: true } | { error: string; status: number };
   const result: TxResult = db.transaction((tx): TxResult => {
-    tx.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
-
     const current = tx
       .select({ count: count() })
       .from(geometryObjects)
@@ -189,8 +220,6 @@ export async function batchCreateObjects(
 
   type TxResult = { ok: true } | { error: string; status: number };
   const result: TxResult = db.transaction((tx): TxResult => {
-    tx.insert(rooms).values({ id: roomId, name: `Room ${roomId}` }).onConflictDoNothing().run();
-
     const current = tx
       .select({ count: count() })
       .from(geometryObjects)
