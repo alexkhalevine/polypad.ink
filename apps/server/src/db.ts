@@ -11,6 +11,12 @@ fs.mkdirSync(path.dirname(absPath), { recursive: true });
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let sqlDb: SqlJsDatabase;
+let dirty = false;
+let saving = false;
+
+export function markDirty(): void {
+  dirty = true;
+}
 
 async function initDb() {
   const SQL = await initSqlJs();
@@ -49,19 +55,35 @@ async function initDb() {
 
   db = drizzle(sqlDb, { schema });
 
-  // Export a save function
   return saveDb;
 }
 
-function saveDb() {
-  if (sqlDb) {
+async function saveDb(): Promise<void> {
+  if (!sqlDb || !dirty || saving) return;
+  saving = true;
+  dirty = false;
+  try {
     const data = sqlDb.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(absPath, buffer);
+    await fs.promises.writeFile(absPath, buffer);
+  } catch (err) {
+    // Re-mark dirty so the next tick retries. Don't crash the server on a transient FS error.
+    dirty = true;
+    console.error("[db] saveDb failed:", err);
+  } finally {
+    saving = false;
   }
 }
 
-// Auto-save every 5 seconds
-setInterval(saveDb, 5000);
+function saveDbSync(): void {
+  if (!sqlDb) return;
+  const data = sqlDb.export();
+  fs.writeFileSync(absPath, Buffer.from(data));
+  dirty = false;
+}
 
-export { db, initDb, saveDb };
+setInterval(() => {
+  void saveDb();
+}, 5000);
+
+export { db, initDb, saveDb, saveDbSync };

@@ -31,11 +31,26 @@ export function setDisplayName(name: string): void {
 
 export type RoomSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+// Start on websocket only — skips the HTTP long-polling handshake (saves ~2–5s on slow networks
+// and avoids polling-then-upgrade buffering). If the first connect attempt fails (e.g. a proxy
+// strips WS upgrade), flip the manager's transports to include polling and let it retry — this
+// reuses all already-registered event listeners on the Socket.
 export function createRoomSocket(roomId: string, userId: string, displayName: string): RoomSocket {
-  return io(API_BASE, {
+  const socket: RoomSocket = io(API_BASE, {
     auth: { userId, displayName, roomId },
     path: "/socket.io",
-    transports: ["websocket", "polling"],
+    transports: ["websocket"],
+    upgrade: false,
     autoConnect: true,
   });
+
+  let fallbackUsed = false;
+  socket.on("connect_error", () => {
+    if (fallbackUsed || socket.connected) return;
+    fallbackUsed = true;
+    // Manager's transport list controls future reconnect attempts.
+    socket.io.opts.transports = ["websocket", "polling"];
+  });
+
+  return socket;
 }

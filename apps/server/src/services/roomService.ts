@@ -1,6 +1,6 @@
 import { eq, and, asc, count } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { db } from "../db.js";
+import { db, markDirty } from "../db.js";
 import { geometryObjects, rooms } from "../schema.js";
 import type { ObjectRow, NewObject } from "../schema.js";
 import type { WireObject, GetObjectsResponse } from "../types.js";
@@ -174,6 +174,7 @@ export async function createObject(
 
   if ("error" in result) return result;
 
+  markDirty();
   getEmitter().emit(roomId, "object:created", { object: serverWire, by: actor });
   return { ok: true, id };
 }
@@ -211,6 +212,7 @@ export async function batchCreateObjects(
 
   if ("error" in result) return result;
 
+  markDirty();
   for (const w of serverWires) {
     getEmitter().emit(roomId, "object:created", { object: w, by: actor });
   }
@@ -290,6 +292,7 @@ export async function updateObject(
 
   await db.update(geometryObjects).set(updates).where(where).run();
 
+  markDirty();
   getLockManager().touch(roomId, objectId, actor);
   getEmitter().emit(roomId, "object:updated", { objectId, patch: appliedPatch, by: actor });
 
@@ -310,6 +313,7 @@ export async function deleteObject(
 
   await db.delete(geometryObjects).where(where).run();
 
+  markDirty();
   getLockManager().release(roomId, objectId, actor);
   getEmitter().emit(roomId, "object:deleted", { objectId, by: actor });
 

@@ -18,7 +18,13 @@ export function initRealtime(httpServer: HttpServer): {
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { origin: WEB_ORIGIN, credentials: true },
     path: "/socket.io",
+    // Keep both transports so clients behind hostile proxies can still connect.
+    // The client requests websocket-only by default; this list only matters as a fallback.
     transports: ["websocket", "polling"],
+    pingInterval: 10_000,
+    pingTimeout: 20_000,
+    // Cursor frames are tiny and frequent; per-message compression hurts more than it helps.
+    perMessageDeflate: false,
   });
 
   const emitter: RoomEmitter = {

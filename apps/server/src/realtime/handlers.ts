@@ -5,6 +5,9 @@ import type { LockManager } from "./locks.js";
 import { SocketRateLimiter } from "./socketRateLimit.js";
 import { listObjects } from "../services/roomService.js";
 import { MAX_USERS_PER_ROOM, WS_CURSOR_PER_SEC, WS_MUTATION_PER_SEC } from "../constants.js";
+import { recordJoinTiming } from "./metrics.js";
+
+const DEBUG_RT = process.env.DEBUG_RT === "1";
 
 export function registerHandlers(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
@@ -13,6 +16,7 @@ export function registerHandlers(
   const { presence, lockManager } = deps;
 
   io.on("connection", async (socket) => {
+    const t0 = performance.now();
     const auth = socket.handshake.auth as Record<string, unknown>;
     const userId = typeof auth.userId === "string" ? auth.userId : null;
     const displayName = typeof auth.displayName === "string" ? auth.displayName : null;
@@ -29,17 +33,33 @@ export function registerHandlers(
       return;
     }
 
+    // Announce B to peers before doing any async work — peer A should see B's
+    // avatar/cursor the moment the WS handshake completes, not after B's DB read.
     socket.join(roomId);
     presence.join(roomId, socket.id, { userId, displayName });
+    socket.to(roomId).emit("presence:joined", { userId, displayName });
+    const tJoined = performance.now();
 
     const objects = await listObjects(roomId);
+    const tListed = performance.now();
+
     socket.emit("room:state", {
       users: presence.snapshot(roomId),
       locks: lockManager.snapshot(roomId),
       objects,
     });
+    const tState = performance.now();
 
-    socket.to(roomId).emit("presence:joined", { userId, displayName });
+    const joinedMs = tJoined - t0;
+    const listMs = tListed - tJoined;
+    const stateMs = tState - tListed;
+    const totalMs = tState - t0;
+    recordJoinTiming(totalMs);
+    if (DEBUG_RT) {
+      console.log(
+        `[rt] join roomId=${roomId} userId=${userId} joined=${joinedMs.toFixed(1)}ms list=${listMs.toFixed(1)}ms state=${stateMs.toFixed(1)}ms total=${totalMs.toFixed(1)}ms transport=${socket.conn.transport.name}`,
+      );
+    }
 
     const limiter = new SocketRateLimiter({ cursorPerSec: WS_CURSOR_PER_SEC, mutationPerSec: WS_MUTATION_PER_SEC });
 

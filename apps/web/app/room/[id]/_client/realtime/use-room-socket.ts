@@ -54,11 +54,24 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
 
     useRoomStore.getState().setLocalUser(userId);
 
+    const debugRt =
+      typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "rt";
+    const tStart = performance.now();
+    let connectedAt: number | null = null;
+    let firstPeerLogged = false;
+    let firstStateLogged = false;
+
     const socket = createRoomSocket(roomId, userId, displayName);
     socketRef.current = socket;
 
     socket.on("connect", () => {
       setConnectionState("connected");
+      connectedAt = performance.now();
+      if (debugRt) {
+        console.log(
+          `[rt-client] connect transport=${socket.io.engine?.transport?.name ?? "?"} since-mount=${(connectedAt - tStart).toFixed(1)}ms`,
+        );
+      }
     });
 
     socket.on("disconnect", () => {
@@ -78,6 +91,12 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     });
 
     socket.on("room:state", (payload: RoomStatePayload) => {
+      if (debugRt && !firstStateLogged && connectedAt !== null) {
+        firstStateLogged = true;
+        console.log(
+          `[rt-client] room:state connect→state=${(performance.now() - connectedAt).toFixed(1)}ms users=${payload.users.length}`,
+        );
+      }
       const store = useRoomStore.getState();
       for (const user of payload.users) {
         if (user.userId !== userId) {
@@ -101,6 +120,12 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     });
 
     socket.on("presence:joined", (payload: PresenceJoinedPayload) => {
+      if (debugRt && !firstPeerLogged && connectedAt !== null) {
+        firstPeerLogged = true;
+        console.log(
+          `[rt-client] first peer connect→first-peer=${(performance.now() - connectedAt).toFixed(1)}ms userId=${payload.userId}`,
+        );
+      }
       useRoomStore.getState().applyRemoteUserUpdate(payload.userId, {
         displayName: payload.displayName,
         cursor: null,
