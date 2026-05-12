@@ -17,6 +17,7 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
+import { useErrorStore } from "@/app/error-store";
 
 const CURSOR_COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#34d399", "#f472b6", "#facc15"];
 
@@ -86,6 +87,26 @@ function SceneContent({
     const idx = remoteUserEntries.findIndex(([uid]) => uid === lockingUserId);
     if (idx === -1) return undefined;
     return { color: CURSOR_COLORS[idx % CURSOR_COLORS.length], displayName: remoteUserEntries[idx][1].displayName };
+  }
+
+  // Visual cue for an object currently selected by a remote peer. Skipped when the same
+  // peer is also dragging it (lockInfo takes precedence — drag is the louder signal).
+  function getSelectionInfo(objectId: string) {
+    const idx = remoteUserEntries.findIndex(([, presence]) => presence.selectedObjectId === objectId);
+    if (idx === -1) return undefined;
+    const [holderId, presence] = remoteUserEntries[idx];
+    if (objectLocks[objectId] === holderId) return undefined;
+    return { color: CURSOR_COLORS[idx % CURSOR_COLORS.length], displayName: presence.displayName };
+  }
+
+  function tryLocalSelect(objectId: string) {
+    if (selectionMode !== "select") return;
+    const remote = getSelectionInfo(objectId);
+    if (remote) {
+      useErrorStore.getState().addError(`Selected by ${remote.displayName}.`);
+      return;
+    }
+    setSelectedObjectId(objectId);
   }
 
   const heightAnchorX =
@@ -171,7 +192,8 @@ function SceneContent({
           isHovered={selectionMode === "select" && box.id === hoveredObjectId}
           wireframe={wireframeEnabled}
           lockInfo={getLockInfo(box.id)}
-          onClick={() => { if (selectionMode === "select") setSelectedObjectId(box.id); }}
+          selectionInfo={getSelectionInfo(box.id)}
+          onClick={() => tryLocalSelect(box.id)}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(box.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
         />
@@ -186,7 +208,8 @@ function SceneContent({
           isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
           wireframe={wireframeEnabled}
           lockInfo={getLockInfo(cylinder.id)}
-          onClick={() => { if (selectionMode === "select") setSelectedObjectId(cylinder.id); }}
+          selectionInfo={getSelectionInfo(cylinder.id)}
+          onClick={() => tryLocalSelect(cylinder.id)}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(cylinder.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
         />
@@ -201,7 +224,8 @@ function SceneContent({
           isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
           wireframe={wireframeEnabled}
           lockInfo={getLockInfo(sphere.id)}
-          onClick={() => { if (selectionMode === "select") setSelectedObjectId(sphere.id); }}
+          selectionInfo={getSelectionInfo(sphere.id)}
+          onClick={() => tryLocalSelect(sphere.id)}
           onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(sphere.id); }}
           onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
         />

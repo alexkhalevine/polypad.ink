@@ -2,6 +2,7 @@ import type { Server } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "./eventTypes.js";
 import type { PresenceManager } from "./presence.js";
 import type { LockManager } from "./locks.js";
+import type { SelectionRegistry } from "./selections.js";
 import { SocketRateLimiter } from "./socketRateLimit.js";
 import { listObjects } from "../services/roomService.js";
 import { MAX_USERS_PER_ROOM, WS_CURSOR_PER_SEC, WS_MUTATION_PER_SEC } from "../constants.js";
@@ -11,9 +12,9 @@ const DEBUG_RT = process.env.DEBUG_RT === "1";
 
 export function registerHandlers(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
-  deps: { presence: PresenceManager; lockManager: LockManager },
+  deps: { presence: PresenceManager; lockManager: LockManager; selectionRegistry: SelectionRegistry },
 ): void {
-  const { presence, lockManager } = deps;
+  const { presence, lockManager, selectionRegistry } = deps;
 
   io.on("connection", async (socket) => {
     const t0 = performance.now();
@@ -69,9 +70,41 @@ export function registerHandlers(
       socket.to(roomId).emit("presence:cursor", { userId, cursor: payload.cursor });
     });
 
-    socket.on("presence:selection", (payload) => {
+    socket.on("presence:selection", (payload, ack) => {
+      const prior = selectionRegistry.currentFor(roomId, userId);
+
+      if (payload.objectId === null) {
+        if (prior !== null) {
+          selectionRegistry.release(roomId, prior, userId);
+        }
+        presence.setSelection(roomId, socket.id, null);
+        socket.to(roomId).emit("presence:selection", { userId, objectId: null });
+        ack({ ok: true });
+        return;
+      }
+
+      if (prior === payload.objectId) {
+        // No-op: user is re-asserting their existing selection.
+        ack({ ok: true });
+        return;
+      }
+
+      const result = selectionRegistry.acquire(roomId, payload.objectId, userId);
+      if (!result.ok) {
+        // Prior selection is preserved on failure — don't mutate anything.
+        ack({ ok: false, selectedBy: result.selectedBy });
+        return;
+      }
+
+      if (prior !== null) {
+        selectionRegistry.release(roomId, prior, userId);
+      }
+
       presence.setSelection(roomId, socket.id, payload.objectId);
+      // Single broadcast: peers infer that the user's prior selection is gone
+      // because each user has at most one selection at a time.
       socket.to(roomId).emit("presence:selection", { userId, objectId: payload.objectId });
+      ack({ ok: true });
     });
 
     socket.on("object:lock", (payload, ack) => {
@@ -105,6 +138,7 @@ export function registerHandlers(
       for (const objectId of releasedIds) {
         io.to(roomId).emit("object:unlocked", { objectId });
       }
+      selectionRegistry.releaseAllForUser(roomId, userId);
       presence.leave(roomId, socket.id);
       io.to(roomId).emit("presence:left", { userId });
     });

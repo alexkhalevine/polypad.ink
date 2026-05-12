@@ -96,6 +96,8 @@ export interface ClientUnlockAck {
   ok: true;
 }
 
+export type ClientSelectionAck = { ok: true } | { ok: false; selectedBy: string };
+
 export interface ServerToClientEvents {
   "room:state": (payload: RoomStatePayload) => void;
   "room:full": (payload: RoomFullPayload) => void;
@@ -112,7 +114,7 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   "presence:cursor": (payload: ClientCursorPayload) => void;
-  "presence:selection": (payload: ClientSelectionPayload) => void;
+  "presence:selection": (payload: ClientSelectionPayload, ack: (response: ClientSelectionAck) => void) => void;
   "object:lock": (payload: ClientLockRequest, ack: (response: ClientLockAck) => void) => void;
   "object:unlock": (payload: ClientLockRequest, ack: (response: ClientUnlockAck) => void) => void;
 }

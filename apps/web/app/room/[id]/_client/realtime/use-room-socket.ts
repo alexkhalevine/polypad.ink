@@ -37,7 +37,7 @@ type ConnectionState = "connecting" | "connected" | "disconnected" | "full";
 export interface UseRoomSocketResult {
   connectionState: ConnectionState;
   emitCursor: (cursor: Vec3 | null) => void;
-  emitSelection: (objectId: string | null) => void;
+  requestSelection: (objectId: string | null) => Promise<{ ok: boolean; selectedBy?: string }>;
   requestLock: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   releaseLock: (objectId: string) => Promise<void>;
 }
@@ -264,9 +264,19 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     socket.volatile.emit("presence:cursor", { cursor });
   }, []);
 
-  const emitSelection = useCallback((objectId: string | null) => {
-    socketRef.current?.emit("presence:selection", { objectId });
-  }, []);
+  const requestSelection = useCallback(
+    (objectId: string | null): Promise<{ ok: boolean; selectedBy?: string }> => {
+      return new Promise((resolve) => {
+        const socket = socketRef.current;
+        if (!socket) {
+          resolve({ ok: false });
+          return;
+        }
+        socket.emit("presence:selection", { objectId }, (response) => resolve(response));
+      });
+    },
+    [],
+  );
 
   const requestLock = useCallback((objectId: string): Promise<{ ok: boolean; lockedBy?: string }> => {
     return new Promise((resolve) => {
@@ -290,5 +300,5 @@ export function useRoomSocket(roomId: string): UseRoomSocketResult {
     });
   }, []);
 
-  return { connectionState, emitCursor, emitSelection, requestLock, releaseLock };
+  return { connectionState, emitCursor, requestSelection, requestLock, releaseLock };
 }

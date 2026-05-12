@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
 import { PlacedSphere } from "@/app/room/[id]/_client/types";
+import { RemoteSelectionOutline } from "./remote-selection-outline";
 
 interface PlacedSphereMeshProps {
   sphere: PlacedSphere;
@@ -13,6 +14,7 @@ interface PlacedSphereMeshProps {
   isHovered?: boolean;
   wireframe?: boolean;
   lockInfo?: { color: string; displayName: string };
+  selectionInfo?: { color: string; displayName: string };
   onClick?: () => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -20,7 +22,7 @@ interface PlacedSphereMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
+export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
   const geo = useMemo(
     () => new THREE.SphereGeometry(sphere.radius, 32, 16),
     [sphere.radius]
@@ -58,6 +60,15 @@ export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, 
             locked by {lockInfo.displayName}
           </div>
         </Html>
+      )}
+      {selectionInfo && !lockInfo && (
+        <RemoteSelectionOutline
+          geometry={geo}
+          position={[0, sphere.radius, 0]}
+          labelPosition={[0, sphere.radius * 2 + 0.5, 0]}
+          color={selectionInfo.color}
+          displayName={selectionInfo.displayName}
+        />
       )}
     </group>
   );

@@ -17,7 +17,7 @@ import { useRoomSocket } from "../realtime/use-room-socket";
 type Socket = ReturnType<typeof useRoomSocket>;
 
 export const useRoomEditor = (roomId: string, socket: Socket) => {
-  const { emitCursor, emitSelection, requestLock, releaseLock, connectionState } = socket;
+  const { emitCursor, requestSelection, requestLock, releaseLock, connectionState } = socket;
 
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const selectionMode = useRoomStore((s) => s.selectionMode);
@@ -241,9 +241,29 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     }
   }, [connectionState, addError]);
 
+  const priorSelectionRef = useRef<string | null>(null);
   useEffect(() => {
-    emitSelection(selectedObjectId);
-  }, [selectedObjectId, emitSelection]);
+    const target = selectedObjectId;
+    let cancelled = false;
+    requestSelection(target).then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        priorSelectionRef.current = target;
+        return;
+      }
+      // Race-loss safety net: another user grabbed the selection first.
+      // Roll local state back to the last-confirmed selection.
+      const fallback = priorSelectionRef.current;
+      const remoteUsers = useRoomStore.getState().remoteUsers;
+      const heldBy = result.selectedBy;
+      const displayName = heldBy ? remoteUsers[heldBy]?.displayName ?? heldBy : "another user";
+      addError(`Selected by ${displayName}.`);
+      setSelectedObjectId(fallback);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedObjectId, requestSelection, setSelectedObjectId, addError]);
 
   return {
     activeDraw,

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request } from "express";
-import { getLockManager } from "../realtime/registry.js";
+import { getLockManager, getSelectionRegistry } from "../realtime/registry.js";
 import { listObjects, createObject, batchCreateObjects, updateObject, deleteObject } from "../services/roomService.js";
 import type { WireObject } from "../types.js";
 
@@ -67,9 +67,14 @@ router.delete("/:id/objects/:objectId", async (req, res) => {
   const actor = actorFor(req);
 
   if (!req.isMcp) {
-    const status = getLockManager().isLockedByOther(id, objectId, actor);
-    if (status.locked) {
-      res.status(409).json({ error: "locked", lockedBy: status.lockedBy });
+    const lockStatus = getLockManager().isLockedByOther(id, objectId, actor);
+    if (lockStatus.locked) {
+      res.status(409).json({ error: "locked", lockedBy: lockStatus.lockedBy });
+      return;
+    }
+    const selStatus = getSelectionRegistry().isSelectedByOther(id, objectId, actor);
+    if (selStatus.selected) {
+      res.status(409).json({ error: "selected", selectedBy: selStatus.selectedBy });
       return;
     }
   }
@@ -102,9 +107,14 @@ router.patch("/:id/objects/:objectId", async (req, res) => {
   const actor = actorFor(req);
 
   if (!req.isMcp) {
-    const status = getLockManager().isLockedByOther(id, objectId, actor);
-    if (status.locked) {
-      res.status(409).json({ error: "locked", lockedBy: status.lockedBy });
+    const lockStatus = getLockManager().isLockedByOther(id, objectId, actor);
+    if (lockStatus.locked) {
+      res.status(409).json({ error: "locked", lockedBy: lockStatus.lockedBy });
+      return;
+    }
+    const selStatus = getSelectionRegistry().isSelectedByOther(id, objectId, actor);
+    if (selStatus.selected) {
+      res.status(409).json({ error: "selected", selectedBy: selStatus.selectedBy });
       return;
     }
   }

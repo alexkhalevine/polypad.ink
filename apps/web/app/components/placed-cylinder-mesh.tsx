@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
 import { PlacedCylinder } from "@/app/room/[id]/_client/types";
+import { RemoteSelectionOutline } from "./remote-selection-outline";
 
 interface PlacedCylinderMeshProps {
   cylinder: PlacedCylinder;
@@ -13,6 +14,7 @@ interface PlacedCylinderMeshProps {
   isHovered?: boolean;
   wireframe?: boolean;
   lockInfo?: { color: string; displayName: string };
+  selectionInfo?: { color: string; displayName: string };
   onClick?: () => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -20,7 +22,7 @@ interface PlacedCylinderMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
+export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
   const geo = useMemo(
     () => new THREE.CylinderGeometry(cylinder.radius, cylinder.radius, cylinder.height, 32),
     [cylinder.radius, cylinder.height]
@@ -60,6 +62,15 @@ export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelect
             locked by {lockInfo.displayName}
           </div>
         </Html>
+      )}
+      {selectionInfo && !lockInfo && (
+        <RemoteSelectionOutline
+          geometry={geo}
+          position={[0, hh, 0]}
+          labelPosition={[0, cylinder.height + 0.5, 0]}
+          color={selectionInfo.color}
+          displayName={selectionInfo.displayName}
+        />
       )}
     </group>
   );

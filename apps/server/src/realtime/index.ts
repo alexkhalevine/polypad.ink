@@ -2,7 +2,7 @@ import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "./eventTypes.js";
 import type { RoomEmitter } from "./emitter.js";
-import { setEmitter, getLockManager } from "./registry.js";
+import { setEmitter, getLockManager, getSelectionRegistry } from "./registry.js";
 import type { LockManager } from "./locks.js";
 import { PresenceManager } from "./presence.js";
 import { registerHandlers } from "./handlers.js";
@@ -38,8 +38,9 @@ export function initRealtime(httpServer: HttpServer): {
 
   const presence = new PresenceManager();
   const lockManager = getLockManager();
+  const selectionRegistry = getSelectionRegistry();
 
-  registerHandlers(io, { presence, lockManager });
+  registerHandlers(io, { presence, lockManager, selectionRegistry });
 
   const sweepTimer = setInterval(() => {
     const swept = lockManager.sweep();

@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
 import { PlacedBox } from "@/app/room/[id]/_client/types";
+import { RemoteSelectionOutline } from "./remote-selection-outline";
 
 interface PlacedBoxMeshProps {
   box: PlacedBox;
@@ -13,6 +14,7 @@ interface PlacedBoxMeshProps {
   isHovered?: boolean;
   wireframe?: boolean;
   lockInfo?: { color: string; displayName: string };
+  selectionInfo?: { color: string; displayName: string };
   onClick?: () => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -20,7 +22,7 @@ interface PlacedBoxMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
+export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
   const geo = useMemo(
     () => new THREE.BoxGeometry(box.width, box.height, box.depth),
     [box.width, box.height, box.depth]
@@ -62,6 +64,15 @@ export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHove
             locked by {lockInfo.displayName}
           </div>
         </Html>
+      )}
+      {selectionInfo && !lockInfo && (
+        <RemoteSelectionOutline
+          geometry={geo}
+          position={[hw, hh, hd]}
+          labelPosition={[hw, box.height + 0.5, hd]}
+          color={selectionInfo.color}
+          displayName={selectionInfo.displayName}
+        />
       )}
     </group>
   );
