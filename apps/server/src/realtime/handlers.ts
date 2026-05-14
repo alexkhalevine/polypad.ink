@@ -8,6 +8,9 @@ import { findRoomById, listObjects } from "../services/roomService.js";
 import { safeEqualCode } from "../services/inviteCode.js";
 import { MAX_USERS_PER_ROOM, WS_CURSOR_PER_SEC, WS_MUTATION_PER_SEC } from "../constants.js";
 import { recordJoinTiming } from "./metrics.js";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+
+const tracer = trace.getTracer("polypad-realtime");
 
 const DEBUG_RT = process.env.DEBUG_RT === "1";
 
@@ -43,33 +46,45 @@ export function registerHandlers(
       return;
     }
 
-    // Announce B to peers before doing any async work — peer A should see B's
-    // avatar/cursor the moment the WS handshake completes, not after B's DB read.
-    socket.join(roomId);
-    presence.join(roomId, socket.id, { userId, displayName });
-    socket.to(roomId).emit("presence:joined", { userId, displayName });
-    const tJoined = performance.now();
+    await tracer.startActiveSpan("socket.join", async (span) => {
+      span.setAttributes({ "room.id": roomId, "user.id": userId, transport: socket.conn.transport.name });
+      try {
+        // Announce B to peers before doing any async work — peer A should see B's
+        // avatar/cursor the moment the WS handshake completes, not after B's DB read.
+        socket.join(roomId);
+        presence.join(roomId, socket.id, { userId, displayName });
+        socket.to(roomId).emit("presence:joined", { userId, displayName });
+        const tJoined = performance.now();
 
-    const objects = await listObjects(roomId);
-    const tListed = performance.now();
+        const objects = await listObjects(roomId);
+        const tListed = performance.now();
 
-    socket.emit("room:state", {
-      users: presence.snapshot(roomId),
-      locks: lockManager.snapshot(roomId),
-      objects,
+        socket.emit("room:state", {
+          users: presence.snapshot(roomId),
+          locks: lockManager.snapshot(roomId),
+          objects,
+        });
+        const tState = performance.now();
+
+        const joinedMs = tJoined - t0;
+        const listMs = tListed - tJoined;
+        const stateMs = tState - tListed;
+        const totalMs = tState - t0;
+        recordJoinTiming(totalMs);
+        span.setAttributes({ "join.total_ms": totalMs, "join.list_ms": listMs, "join.state_ms": stateMs });
+        if (DEBUG_RT) {
+          console.log(
+            `[rt] join roomId=${roomId} userId=${userId} joined=${joinedMs.toFixed(1)}ms list=${listMs.toFixed(1)}ms state=${stateMs.toFixed(1)}ms total=${totalMs.toFixed(1)}ms transport=${socket.conn.transport.name}`,
+          );
+        }
+      } catch (e) {
+        span.recordException(e as Error);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw e;
+      } finally {
+        span.end();
+      }
     });
-    const tState = performance.now();
-
-    const joinedMs = tJoined - t0;
-    const listMs = tListed - tJoined;
-    const stateMs = tState - tListed;
-    const totalMs = tState - t0;
-    recordJoinTiming(totalMs);
-    if (DEBUG_RT) {
-      console.log(
-        `[rt] join roomId=${roomId} userId=${userId} joined=${joinedMs.toFixed(1)}ms list=${listMs.toFixed(1)}ms state=${stateMs.toFixed(1)}ms total=${totalMs.toFixed(1)}ms transport=${socket.conn.transport.name}`,
-      );
-    }
 
     const limiter = new SocketRateLimiter({ cursorPerSec: WS_CURSOR_PER_SEC, mutationPerSec: WS_MUTATION_PER_SEC });
 
@@ -117,29 +132,54 @@ export function registerHandlers(
     });
 
     socket.on("object:lock", (payload, ack) => {
-      if (!limiter.tryMutation()) {
-        ack({ ok: false, lockedBy: "rate-limited" });
-        return;
-      }
-      const result = lockManager.acquire(roomId, payload.objectId, userId);
-      if (result.ok) {
-        ack({ ok: true });
-        io.to(roomId).emit("object:locked", { objectId: payload.objectId, userId, expiresAt: result.expiresAt });
-      } else {
-        ack({ ok: false, lockedBy: result.lockedBy });
-      }
+      tracer.startActiveSpan("socket.object.lock", (span) => {
+        span.setAttributes({ "room.id": roomId, "object.id": payload.objectId, "user.id": userId });
+        try {
+          if (!limiter.tryMutation()) {
+            span.setAttributes({ "lock.acquired": false, "lock.denied_reason": "rate-limited" });
+            ack({ ok: false, lockedBy: "rate-limited" });
+            return;
+          }
+          const result = lockManager.acquire(roomId, payload.objectId, userId);
+          span.setAttributes({ "lock.acquired": result.ok });
+          if (result.ok) {
+            ack({ ok: true });
+            io.to(roomId).emit("object:locked", { objectId: payload.objectId, userId, expiresAt: result.expiresAt });
+          } else {
+            ack({ ok: false, lockedBy: result.lockedBy });
+          }
+        } catch (e) {
+          span.recordException(e as Error);
+          span.setStatus({ code: SpanStatusCode.ERROR });
+          throw e;
+        } finally {
+          span.end();
+        }
+      });
     });
 
     socket.on("object:unlock", (payload, ack) => {
-      if (!limiter.tryMutation()) {
-        ack({ ok: true });
-        return;
-      }
-      const released = lockManager.release(roomId, payload.objectId, userId);
-      ack({ ok: true });
-      if (released) {
-        io.to(roomId).emit("object:unlocked", { objectId: payload.objectId });
-      }
+      tracer.startActiveSpan("socket.object.unlock", (span) => {
+        span.setAttributes({ "room.id": roomId, "object.id": payload.objectId, "user.id": userId });
+        try {
+          if (!limiter.tryMutation()) {
+            ack({ ok: true });
+            return;
+          }
+          const released = lockManager.release(roomId, payload.objectId, userId);
+          span.setAttributes({ "lock.released": released });
+          ack({ ok: true });
+          if (released) {
+            io.to(roomId).emit("object:unlocked", { objectId: payload.objectId });
+          }
+        } catch (e) {
+          span.recordException(e as Error);
+          span.setStatus({ code: SpanStatusCode.ERROR });
+          throw e;
+        } finally {
+          span.end();
+        }
+      });
     });
 
     socket.on("disconnect", () => {

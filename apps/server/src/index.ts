@@ -1,3 +1,4 @@
+import "./tracing.js";
 import { createServer } from "node:http";
 import express from "express";
 import cors from "cors";
@@ -7,6 +8,7 @@ import geometryObjectsRouter from "./routes/geometryObjects.js";
 import { markMcpRequest, rateLimitMiddleware } from "./middleware/rateLimit.js";
 import { initRealtime } from "./realtime/index.js";
 import { getJoinMetrics } from "./realtime/metrics.js";
+import { sdk } from "./tracing.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
@@ -28,15 +30,13 @@ if (DEBUG_RT) {
   });
 }
 
-// Graceful shutdown to save DB
-process.on("SIGINT", () => {
+// Graceful shutdown to save DB and flush OTel
+function shutdown() {
   saveDbSync();
-  process.exit(0);
-});
-process.on("SIGTERM", () => {
-  saveDbSync();
-  process.exit(0);
-});
+  sdk.shutdown().finally(() => process.exit(0));
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 async function start() {
   await initDb();
