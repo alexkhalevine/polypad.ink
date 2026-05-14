@@ -16,6 +16,9 @@ The server is a single Node process that owns one `http.Server`. Express handles
 
 | Concern | Owner | Why |
 |---|---|---|
+| Room creation + invite issuance | HTTP `POST /rooms` → service → SQLite | Creation is intentional and produces a permanent, cryptographically random `inviteCode` |
+| Invite verification (page gate) | HTTP `GET /rooms/:id/verify?code=…` | Same-shape 404 for "no room" and "wrong code" (no existence oracle); compared with `crypto.timingSafeEqual` |
+| Invite verification (WS gate) | WebSocket handshake | Closes the bypass where a client could connect directly with a guessed `roomId` |
 | Durable geometry CRUD | HTTP routes → service → SQLite (sql.js) | Bounded request/response shape, simple retries, easy MCP integration |
 | Initial state on join | WebSocket `room:state` event | Avoids a separate HTTP round-trip after connecting |
 | Cursor presence | WebSocket only (`presence:cursor`) | Pure ephemeral data, fire-and-forget, never persisted |
@@ -45,16 +48,17 @@ The same pattern is used for the `LockManager` and the `SelectionRegistry` — s
 
 ## Connection lifecycle
 
-A Socket.IO connection carries `auth: { userId, displayName, roomId }` in the handshake. The `connection` handler:
+A Socket.IO connection carries `auth: { userId, displayName, roomId, inviteCode }` in the handshake. The `connection` handler:
 
-1. Validates auth — disconnect if missing.
-2. Checks `presence.count(roomId) < MAX_USERS_PER_ROOM` — if not, emits `room:full` and disconnects.
-3. Joins the Socket.IO room (`socket.join(roomId)`) so future `io.to(roomId).emit(...)` reaches it.
-4. Records presence and broadcasts `presence:joined` to peers.
-5. Reads the current geometry from the DB (`listObjects`) and emits `room:state` to *just this socket*, with users + locks + objects — the client's full initial picture in one message.
-6. Wires up event handlers behind a `SocketRateLimiter` (separate token buckets for cursor moves vs. mutations, since cursors are spammy by nature).
+1. Validates auth fields — disconnect if any are missing.
+2. Looks up the room by `roomId` and `timingSafeEqual`s the supplied `inviteCode` against `rooms.invite_code`. If the room doesn't exist or the code doesn't match, emits `room:denied { reason: "invalid-invite" }` and disconnects *before* any presence write or DB read. Same response shape for both failure modes — no room-existence oracle.
+3. Checks `presence.count(roomId) < MAX_USERS_PER_ROOM` — if not, emits `room:full` and disconnects.
+4. Joins the Socket.IO room (`socket.join(roomId)`) so future `io.to(roomId).emit(...)` reaches it.
+5. Records presence and broadcasts `presence:joined` to peers.
+6. Reads the current geometry from the DB (`listObjects`) and emits `room:state` to *just this socket*, with users + locks + objects — the client's full initial picture in one message.
+7. Wires up event handlers behind a `SocketRateLimiter` (separate token buckets for cursor moves vs. mutations, since cursors are spammy by nature).
 
-The ordering of steps 4 and 5 is deliberate: `presence:joined` fires *before* the DB read so peers see the new user the moment their socket connects, rather than after the joiner's `listObjects` returns. The joiner's own scene fills in shortly after via `room:state`.
+The ordering of steps 5 and 6 is deliberate: `presence:joined` fires *before* the DB read so peers see the new user the moment their socket connects, rather than after the joiner's `listObjects` returns. The joiner's own scene fills in shortly after via `room:state`.
 
 On disconnect: presence is cleaned up, `presence:left` is broadcast, locks held by this user expire naturally on the next sweep, and any selection ownership is released from the `SelectionRegistry` immediately.
 
@@ -87,6 +91,17 @@ The selection flow:
 Both `LockManager` and `SelectionRegistry` reject HTTP `PATCH` / `DELETE` with **409** when the caller doesn't hold the relevant claim. The route checks the lock first (`{ error: "locked", lockedBy }`), then the selection (`{ error: "selected", selectedBy }`).
 
 MCP-tier requests (bearer-authenticated) **bypass** both checks at the route level — AI agents don't deal with selection or lock UX, they get a free pass.
+
+## Room creation and access gating
+
+Rooms are no longer auto-created on first touch. They must exist before any client (browser or MCP) can join a Socket.IO room or mutate geometry:
+
+1. The Next.js setup flow calls `POST /rooms { name }`. The service generates a 16-byte (`crypto.randomBytes`) `base64url` invite code, inserts the row, and returns `{ id, inviteCode }`. Name collisions return **409** rather than silently sharing rooms.
+2. The setup action redirects to `/room/{id}?invite=CODE`. The Next.js room page is a **server component** that calls `GET /rooms/:id/verify?code=…` and `notFound()`s on anything other than `{ ok: true }` — so a missing or wrong code lands on the default 404 with no flash of the editor.
+3. The Socket.IO handshake repeats the same check server-side (see the connection lifecycle above), closing the bypass where a client could connect directly with a guessed `roomId` and never hit the page.
+4. The `roomService.createObject` / `batchCreateObjects` paths no longer upsert a `rooms` row — they expect it to already exist. A foreign-key violation here means a caller bypassed both gates; treat it as a bug.
+
+Invite codes are permanent per room for now (no rotation), accepting the trade-off that one leak compromises the room until a future "reset invite link" feature lands. The code travels in the URL query string, so the room page sets `metadata.referrer = "same-origin"` to limit `Referer` leakage to external sites.
 
 ## Mutation broadcast model
 
@@ -133,8 +148,8 @@ flowchart TD
   Handlers["realtime/handlers.ts"]
   WsRate["SocketRateLimiter (cursor / mutation buckets)"]
 
-  WebClient -- "HTTP: REST CRUD" --> HttpServer
-  WebClient -- "WebSocket: connect, presence:*, object:lock, object:unlock" --> HttpServer
+  WebClient -- "HTTP: POST /rooms, GET /rooms/:id/verify, REST CRUD" --> HttpServer
+  WebClient -- "WebSocket: connect {invite}, presence:*, object:lock, object:unlock" --> HttpServer
   McpClient -- "HTTP: REST CRUD (Bearer)" --> HttpServer
 
   HttpServer --> Express
@@ -164,7 +179,7 @@ flowchart TD
   Registry --> Selections
   Emitter -- "io.to(roomId).emit(...)" --> IO
 
-  IO == "object:created / :updated / :deleted / :locked / :unlocked / room:state / presence:*" ==> WebClient
+  IO == "object:created / :updated / :deleted / :locked / :unlocked / room:state / room:denied / presence:*" ==> WebClient
 ```
 
 The double-line at the bottom is the **broadcast path**: a single mutation, regardless of whether it originated from HTTP (browser or MCP) or from a WS event (lock acquisition), produces one fan-out emit to every socket in the room.
@@ -185,7 +200,9 @@ src/
     socketRateLimit.ts  # Per-socket cursor/mutation token buckets
     metrics.ts          # Rolling-window join-latency sampler (debug-only)
     eventTypes.ts       # Wire types for all WS events (server↔client)
-  services/roomService.ts  # Calls getEmitter() after every DB mutation
+  services/
+    roomService.ts         # createRoom / findRoomById / object CRUD; calls getEmitter() after mutations
+    inviteCode.ts          # generateInviteCode() (16-byte base64url) + constant-time safeEqualCode()
   routes/                  # HTTP layer; never imports Socket.IO
   middleware/rateLimit.ts  # markMcpRequest + express-rate-limit config
 ```
@@ -207,3 +224,5 @@ WebSockets aren't free — they require a stickier deployment model (each instan
 - **Persistent presence/audit.** Sit a second emitter behind the existing one to also publish to a Vercel Queue / Kafka topic for analytics or replay.
 - **Client-supplied request IDs.** Currently the originating client sees its own optimistic placement plus the broadcast `object:created` (with a server-assigned id) and reconciles via `invalidateQueries`. A `clientRequestId` echoed in the broadcast payload would let the originator dedup precisely without a refetch — see the security-fix follow-up notes.
 - **Granular per-room rate limiting.** Today HTTP throttling is per IP. Authenticated tiers (with proper auth — see `actor` notes in the security review) could be per-user, per-room, or per-tenant.
+- **Rotatable / revocable invite codes.** Codes are permanent today. A future `POST /rooms/:id/rotate-invite` (authorised to the creator, once a notion of "creator" exists) plus a "Reset invite link" button would let users contain leaks without abandoning the room.
+- **Move invite code out of the URL.** Today the code rides in `?invite=…`, which leaks via browser history and access logs. Two evolution paths: (a) URL fragment (`#invite=…`) plus client-side verify call — keeps the code out of the network and server logs; (b) exchange the code for an HTTP-only session cookie on first successful visit, then redirect to a clean URL.
