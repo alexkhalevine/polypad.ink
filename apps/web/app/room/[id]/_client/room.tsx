@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Menu } from "@/app/components/menu";
 import { Scene } from "./scene";
@@ -10,6 +10,7 @@ import { useRoomEditor } from "./hooks/use-room-editor";
 import { UserAvatars } from "./user-avatars";
 import { InviteButton } from "./invite-button";
 import { ContextMenu } from "./context-menu";
+import { ExportModal } from "./export-modal";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -21,6 +22,10 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
 
   const socket = useRoomSocket(id, inviteCode);
   const editor = useRoomEditor(id, socket);
+
+  const exportModalRef = useRef<HTMLDialogElement>(null);
+  const hasObjects =
+    editor.placedBoxes.length + editor.placedCylinders.length + editor.placedSpheres.length > 0;
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const openContextMenu = useCallback((e: React.MouseEvent) => {
@@ -69,6 +74,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           onContextMenu={openContextMenu}
         >
           <Scene
+            roomId={id}
             drawState={editor.activeDraw?.drawState ?? idleState}
             placedBoxes={editor.placedBoxes}
             placedCylinders={editor.placedCylinders}
@@ -89,6 +95,17 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         {contextMenu && (
           <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} onDelete={editor.handleDeleteObject} />
         )}
+
+        <ExportModal ref={exportModalRef} hasObjects={hasObjects} />
+
+        <div className="z-10">
+          <button
+            className="btn btn-sm bg-indigo-900 text-indigo-200 border-indigo-700 hover:bg-indigo-800"
+            onClick={() => exportModalRef.current?.showModal()}
+          >
+            Export
+          </button>
+        </div>
 
         <div className="absolute bottom-0 left-0 right-0 flex justify-center">
           <Menu

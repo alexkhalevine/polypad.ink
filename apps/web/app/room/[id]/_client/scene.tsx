@@ -17,6 +17,7 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
+import { ExportHandler, PLACED_OBJECTS_GROUP } from "./export-handler";
 import { useErrorStore } from "@/app/error-store";
 
 const CURSOR_COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#34d399", "#f472b6", "#facc15"];
@@ -31,6 +32,7 @@ export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
 // ─── Scene props ──────────────────────────────────────────────────────────────
 
 interface SceneProps {
+  roomId: string;
   drawState: DrawState;
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
@@ -51,6 +53,7 @@ interface SceneProps {
 // ─── Scene root ───────────────────────────────────────────────────────────────
 
 function SceneContent({
+  roomId,
   drawState,
   placedBoxes,
   placedCylinders,
@@ -182,55 +185,58 @@ function SceneContent({
       {selectedTool === "cylinder" && <PreviewCylinder drawState={drawState} />}
       {selectedTool === "sphere" && <PreviewSphere drawState={drawState} />}
 
-      {placedBoxes.map((box) => (
-        <PlacedBoxMesh
-          key={box.id}
-          box={box}
-          positionOverride={livePositions[box.id]}
-          color={box.color}
-          isSelected={box.id === selectedObjectId}
-          isHovered={selectionMode === "select" && box.id === hoveredObjectId}
-          wireframe={wireframeEnabled}
-          lockInfo={getLockInfo(box.id)}
-          selectionInfo={getSelectionInfo(box.id)}
-          onClick={() => tryLocalSelect(box.id)}
-          onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(box.id); }}
-          onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
-        />
-      ))}
-      {placedCylinders.map((cylinder) => (
-        <PlacedCylinderMesh
-          key={cylinder.id}
-          cylinder={cylinder}
-          positionOverride={livePositions[cylinder.id]}
-          color={cylinder.color}
-          isSelected={cylinder.id === selectedObjectId}
-          isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
-          wireframe={wireframeEnabled}
-          lockInfo={getLockInfo(cylinder.id)}
-          selectionInfo={getSelectionInfo(cylinder.id)}
-          onClick={() => tryLocalSelect(cylinder.id)}
-          onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(cylinder.id); }}
-          onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
-        />
-      ))}
-      {placedSpheres.map((sphere) => (
-        <PlacedSphereMesh
-          key={sphere.id}
-          sphere={sphere}
-          positionOverride={livePositions[sphere.id]}
-          color={sphere.color}
-          isSelected={sphere.id === selectedObjectId}
-          isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
-          wireframe={wireframeEnabled}
-          lockInfo={getLockInfo(sphere.id)}
-          selectionInfo={getSelectionInfo(sphere.id)}
-          onClick={() => tryLocalSelect(sphere.id)}
-          onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(sphere.id); }}
-          onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
-        />
-      ))}
+      <group name={PLACED_OBJECTS_GROUP}>
+        {placedBoxes.map((box) => (
+          <PlacedBoxMesh
+            key={box.id}
+            box={box}
+            positionOverride={livePositions[box.id]}
+            color={box.color}
+            isSelected={box.id === selectedObjectId}
+            isHovered={selectionMode === "select" && box.id === hoveredObjectId}
+            wireframe={wireframeEnabled}
+            lockInfo={getLockInfo(box.id)}
+            selectionInfo={getSelectionInfo(box.id)}
+            onClick={() => tryLocalSelect(box.id)}
+            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(box.id); }}
+            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+          />
+        ))}
+        {placedCylinders.map((cylinder) => (
+          <PlacedCylinderMesh
+            key={cylinder.id}
+            cylinder={cylinder}
+            positionOverride={livePositions[cylinder.id]}
+            color={cylinder.color}
+            isSelected={cylinder.id === selectedObjectId}
+            isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
+            wireframe={wireframeEnabled}
+            lockInfo={getLockInfo(cylinder.id)}
+            selectionInfo={getSelectionInfo(cylinder.id)}
+            onClick={() => tryLocalSelect(cylinder.id)}
+            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(cylinder.id); }}
+            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+          />
+        ))}
+        {placedSpheres.map((sphere) => (
+          <PlacedSphereMesh
+            key={sphere.id}
+            sphere={sphere}
+            positionOverride={livePositions[sphere.id]}
+            color={sphere.color}
+            isSelected={sphere.id === selectedObjectId}
+            isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
+            wireframe={wireframeEnabled}
+            lockInfo={getLockInfo(sphere.id)}
+            selectionInfo={getSelectionInfo(sphere.id)}
+            onClick={() => tryLocalSelect(sphere.id)}
+            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(sphere.id); }}
+            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+          />
+        ))}
+      </group>
 
+      <ExportHandler roomId={roomId} />
       <RemoteCursors />
     </>
   );

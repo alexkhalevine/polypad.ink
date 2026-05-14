@@ -33,6 +33,10 @@ interface RoomStore {
   ) => void;
   clearLiveDimensions: (objectId: string) => void;
 
+  // STL export trigger — set true to request export from inside the Canvas
+  exportRequested: boolean;
+  setExportRequested: (v: boolean) => void;
+
   // Collaboration — stubs ready for WebSocket integration
   localUserId: string | null;
   remoteUsers: Record<string, RemoteUserPresence>;
@@ -87,6 +91,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
       delete next[objectId];
       return { liveDimensions: next };
     }),
+
+  exportRequested: false,
+  setExportRequested: (v) => set({ exportRequested: v }),
 
   localUserId: null,
   remoteUsers: {},
