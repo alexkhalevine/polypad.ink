@@ -1,7 +1,10 @@
 "use server"
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 async function verifyHcaptcha(token: string): Promise<boolean> {
+  if (process.env.NODE_ENV !== "production") return true;
+
   const secretKey = process.env.HCAPTCHA_SECRET_KEY;
   if (!secretKey) {
     console.error("HCAPTCHA_SECRET_KEY is not set");
@@ -40,14 +43,29 @@ export async function setupRoom(
   const token = formData.get("token") as string;
   const roomName = formData.get("roomName") as string;
 
-  if (!token || !roomName) {
+  if (!roomName) {
     return { error: "Something went wrong. Please try again." };
   }
 
-  const isValid = await verifyHcaptcha(token);
+  const cookieStore = await cookies();
+  const alreadyVerified = cookieStore.get("captcha_verified")?.value === "1";
 
-  if (!isValid) {
-    return { error: "Verification failed. Please try again from the home page." };
+  if (!alreadyVerified) {
+    if (!token) {
+      return { error: "Something went wrong. Please try again." };
+    }
+
+    const isValid = await verifyHcaptcha(token);
+    if (!isValid) {
+      return { error: "Verification failed. Please try again from the home page." };
+    }
+
+    // Token is single-use and now consumed — persist verification for retries
+    cookieStore.set("captcha_verified", "1", {
+      httpOnly: true,
+      path: "/room/setup",
+      maxAge: 600,
+    });
   }
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -66,6 +84,7 @@ export async function setupRoom(
   }
 
   const { id, inviteCode } = (await res.json()) as { id: string; inviteCode: string };
+  cookieStore.delete("captcha_verified");
   redirect(`/room/${encodeURIComponent(id)}?invite=${encodeURIComponent(inviteCode)}`);
 }
 
