@@ -1,11 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
+import { AlignArrowController } from "./align-arrow-controller";
+import { AlignPreviewOverlay } from "./align-preview-overlay";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -50,6 +53,52 @@ interface SceneProps {
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
 }
 
+// ─── Align helper (groups arrow + preview so target lookup stays local) ────────
+
+function AlignSection({
+  source,
+  sourceType,
+  placedBoxes,
+  placedCylinders,
+  placedSpheres,
+  alignTargetId,
+}: {
+  source: PlacedBox | PlacedCylinder | PlacedSphere;
+  sourceType: "box" | "cylinder" | "sphere";
+  placedBoxes: PlacedBox[];
+  placedCylinders: PlacedCylinder[];
+  placedSpheres: PlacedSphere[];
+  alignTargetId: string | null;
+}) {
+  const allObjects = useMemo(
+    () => [...placedBoxes, ...placedCylinders, ...placedSpheres],
+    [placedBoxes, placedCylinders, placedSpheres],
+  );
+  const target = useMemo(
+    () => (alignTargetId ? allObjects.find((o) => o.id === alignTargetId) ?? null : null),
+    [alignTargetId, allObjects],
+  );
+  const targetType = useMemo<"box" | "cylinder" | "sphere" | null>(() => {
+    if (!alignTargetId) return null;
+    if (placedBoxes.some((b) => b.id === alignTargetId)) return "box";
+    if (placedCylinders.some((c) => c.id === alignTargetId)) return "cylinder";
+    if (placedSpheres.some((s) => s.id === alignTargetId)) return "sphere";
+    return null;
+  }, [alignTargetId, placedBoxes, placedCylinders, placedSpheres]);
+
+  return (
+    <>
+      <AlignArrowController source={source} sourceType={sourceType} />
+      <AlignPreviewOverlay
+        source={source}
+        sourceType={sourceType}
+        target={target}
+        targetType={targetType}
+      />
+    </>
+  );
+}
+
 // ─── Scene root ───────────────────────────────────────────────────────────────
 
 function SceneContent({
@@ -82,6 +131,7 @@ function SceneContent({
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const remoteUsers = useRoomStore((s) => s.remoteUsers);
   const localUserId = useRoomStore((s) => s.localUserId);
+  const alignTargetId = useRoomStore((s) => s.alignTargetId);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -104,6 +154,7 @@ function SceneContent({
 
   function tryLocalSelect(objectId: string) {
     if (selectionMode !== "select") return;
+    if (selectedTool === "align") return;
     const remote = getSelectionInfo(objectId);
     if (remote) {
       useErrorStore.getState().addError(`Selected by ${remote.displayName}.`);
@@ -130,6 +181,7 @@ function SceneContent({
         dampingFactor={0.08}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 2}
+        enabled={selectedTool !== "align"}
       />
 
       <ambientLight intensity={Math.PI / 2} />
@@ -153,6 +205,17 @@ function SceneContent({
           onObjectMove={onObjectMove}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
+        />
+      )}
+
+      {selectedTool === "align" && selectedObject && selectedObjectType && (
+        <AlignSection
+          source={selectedObject}
+          sourceType={selectedObjectType}
+          placedBoxes={placedBoxes}
+          placedCylinders={placedCylinders}
+          placedSpheres={placedSpheres}
+          alignTargetId={alignTargetId}
         />
       )}
 
@@ -193,13 +256,13 @@ function SceneContent({
             positionOverride={livePositions[box.id]}
             color={box.color}
             isSelected={box.id === selectedObjectId}
-            isHovered={selectionMode === "select" && box.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align") && box.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(box.id)}
             selectionInfo={getSelectionInfo(box.id)}
             onClick={() => tryLocalSelect(box.id)}
-            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(box.id); }}
-            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(box.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
           />
         ))}
         {placedCylinders.map((cylinder) => (
@@ -209,13 +272,13 @@ function SceneContent({
             positionOverride={livePositions[cylinder.id]}
             color={cylinder.color}
             isSelected={cylinder.id === selectedObjectId}
-            isHovered={selectionMode === "select" && cylinder.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align") && cylinder.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(cylinder.id)}
             selectionInfo={getSelectionInfo(cylinder.id)}
             onClick={() => tryLocalSelect(cylinder.id)}
-            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(cylinder.id); }}
-            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(cylinder.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
           />
         ))}
         {placedSpheres.map((sphere) => (
@@ -225,13 +288,13 @@ function SceneContent({
             positionOverride={livePositions[sphere.id]}
             color={sphere.color}
             isSelected={sphere.id === selectedObjectId}
-            isHovered={selectionMode === "select" && sphere.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align") && sphere.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(sphere.id)}
             selectionInfo={getSelectionInfo(sphere.id)}
             onClick={() => tryLocalSelect(sphere.id)}
-            onPointerEnter={() => { if (selectionMode === "select") setHoveredObjectId(sphere.id); }}
-            onPointerLeave={() => { if (selectionMode === "select") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(sphere.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
           />
         ))}
       </group>

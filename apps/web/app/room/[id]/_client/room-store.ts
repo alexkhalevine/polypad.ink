@@ -33,6 +33,18 @@ interface RoomStore {
   ) => void;
   clearLiveDimensions: (objectId: string) => void;
 
+  // Align tool state
+  alignTargetId: string | null;
+  setAlignTargetId: (id: string | null) => void;
+  alignDragging: boolean;
+  setAlignDragging: (v: boolean) => void;
+  alignAxes: { x: boolean; y: boolean; z: boolean };
+  alignSourceSide: "min" | "max";
+  alignTargetSide: "min" | "max";
+  setAlignAxes: (axes: { x: boolean; y: boolean; z: boolean }) => void;
+  setAlignSourceSide: (side: "min" | "max") => void;
+  setAlignTargetSide: (side: "min" | "max") => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -65,7 +77,16 @@ export const useRoomStore = create<RoomStore>((set) => ({
   setSelectedObjectId: (id) => set({ selectedObjectId: id }),
   setHoveredObjectId: (id) => set({ hoveredObjectId: id }),
   resetEditorState: () =>
-    set({ selectedTool: null, selectedObjectId: null, selectionMode: "draw" }),
+    set({
+      selectedTool: null,
+      selectedObjectId: null,
+      selectionMode: "draw",
+      alignTargetId: null,
+      alignDragging: false,
+      alignAxes: { x: false, y: false, z: false },
+      alignSourceSide: "min",
+      alignTargetSide: "min",
+    }),
 
   livePositions: {},
   setLivePosition: (objectId, pos) =>
@@ -91,6 +112,17 @@ export const useRoomStore = create<RoomStore>((set) => ({
       delete next[objectId];
       return { liveDimensions: next };
     }),
+
+  alignTargetId: null,
+  setAlignTargetId: (id) => set({ alignTargetId: id }),
+  alignDragging: false,
+  setAlignDragging: (v) => set({ alignDragging: v }),
+  alignAxes: { x: false, y: false, z: false },
+  alignSourceSide: "min",
+  alignTargetSide: "min",
+  setAlignAxes: (axes) => set({ alignAxes: axes }),
+  setAlignSourceSide: (side) => set({ alignSourceSide: side }),
+  setAlignTargetSide: (side) => set({ alignTargetSide: side }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

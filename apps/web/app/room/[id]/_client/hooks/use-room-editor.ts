@@ -12,6 +12,7 @@ import { useUpdateObjectDimensions } from "../queries/use-update-object-dimensio
 import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
+import { computeAlignedPosition } from "../align-math";
 import { useErrorStore } from "@/app/error-store";
 import { useRoomSocket } from "../realtime/use-room-socket";
 
@@ -28,6 +29,14 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setSelectionMode = useRoomStore((s) => s.setSelectionMode);
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const resetEditorState = useRoomStore((s) => s.resetEditorState);
+  const alignTargetId = useRoomStore((s) => s.alignTargetId);
+  const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
+  const alignAxes = useRoomStore((s) => s.alignAxes);
+  const alignSourceSide = useRoomStore((s) => s.alignSourceSide);
+  const alignTargetSide = useRoomStore((s) => s.alignTargetSide);
+  const setAlignAxes = useRoomStore((s) => s.setAlignAxes);
+  const setAlignSourceSide = useRoomStore((s) => s.setAlignSourceSide);
+  const setAlignTargetSide = useRoomStore((s) => s.setAlignTargetSide);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
@@ -235,6 +244,72 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     });
   }, [selectedObjectId, objectLocks, localUserId, deleteObjectMutation, resetEditorState, addError]);
 
+  const handleAlignApply = useCallback(() => {
+    if (!selectedObjectId || !alignTargetId || !selectedObject || !selectedObjectType) return;
+
+    const lockHolder = objectLocks[selectedObjectId];
+    if (lockHolder && lockHolder !== localUserId) {
+      addError("Cannot align: object is locked by another user.");
+      setAlignTargetId(null);
+      setSelectedTool(null);
+      return;
+    }
+
+    const allObjects = [...placedBoxes, ...placedCylinders, ...placedSpheres];
+    const targetObject = allObjects.find((o) => o.id === alignTargetId);
+    if (!targetObject) {
+      setAlignTargetId(null);
+      return;
+    }
+
+    const targetType = placedBoxes.some((b) => b.id === alignTargetId)
+      ? "box"
+      : placedCylinders.some((c) => c.id === alignTargetId)
+        ? "cylinder"
+        : "sphere";
+
+    const newPos = computeAlignedPosition(
+      selectedObject,
+      selectedObjectType,
+      targetObject,
+      targetType,
+      alignAxes,
+      alignSourceSide,
+      alignTargetSide,
+    );
+
+    updateObjectPosition.mutate({ objectId: selectedObjectId, position: newPos });
+    setLivePosition(selectedObjectId, newPos);
+    setAlignTargetId(null);
+    setSelectedTool(null);
+  }, [
+    selectedObjectId,
+    alignTargetId,
+    alignAxes,
+    alignSourceSide,
+    alignTargetSide,
+    selectedObject,
+    selectedObjectType,
+    objectLocks,
+    localUserId,
+    placedBoxes,
+    placedCylinders,
+    placedSpheres,
+    updateObjectPosition,
+    setLivePosition,
+    setAlignTargetId,
+    setSelectedTool,
+    addError,
+  ]);
+
+  const handleAlignCancel = useCallback(() => {
+    setAlignTargetId(null);
+    setSelectedTool(null);
+    setAlignAxes({ x: false, y: false, z: false });
+    setAlignSourceSide("min");
+    setAlignTargetSide("min");
+  }, [setAlignTargetId, setSelectedTool, setAlignAxes, setAlignSourceSide, setAlignTargetSide]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (document.activeElement as HTMLElement)?.tagName;
@@ -311,5 +386,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handlePositionCommit,
     handleDimensionCommit,
     handleDeleteObject,
+    alignTargetId,
+    handleAlignApply,
+    handleAlignCancel,
   };
 };

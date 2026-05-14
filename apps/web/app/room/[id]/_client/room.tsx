@@ -11,6 +11,8 @@ import { UserAvatars } from "./user-avatars";
 import { InviteButton } from "./invite-button";
 import { ContextMenu } from "./context-menu";
 import { ExportModal } from "./export-modal";
+import { AlignPanel } from "./align-panel";
+import { RightPanel } from "./right-panel";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -70,10 +72,18 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         </div>
       )}
       <div className="relative w-full h-full flex flex-col">
-        <div className="absolute top-3 right-4 z-10 flex gap-3 items-start">
+        <div className="absolute top-3 right-4 flex gap-3 items-start z-50">
           <InviteButton />
           <UserAvatars />
         </div>
+        {editor.selectedTool === "align" && (
+          <RightPanel>
+            <AlignPanel
+              onApply={editor.handleAlignApply}
+              onCancel={editor.handleAlignCancel}
+            />
+          </RightPanel>
+        )}
         {editor.isPending && (
           <div className="absolute top-4 right-4">
             <span className="loading loading-spinner loading-xs"></span>

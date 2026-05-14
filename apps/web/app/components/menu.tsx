@@ -11,6 +11,7 @@ type IconSrc = ImageProps["src"];
 
 const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "move", label: "Move", icon: moveIcon },
+  { name: "align", label: "Align", icon: moveIcon },
 ];
 
 type Axis = "x" | "y" | "z";
@@ -144,6 +145,7 @@ export const Menu = ({
   const toggleWireframe = useRoomStore((s) => s.toggleWireframe);
 
   const moveEnabled = !!selectedObjectId;
+  const alignEnabled = !!selectedObjectId;
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 
@@ -211,21 +213,24 @@ export const Menu = ({
           </div>
         )}
         <div className="flex gap-8">
-          {objectOperationItems.map((item) => (
+          {objectOperationItems.map((item) => {
+            const isDisabled =
+              (item.name === "move" && !moveEnabled) ||
+              (item.name === "align" && !alignEnabled);
+            return (
             <button
               key={item.name}
               id={item.name}
-              disabled={item.name === "move" && !moveEnabled}
+              disabled={isDisabled}
               onClick={() => {
-                if (item.name === "move" && moveEnabled) {
-                  setSelectedTool("move");
-                }
+                if (item.name === "move" && moveEnabled) setSelectedTool("move");
+                if (item.name === "align" && alignEnabled) setSelectedTool("align");
               }}
               className={`btn text-blue-100 ${
                 selectedTool === item.name
                   ? "bg-blue-400 ring-2 ring-white"
                   : "bg-blue-700"
-              } ${item.name === "move" && !moveEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               {item.label}
               <Image
@@ -234,7 +239,8 @@ export const Menu = ({
                 className="w-8 h-8 ml-2 mix-blend-overlay rounded-full"
               />
             </button>
-          ))}
+          );
+          })}
         </div>
         <div className="flex gap-8">
           {primitiveObjectMenuItems.map((item) => (
