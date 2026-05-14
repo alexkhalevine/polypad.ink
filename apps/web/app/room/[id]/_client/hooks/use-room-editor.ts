@@ -9,6 +9,7 @@ import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
 import { useUpdateObjectPosition } from "../queries/use-update-object-position";
 import { useUpdateObjectDimensions } from "../queries/use-update-object-dimensions";
+import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
 import { useErrorStore } from "@/app/error-store";
@@ -32,11 +33,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
   const addError = useErrorStore((s) => s.addError);
 
+  const objectLocks = useRoomStore((s) => s.objectLocks);
+  const localUserId = useRoomStore((s) => s.localUserId);
+
   const { data: serverObjects, isError: isObjectsError } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
   const updateObjectPosition = useUpdateObjectPosition(roomId);
   const updateObjectDimensions = useUpdateObjectDimensions(roomId);
+  const deleteObjectMutation = useDeleteObject(roomId);
 
   // Refs break the onPlace → draw hook → rollback cycle so onPlace can be stable.
   const boxDrawRef = useRef<ReturnType<typeof useBoxDraw> | null>(null);
@@ -218,16 +223,35 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     [selectedObjectId, updateObjectDimensions, setLiveDimension],
   );
 
+  const handleDeleteObject = useCallback(() => {
+    if (!selectedObjectId) return;
+    const lockHolder = objectLocks[selectedObjectId];
+    if (lockHolder && lockHolder !== localUserId) {
+      addError("Cannot delete: object is locked by another user.");
+      return;
+    }
+    deleteObjectMutation.mutate(selectedObjectId, {
+      onSuccess: () => resetEditorState(),
+    });
+  }, [selectedObjectId, objectLocks, localUserId, deleteObjectMutation, resetEditorState, addError]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
       if (e.key === "Escape") {
         cancelAll();
         resetEditorState();
       }
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedObjectId) {
+        e.preventDefault();
+        handleDeleteObject();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject]);
 
   useEffect(() => {
     if (isObjectsError) {
@@ -286,5 +310,6 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleDragEnd,
     handlePositionCommit,
     handleDimensionCommit,
+    handleDeleteObject,
   };
 };

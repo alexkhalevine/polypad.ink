@@ -87,7 +87,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           />
         </div>
         {contextMenu && (
-          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} />
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} onDelete={editor.handleDeleteObject} />
         )}
 
         <div className="absolute bottom-0 left-0 right-0 flex justify-center">

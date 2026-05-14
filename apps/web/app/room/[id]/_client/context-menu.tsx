@@ -7,9 +7,10 @@ interface ContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
+  onDelete: () => void;
 }
 
-export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onDelete }: ContextMenuProps) {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const setSelectionMode = useRoomStore((s) => s.setSelectionMode);
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
@@ -34,6 +35,12 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
     onClose();
   }
 
+  function handleDelete() {
+    if (!selectedObjectId) return;
+    onDelete();
+    onClose();
+  }
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -51,6 +58,15 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
             className="font-medium text-lg text-indigo-200 hover:text-amber-300 disabled:text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-indigo-400"
           >
             Move object
+          </button>
+        </li>
+        <li>
+          <button
+            onClick={handleDelete}
+            disabled={!selectedObjectId}
+            className="font-medium text-lg text-red-400 hover:text-red-300 disabled:text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-indigo-400"
+          >
+            Delete object
           </button>
         </li>
       </ul>
