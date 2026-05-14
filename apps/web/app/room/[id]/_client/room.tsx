@@ -25,9 +25,15 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
 
   const exportModalRef = useRef<HTMLDialogElement>(null);
   const hasObjects =
-    editor.placedBoxes.length + editor.placedCylinders.length + editor.placedSpheres.length > 0;
+    editor.placedBoxes.length +
+      editor.placedCylinders.length +
+      editor.placedSpheres.length >
+    0;
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const openContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
@@ -36,8 +42,13 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
 
   return (
     <>
-      {(editor.selectedTool || editor.showSelectHelp || editor.showObjectSelected) && (
-        <div className="p-4 absolute z-10 text-blue-200" id="help-text-container">
+      {(editor.selectedTool ||
+        editor.showSelectHelp ||
+        editor.showObjectSelected) && (
+        <div
+          className="p-4 absolute z-10 text-blue-200"
+          id="help-text-container"
+        >
           <div className="chat chat-start mt-2">
             <div className="chat-bubble chat-bubble-primary text-md py-2 px-5 font-mono">
               {getHelpText({
@@ -84,7 +95,9 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             onGroundStartDraw={editor.activeDraw?.handleGroundStartDraw ?? noop}
             onGroundPointerMove={editor.handleGroundPointerMove}
             onGroundClick={editor.activeDraw?.handleGroundClick ?? noop}
-            onHeightPointerMove={editor.activeDraw?.handleHeightPointerMove ?? noop}
+            onHeightPointerMove={
+              editor.activeDraw?.handleHeightPointerMove ?? noop
+            }
             onHeightClick={editor.activeDraw?.handleHeightClick ?? noop}
             onObjectMove={editor.handleObjectMove}
             onDragStart={editor.handleDragStart}
@@ -93,21 +106,26 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           />
         </div>
         {contextMenu && (
-          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} onDelete={editor.handleDeleteObject} />
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={closeContextMenu}
+            onDelete={editor.handleDeleteObject}
+          />
         )}
 
         <ExportModal ref={exportModalRef} hasObjects={hasObjects} />
 
-        <div className="z-10">
-          <button
-            className="btn btn-sm bg-indigo-900 text-indigo-200 border-indigo-700 hover:bg-indigo-800"
-            onClick={() => exportModalRef.current?.showModal()}
-          >
-            Export
-          </button>
-        </div>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center flex-col">
+          <div className="flex f-full p-5 justify-end">
+            <button
+              className="btn btn-sm bg-indigo-900 text-indigo-200 border-indigo-700 hover:bg-indigo-800"
+              onClick={() => exportModalRef.current?.showModal()}
+            >
+              Export
+            </button>
+          </div>
 
-        <div className="absolute bottom-0 left-0 right-0 flex justify-center">
           <Menu
             currentColor={editor.selectedObject?.color ?? "#2f74c0"}
             selectedObject={editor.selectedObject ?? null}
