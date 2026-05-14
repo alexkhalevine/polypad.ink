@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Children } from "react";
 
 interface RightPanelProps {
   children?: React.ReactNode;
@@ -9,17 +9,12 @@ interface RightPanelProps {
 export function RightPanel({ children }: RightPanelProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  return (
-    <div className="absolute right-0 top-16 z-20">
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className="absolute top-2 right-0 -translate-x-full rounded-l-md bg-indigo-900 border border-r-0 border-indigo-700 text-indigo-200 hover:bg-indigo-800 px-1.5 py-3 text-xs leading-none"
-      >
-        {isOpen ? "❯" : "❮"}
-      </button>
+  if (Children.toArray(children).length === 0) return null;
 
+  return (
+    <div className="absolute right-0 top-28 z-20">
       <div
-        className={`absolute top-0 right-0 w-64 bg-indigo-950/95 backdrop-blur border-l border-indigo-800 shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`absolute rounded-sm border-l-2 border-t-2 border-b-2 border-teal-700 top-0 right-0 w-64 bg-indigo-950/95 backdrop-blur border-l border-indigo-800 shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

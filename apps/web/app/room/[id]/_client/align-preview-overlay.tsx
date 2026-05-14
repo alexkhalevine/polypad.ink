@@ -3,35 +3,32 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Line } from "@react-three/drei";
-import { PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, AxisSide } from "./types";
 import { useRoomStore } from "./room-store";
 import { aabbOf, computeAlignedPosition } from "./align-math";
 
 type Shape = PlacedBox | PlacedCylinder | PlacedSphere;
 type ShapeType = "box" | "cylinder" | "sphere";
-type Side = "min" | "max";
 
-const SRC_COLOR = "#facc15";   // yellow — source face highlights
-const TGT_COLOR = "#fb923c";   // orange — target face highlights
+const SRC_COLOR = "#facc15";
+const TGT_COLOR = "#fb923c";
 const GHOST_COLOR = "#ffffff";
-const DIM_COLOR = "#6b7280";   // gray — AABB outline before any axis selected
+const DIM_COLOR = "#6b7280";
 const LINE_W = 2;
 const DIM_LINE_W = 1;
 
-interface Props {
-  source: Shape;
-  sourceType: ShapeType;
-  target: Shape | null;
-  targetType: ShapeType | null;
-}
+type ActiveSide = "min" | "center" | "max";
 
 // Returns the 5 points (4 corners + close) of a face rectangle on the given AABB face.
+// For "center", draws the midplane cross-section.
 function faceLoop(
   aabb: ReturnType<typeof aabbOf>,
   axis: "x" | "y" | "z",
-  side: Side,
+  side: ActiveSide,
 ): [number, number, number][] {
-  const v = aabb[side][axis];
+  const v = side === "center"
+    ? (aabb.min[axis] + aabb.max[axis]) / 2
+    : aabb[side][axis];
 
   if (axis === "x") {
     return [
@@ -51,7 +48,6 @@ function faceLoop(
       [aabb.min.x, v, aabb.min.z],
     ];
   }
-  // z
   return [
     [aabb.min.x, aabb.min.y, v],
     [aabb.max.x, aabb.min.y, v],
@@ -61,7 +57,6 @@ function faceLoop(
   ];
 }
 
-// Full AABB wireframe as 12 edges (each edge as a 2-point Line).
 function aabbEdges(aabb: ReturnType<typeof aabbOf>): [number, number, number][][] {
   const { min: n, max: x } = aabb;
   return [
@@ -83,21 +78,20 @@ function aabbEdges(aabb: ReturnType<typeof aabbOf>): [number, number, number][][
 function FaceHighlights({
   shape,
   type,
-  side,
-  axes,
+  axisSides,
   color,
 }: {
   shape: Shape;
   type: ShapeType;
-  side: Side;
-  axes: { x: boolean; y: boolean; z: boolean };
+  axisSides: { x: AxisSide; y: AxisSide; z: AxisSide };
   color: string;
 }) {
   const aabb = aabbOf(shape, type);
-  const checkedAxes = (["x", "y", "z"] as const).filter((a) => axes[a]);
+  const activeAxes = (["x", "y", "z"] as const).filter(
+    (a): a is typeof a => axisSides[a] !== null,
+  );
 
-  if (checkedAxes.length === 0) {
-    // Dim AABB outline while no axes are checked
+  if (activeAxes.length === 0) {
     const edges = aabbEdges(aabb);
     return (
       <>
@@ -110,10 +104,10 @@ function FaceHighlights({
 
   return (
     <>
-      {checkedAxes.map((axis) => (
+      {activeAxes.map((axis) => (
         <Line
           key={axis}
-          points={faceLoop(aabb, axis, side)}
+          points={faceLoop(aabb, axis, axisSides[axis] as ActiveSide)}
           color={color}
           lineWidth={LINE_W}
           depthTest={false}
@@ -123,7 +117,15 @@ function FaceHighlights({
   );
 }
 
-function GhostMesh({ shape, type, position }: { shape: Shape; type: ShapeType; position: { x: number; y: number; z: number } }) {
+function GhostMesh({
+  shape,
+  type,
+  position,
+}: {
+  shape: Shape;
+  type: ShapeType;
+  position: { x: number; y: number; z: number };
+}) {
   const geo = useMemo(() => {
     if (type === "box") {
       const b = shape as PlacedBox;
@@ -137,8 +139,6 @@ function GhostMesh({ shape, type, position }: { shape: Shape; type: ShapeType; p
     return new THREE.SphereGeometry(s.radius, 32, 16);
   }, [shape, type]);
 
-  // Offset from position (which is the min-corner / base center / bottom point)
-  // to the geometry center
   const offset = useMemo(() => {
     if (type === "box") {
       const b = shape as PlacedBox;
@@ -153,36 +153,46 @@ function GhostMesh({ shape, type, position }: { shape: Shape; type: ShapeType; p
   }, [shape, type]);
 
   return (
-    <lineSegments position={[position.x + offset[0], position.y + offset[1], position.z + offset[2]]}>
+    <lineSegments
+      position={[position.x + offset[0], position.y + offset[1], position.z + offset[2]]}
+    >
       <edgesGeometry args={[geo]} />
       <lineBasicMaterial color={GHOST_COLOR} transparent opacity={0.7} depthTest={false} />
     </lineSegments>
   );
 }
 
-export function AlignPreviewOverlay({ source, sourceType, target, targetType }: Props) {
-  const axes = useRoomStore((s) => s.alignAxes);
-  const sourceSide = useRoomStore((s) => s.alignSourceSide);
-  const targetSide = useRoomStore((s) => s.alignTargetSide);
+interface Props {
+  source: Shape;
+  sourceType: ShapeType;
+  target: Shape | null;
+  targetType: ShapeType | null;
+}
 
-  const anyAxis = axes.x || axes.y || axes.z;
+export function AlignPreviewOverlay({ source, sourceType, target, targetType }: Props) {
+  const alignXSide = useRoomStore((s) => s.alignXSide);
+  const alignYSide = useRoomStore((s) => s.alignYSide);
+  const alignZSide = useRoomStore((s) => s.alignZSide);
+
+  const axisSides = { x: alignXSide, y: alignYSide, z: alignZSide };
+  const anyAxis = alignXSide !== null || alignYSide !== null || alignZSide !== null;
 
   const ghostPosition = useMemo(() => {
     if (!target || !targetType || !anyAxis) return null;
-    return computeAlignedPosition(source, sourceType, target, targetType, axes, sourceSide, targetSide);
-  }, [source, sourceType, target, targetType, axes, sourceSide, targetSide, anyAxis]);
+    return computeAlignedPosition(
+      source, sourceType, target, targetType,
+      alignXSide, alignYSide, alignZSide,
+    );
+  }, [source, sourceType, target, targetType, alignXSide, alignYSide, alignZSide, anyAxis]);
 
   return (
     <>
-      {/* Source face highlights (or dim AABB outline) */}
-      <FaceHighlights shape={source} type={sourceType} side={sourceSide} axes={axes} color={SRC_COLOR} />
+      <FaceHighlights shape={source} type={sourceType} axisSides={axisSides} color={SRC_COLOR} />
 
-      {/* Target face highlights */}
       {target && targetType && (
-        <FaceHighlights shape={target} type={targetType} side={targetSide} axes={axes} color={TGT_COLOR} />
+        <FaceHighlights shape={target} type={targetType} axisSides={axisSides} color={TGT_COLOR} />
       )}
 
-      {/* Ghost preview */}
       {ghostPosition && (
         <GhostMesh shape={source} type={sourceType} position={ghostPosition} />
       )}

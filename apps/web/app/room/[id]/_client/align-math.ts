@@ -1,4 +1,4 @@
-import { PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, AxisSide } from "./types";
 
 type Shape = PlacedBox | PlacedCylinder | PlacedSphere;
 type ShapeType = "box" | "cylinder" | "sphere";
@@ -39,17 +39,19 @@ export function aabbOf(shape: Shape, type: ShapeType): AABB {
   };
 }
 
-type Side = "min" | "max";
-type Axes = { x: boolean; y: boolean; z: boolean };
+function sideValue(aabb: AABB, axis: "x" | "y" | "z", side: "min" | "center" | "max"): number {
+  if (side === "center") return (aabb.min[axis] + aabb.max[axis]) / 2;
+  return aabb[side][axis];
+}
 
 export function computeAlignedPosition(
   source: Shape,
   sourceType: ShapeType,
   target: Shape,
   targetType: ShapeType,
-  axes: Axes,
-  sourceSide: Side,
-  targetSide: Side,
+  alignX: AxisSide,
+  alignY: AxisSide,
+  alignZ: AxisSide,
 ): { x: number; y: number; z: number } {
   const srcAabb = aabbOf(source, sourceType);
   const tgtAabb = aabbOf(target, targetType);
@@ -60,9 +62,15 @@ export function computeAlignedPosition(
     z: source.position.z,
   };
 
-  for (const axis of ["x", "y", "z"] as const) {
-    if (!axes[axis]) continue;
-    const delta = tgtAabb[targetSide][axis] - srcAabb[sourceSide][axis];
+  const axes = [
+    { axis: "x" as const, side: alignX },
+    { axis: "y" as const, side: alignY },
+    { axis: "z" as const, side: alignZ },
+  ];
+
+  for (const { axis, side } of axes) {
+    if (side === null) continue;
+    const delta = sideValue(tgtAabb, axis, side) - sideValue(srcAabb, axis, side);
     result[axis] = source.position[axis] + delta;
   }
 

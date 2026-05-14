@@ -31,12 +31,12 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const resetEditorState = useRoomStore((s) => s.resetEditorState);
   const alignTargetId = useRoomStore((s) => s.alignTargetId);
   const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
-  const alignAxes = useRoomStore((s) => s.alignAxes);
-  const alignSourceSide = useRoomStore((s) => s.alignSourceSide);
-  const alignTargetSide = useRoomStore((s) => s.alignTargetSide);
-  const setAlignAxes = useRoomStore((s) => s.setAlignAxes);
-  const setAlignSourceSide = useRoomStore((s) => s.setAlignSourceSide);
-  const setAlignTargetSide = useRoomStore((s) => s.setAlignTargetSide);
+  const alignXSide = useRoomStore((s) => s.alignXSide);
+  const alignYSide = useRoomStore((s) => s.alignYSide);
+  const alignZSide = useRoomStore((s) => s.alignZSide);
+  const setAlignXSide = useRoomStore((s) => s.setAlignXSide);
+  const setAlignYSide = useRoomStore((s) => s.setAlignYSide);
+  const setAlignZSide = useRoomStore((s) => s.setAlignZSide);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
@@ -273,9 +273,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       selectedObjectType,
       targetObject,
       targetType,
-      alignAxes,
-      alignSourceSide,
-      alignTargetSide,
+      alignXSide,
+      alignYSide,
+      alignZSide,
     );
 
     updateObjectPosition.mutate({ objectId: selectedObjectId, position: newPos });
@@ -285,9 +285,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   }, [
     selectedObjectId,
     alignTargetId,
-    alignAxes,
-    alignSourceSide,
-    alignTargetSide,
+    alignXSide,
+    alignYSide,
+    alignZSide,
     selectedObject,
     selectedObjectType,
     objectLocks,
@@ -305,10 +305,10 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const handleAlignCancel = useCallback(() => {
     setAlignTargetId(null);
     setSelectedTool(null);
-    setAlignAxes({ x: false, y: false, z: false });
-    setAlignSourceSide("min");
-    setAlignTargetSide("min");
-  }, [setAlignTargetId, setSelectedTool, setAlignAxes, setAlignSourceSide, setAlignTargetSide]);
+    setAlignXSide("center");
+    setAlignYSide(null);
+    setAlignZSide("center");
+  }, [setAlignTargetId, setSelectedTool, setAlignXSide, setAlignYSide, setAlignZSide]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -323,10 +323,20 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         e.preventDefault();
         handleDeleteObject();
       }
+
+      if (selectedTool === "align") {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleAlignApply();
+        }
+        if (e.key === "x") setAlignXSide(useRoomStore.getState().alignXSide === null ? "center" : null);
+        if (e.key === "y") setAlignYSide(useRoomStore.getState().alignYSide === null ? "center" : null);
+        if (e.key === "z") setAlignZSide(useRoomStore.getState().alignZSide === null ? "center" : null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide]);
 
   useEffect(() => {
     if (isObjectsError) {

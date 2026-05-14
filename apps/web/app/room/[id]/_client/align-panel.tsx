@@ -1,94 +1,106 @@
 "use client";
 
 import { useRoomStore } from "./room-store";
-
-type Side = "min" | "max";
-type Axes = { x: boolean; y: boolean; z: boolean };
+import { AxisSide } from "./types";
 
 interface AlignPanelProps {
   onApply: () => void;
   onCancel: () => void;
 }
 
-export function AlignPanel({ onApply, onCancel }: AlignPanelProps) {
-  const axes = useRoomStore((s) => s.alignAxes);
-  const sourceSide = useRoomStore((s) => s.alignSourceSide);
-  const targetSide = useRoomStore((s) => s.alignTargetSide);
-  const alignTargetId = useRoomStore((s) => s.alignTargetId);
-  const setAxes = useRoomStore((s) => s.setAlignAxes);
-  const setSourceSide = useRoomStore((s) => s.setAlignSourceSide);
-  const setTargetSide = useRoomStore((s) => s.setAlignTargetSide);
+const AXES = [
+  {
+    key: "x" as const,
+    label: "Horizontal",
+    hint: "X",
+    options: [
+      { side: "min" as AxisSide, label: "Left" },
+      { side: "center" as AxisSide, label: "Center" },
+      { side: "max" as AxisSide, label: "Right" },
+    ],
+  },
+  {
+    key: "y" as const,
+    label: "Vertical",
+    hint: "Y",
+    options: [
+      { side: "min" as AxisSide, label: "Bottom" },
+      { side: "center" as AxisSide, label: "Middle" },
+      { side: "max" as AxisSide, label: "Top" },
+    ],
+  },
+  {
+    key: "z" as const,
+    label: "Depth",
+    hint: "Z",
+    options: [
+      { side: "min" as AxisSide, label: "Back" },
+      { side: "center" as AxisSide, label: "Center" },
+      { side: "max" as AxisSide, label: "Front" },
+    ],
+  },
+];
 
-  const axisLabels: (keyof Axes)[] = ["x", "y", "z"];
+export function AlignPanel({ onApply, onCancel }: AlignPanelProps) {
+  const alignTargetId = useRoomStore((s) => s.alignTargetId);
+  const alignXSide = useRoomStore((s) => s.alignXSide);
+  const alignYSide = useRoomStore((s) => s.alignYSide);
+  const alignZSide = useRoomStore((s) => s.alignZSide);
+  const setAlignXSide = useRoomStore((s) => s.setAlignXSide);
+  const setAlignYSide = useRoomStore((s) => s.setAlignYSide);
+  const setAlignZSide = useRoomStore((s) => s.setAlignZSide);
+
+  const sides = { x: alignXSide, y: alignYSide, z: alignZSide };
+  const setters = { x: setAlignXSide, y: setAlignYSide, z: setAlignZSide };
+
   const hasTarget = alignTargetId !== null;
-  const canApply = hasTarget && (axes.x || axes.y || axes.z);
+  const hasAxis = alignXSide !== null || alignYSide !== null || alignZSide !== null;
+  const canApply = hasTarget && hasAxis;
+
+  function toggle(axis: "x" | "y" | "z", side: AxisSide) {
+    const current = sides[axis];
+    setters[axis](current === side ? null : side);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="font-semibold text-sm text-indigo-200">Align Position</h3>
+      <h3 className="font-semibold text-sm text-indigo-200">Align to Object</h3>
 
-      {!hasTarget && (
-        <p className="text-xs text-indigo-400 font-mono">
-          Drag to a target object
-        </p>
-      )}
+      <p className="text-xs font-mono leading-snug">
+        {hasTarget ? (
+          <span className="text-emerald-400">Target selected ✓</span>
+        ) : (
+          <span className="text-indigo-400">Click a target object</span>
+        )}
+      </p>
 
-      <div>
-        <p className="text-xs text-indigo-400 uppercase mb-2">Axes</p>
-        <div className="flex gap-3">
-          {axisLabels.map((axis) => (
-            <label key={axis} className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={axes[axis]}
-                onChange={(e) => setAxes({ ...axes, [axis]: e.target.checked })}
-                className="checkbox checkbox-xs border-indigo-500"
-              />
-              <span className="text-xs font-mono uppercase text-indigo-200">{axis}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-xs text-indigo-400 uppercase mb-1.5">Source</p>
-          <div className="flex flex-col gap-1">
-            {(["min", "max"] as Side[]).map((side) => (
-              <label key={side} className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="radio"
-                  name="align-source-side"
-                  checked={sourceSide === side}
-                  onChange={() => setSourceSide(side)}
-                  className="radio radio-xs border-indigo-500"
-                />
-                <span className="text-xs text-indigo-200 capitalize">
-                  {side === "min" ? "Minimum" : "Maximum"}
-                </span>
-              </label>
-            ))}
+      <div className="flex flex-col gap-3">
+        {AXES.map(({ key, label, hint, options }) => (
+          <div key={key}>
+            <p className="text-xs text-indigo-400 mb-1.5">
+              {label}{" "}
+              <span className="opacity-50 font-mono">{hint}</span>
+            </p>
+            <div className="flex gap-1">
+              {options.map(({ side, label: optLabel }) => {
+                const active = sides[key] === side;
+                return (
+                  <button
+                    key={optLabel}
+                    onClick={() => toggle(key, side)}
+                    className={`flex-1 text-xs py-1 rounded border transition-colors ${
+                      active
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "bg-indigo-900 border-indigo-700 text-indigo-300 hover:bg-indigo-800"
+                    }`}
+                  >
+                    {optLabel}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-        <div>
-          <p className="text-xs text-indigo-400 uppercase mb-1.5">Target</p>
-          <div className="flex flex-col gap-1">
-            {(["min", "max"] as Side[]).map((side) => (
-              <label key={side} className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="radio"
-                  name="align-target-side"
-                  checked={targetSide === side}
-                  onChange={() => setTargetSide(side)}
-                  className="radio radio-xs border-indigo-500"
-                />
-                <span className="text-xs text-indigo-200 capitalize">
-                  {side === "min" ? "Minimum" : "Maximum"}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -106,6 +118,10 @@ export function AlignPanel({ onApply, onCancel }: AlignPanelProps) {
           Apply
         </button>
       </div>
+
+      <p className="text-xs text-indigo-600 font-mono text-center leading-snug">
+        Enter to apply · Esc to cancel
+      </p>
     </div>
   );
 }

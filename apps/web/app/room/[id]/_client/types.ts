@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align";
+export type AxisSide = "min" | "center" | "max" | null;
 export type DrawPhase = "idle" | "footprint" | "height";
 
 export interface IdleState {

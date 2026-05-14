@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence } from "./types";
+import { ToolType, RemoteUserPresence, AxisSide } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -36,14 +36,12 @@ interface RoomStore {
   // Align tool state
   alignTargetId: string | null;
   setAlignTargetId: (id: string | null) => void;
-  alignDragging: boolean;
-  setAlignDragging: (v: boolean) => void;
-  alignAxes: { x: boolean; y: boolean; z: boolean };
-  alignSourceSide: "min" | "max";
-  alignTargetSide: "min" | "max";
-  setAlignAxes: (axes: { x: boolean; y: boolean; z: boolean }) => void;
-  setAlignSourceSide: (side: "min" | "max") => void;
-  setAlignTargetSide: (side: "min" | "max") => void;
+  alignXSide: AxisSide;
+  alignYSide: AxisSide;
+  alignZSide: AxisSide;
+  setAlignXSide: (side: AxisSide) => void;
+  setAlignYSide: (side: AxisSide) => void;
+  setAlignZSide: (side: AxisSide) => void;
 
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
@@ -82,10 +80,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
       selectedObjectId: null,
       selectionMode: "draw",
       alignTargetId: null,
-      alignDragging: false,
-      alignAxes: { x: false, y: false, z: false },
-      alignSourceSide: "min",
-      alignTargetSide: "min",
+      alignXSide: "center",
+      alignYSide: null,
+      alignZSide: "center",
     }),
 
   livePositions: {},
@@ -115,14 +112,12 @@ export const useRoomStore = create<RoomStore>((set) => ({
 
   alignTargetId: null,
   setAlignTargetId: (id) => set({ alignTargetId: id }),
-  alignDragging: false,
-  setAlignDragging: (v) => set({ alignDragging: v }),
-  alignAxes: { x: false, y: false, z: false },
-  alignSourceSide: "min",
-  alignTargetSide: "min",
-  setAlignAxes: (axes) => set({ alignAxes: axes }),
-  setAlignSourceSide: (side) => set({ alignSourceSide: side }),
-  setAlignTargetSide: (side) => set({ alignTargetSide: side }),
+  alignXSide: "center",
+  alignYSide: null,
+  alignZSide: "center",
+  setAlignXSide: (side) => set({ alignXSide: side }),
+  setAlignYSide: (side) => set({ alignYSide: side }),
+  setAlignZSide: (side) => set({ alignZSide: side }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

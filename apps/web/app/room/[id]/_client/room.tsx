@@ -13,6 +13,7 @@ import { ContextMenu } from "./context-menu";
 import { ExportModal } from "./export-modal";
 import { AlignPanel } from "./align-panel";
 import { RightPanel } from "./right-panel";
+import { DimentionsPanel } from "./dimentions-panel";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -76,14 +77,23 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           <InviteButton />
           <UserAvatars />
         </div>
-        {editor.selectedTool === "align" && (
-          <RightPanel>
-            <AlignPanel
-              onApply={editor.handleAlignApply}
-              onCancel={editor.handleAlignCancel}
+        <RightPanel>
+          {editor.selectedObject && (
+            <DimentionsPanel
+              selectedObject={editor.selectedObject ?? null}
+              selectedObjectType={editor.selectedObjectType}
+              onDimensionCommit={editor.handleDimensionCommit}
             />
-          </RightPanel>
-        )}
+          )}
+          {editor.selectedTool === "align" && (
+            <div className="mt-5 border-t-2 border-teal-700 pt-5">
+              <AlignPanel
+                onApply={editor.handleAlignApply}
+                onCancel={editor.handleAlignCancel}
+              />
+            </div>
+          )}
+        </RightPanel>
         {editor.isPending && (
           <div className="absolute top-4 right-4">
             <span className="loading loading-spinner loading-xs"></span>

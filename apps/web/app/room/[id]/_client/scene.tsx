@@ -7,7 +7,6 @@ import { OrbitControls } from "@react-three/drei";
 import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
-import { AlignArrowController } from "./align-arrow-controller";
 import { AlignPreviewOverlay } from "./align-preview-overlay";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
@@ -87,15 +86,12 @@ function AlignSection({
   }, [alignTargetId, placedBoxes, placedCylinders, placedSpheres]);
 
   return (
-    <>
-      <AlignArrowController source={source} sourceType={sourceType} />
-      <AlignPreviewOverlay
-        source={source}
-        sourceType={sourceType}
-        target={target}
-        targetType={targetType}
-      />
-    </>
+    <AlignPreviewOverlay
+      source={source}
+      sourceType={sourceType}
+      target={target}
+      targetType={targetType}
+    />
   );
 }
 
@@ -128,6 +124,7 @@ function SceneContent({
   const livePositions = useRoomStore((s) => s.livePositions);
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const setHoveredObjectId = useRoomStore((s) => s.setHoveredObjectId);
+  const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const remoteUsers = useRoomStore((s) => s.remoteUsers);
   const localUserId = useRoomStore((s) => s.localUserId);
@@ -153,8 +150,11 @@ function SceneContent({
   }
 
   function tryLocalSelect(objectId: string) {
+    if (selectedTool === "align") {
+      if (objectId !== selectedObjectId) setAlignTargetId(objectId);
+      return;
+    }
     if (selectionMode !== "select") return;
-    if (selectedTool === "align") return;
     const remote = getSelectionInfo(objectId);
     if (remote) {
       useErrorStore.getState().addError(`Selected by ${remote.displayName}.`);
@@ -309,8 +309,11 @@ function SceneContent({
 
 export function Scene(props: SceneProps) {
   const selectionMode = useRoomStore((s) => s.selectionMode);
+  const selectedTool = useRoomStore((s) => s.selectedTool);
   const cursor =
-    props.drawState.phase !== "idle" || selectionMode === "select"
+    selectedTool === "align"
+      ? "pointer"
+      : props.drawState.phase !== "idle" || selectionMode === "select"
       ? "crosshair"
       : "default";
 

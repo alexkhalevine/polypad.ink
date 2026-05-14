@@ -62,51 +62,6 @@ function PositionAxisInput({
   );
 }
 
-type DimensionField = "width" | "height" | "depth" | "radius";
-
-function DimensionInput({
-  label,
-  value,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  onCommit: (next: number) => void;
-}) {
-  const [draft, setDraft] = useState(value.toFixed(2));
-  const [lastValue, setLastValue] = useState(value);
-  if (value !== lastValue) {
-    setLastValue(value);
-    setDraft(value.toFixed(2));
-  }
-
-  const commit = () => {
-    const parsed = parseFloat(draft);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setDraft(value.toFixed(2));
-      return;
-    }
-    if (parsed !== value) onCommit(parsed);
-  };
-
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-xs text-blue-100 uppercase">{label}</span>
-      <input
-        type="number"
-        step="0.1"
-        min="0.01"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        className="input input-bordered input-sm w-36 text-center text-blue-700 font-mono"
-      />
-    </div>
-  );
-}
 
 const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }[] = [
   { name: "box", label: "Box", icon: cubeIcon },
@@ -116,13 +71,10 @@ const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }
 
 export const Menu = ({
   currentColor,
-  selectedObject,
-  selectedObjectType,
   onToolSelect,
   onSelectClick,
   onMouseUpColorPicked,
   onPositionCommit,
-  onDimensionCommit,
 }: {
   currentColor: string;
   selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | null;
@@ -131,7 +83,6 @@ export const Menu = ({
   onSelectClick: () => void;
   onMouseUpColorPicked: () => void;
   onPositionCommit: (x: number, y: number, z: number) => void;
-  onDimensionCommit: (field: DimensionField, value: number) => void;
 }) => {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -170,48 +121,7 @@ export const Menu = ({
             ))}
           </div>
         )}
-        {selectedObject && selectedObjectType === "box" && (
-          <div className="flex gap-2 items-center">
-            <DimensionInput
-              label="W"
-              value={(selectedObject as PlacedBox).width}
-              onCommit={(next) => onDimensionCommit("width", next)}
-            />
-            <DimensionInput
-              label="H"
-              value={(selectedObject as PlacedBox).height}
-              onCommit={(next) => onDimensionCommit("height", next)}
-            />
-            <DimensionInput
-              label="D"
-              value={(selectedObject as PlacedBox).depth}
-              onCommit={(next) => onDimensionCommit("depth", next)}
-            />
-          </div>
-        )}
-        {selectedObject && selectedObjectType === "cylinder" && (
-          <div className="flex gap-2 items-center">
-            <DimensionInput
-              label="R"
-              value={(selectedObject as PlacedCylinder).radius}
-              onCommit={(next) => onDimensionCommit("radius", next)}
-            />
-            <DimensionInput
-              label="H"
-              value={(selectedObject as PlacedCylinder).height}
-              onCommit={(next) => onDimensionCommit("height", next)}
-            />
-          </div>
-        )}
-        {selectedObject && selectedObjectType === "sphere" && (
-          <div className="flex gap-2 items-center">
-            <DimensionInput
-              label="R"
-              value={(selectedObject as PlacedSphere).radius}
-              onCommit={(next) => onDimensionCommit("radius", next)}
-            />
-          </div>
-        )}
+       
         <div className="flex gap-8">
           {objectOperationItems.map((item) => {
             const isDisabled =
