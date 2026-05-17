@@ -111,11 +111,20 @@ function geometryToResult(brush: Brush): BooleanResult {
   return { positions, normals, indices };
 }
 
-const evaluator = new Evaluator();
-
 export function evaluateBoolean(a: Brush, b: Brush, op: BooleanOperation): BooleanResult {
-  const out = evaluator.evaluate(a, b, OP_MAP[op] as unknown as number);
-  return geometryToResult(out);
+  // New evaluator per call — the singleton approach caused geometryBuilders state
+  // to leak between the 5 concurrent thumbnail renders. Dropping 'uv' from
+  // attributes avoids the "Attribute uv not available" error on PlacedMesh brushes.
+  const evaluator = new Evaluator();
+  evaluator.attributes = ["position", "normal"];
+  evaluator.useGroups = false;
+  try {
+    const out = evaluator.evaluate(a, b, OP_MAP[op] as unknown as number);
+    return geometryToResult(out);
+  } catch (err) {
+    console.error("[csg-utils] evaluateBoolean failed:", err);
+    throw err;
+  }
 }
 
 // Helper: build the THREE.BufferGeometry for a PlacedMesh suitable for rendering.
