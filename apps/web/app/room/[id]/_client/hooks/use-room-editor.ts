@@ -372,6 +372,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       const b = brushFrom(targetObject, targetType);
       result = evaluateBoolean(a, b, booleanOperation);
     } catch (err) {
+      console.error("[handleBooleanApply] CSG failed:", err);
       releaseLock(selectedObjectId);
       releaseLock(booleanTargetId);
       addError("Boolean operation failed. Try a different shape combination.");

@@ -31,7 +31,8 @@ export function BooleanThumbnail({
       const a = brushFrom(source, sourceKind);
       const b = brushFrom(target, targetKind);
       return evaluateBoolean(a, b, op);
-    } catch {
+    } catch (err) {
+      console.error("[BooleanThumbnail] CSG failed:", err);
       return null;
     }
   }, [source, sourceKind, target, targetKind, op]);
