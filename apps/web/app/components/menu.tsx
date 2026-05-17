@@ -1,4 +1,4 @@
-import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere } from "@/app/room/[id]/_client/types";
+import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "@/app/room/[id]/_client/types";
 import cubeIcon from "@/app/assets/images/cube.png";
 import cylinderIcon from "@/app/assets/images/cilinder.png";
 import sphereIcon from "@/app/assets/images/sphere.png";
@@ -12,6 +12,7 @@ type IconSrc = ImageProps["src"];
 const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "move", label: "Move", icon: moveIcon },
   { name: "align", label: "Align", icon: moveIcon },
+  { name: "boolean", label: "Boolean", icon: moveIcon },
 ];
 
 type Axis = "x" | "y" | "z";
@@ -77,8 +78,8 @@ export const Menu = ({
   onPositionCommit,
 }: {
   currentColor: string;
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | null;
-  selectedObjectType: "box" | "cylinder" | "sphere" | null;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "mesh" | null;
   onToolSelect: (tool: ToolType) => void;
   onSelectClick: () => void;
   onMouseUpColorPicked: () => void;
@@ -97,6 +98,7 @@ export const Menu = ({
 
   const moveEnabled = !!selectedObjectId;
   const alignEnabled = !!selectedObjectId;
+  const booleanEnabled = !!selectedObjectId;
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 
@@ -126,7 +128,8 @@ export const Menu = ({
           {objectOperationItems.map((item) => {
             const isDisabled =
               (item.name === "move" && !moveEnabled) ||
-              (item.name === "align" && !alignEnabled);
+              (item.name === "align" && !alignEnabled) ||
+              (item.name === "boolean" && !booleanEnabled);
             return (
             <button
               key={item.name}
@@ -135,6 +138,7 @@ export const Menu = ({
               onClick={() => {
                 if (item.name === "move" && moveEnabled) setSelectedTool("move");
                 if (item.name === "align" && alignEnabled) setSelectedTool("align");
+                if (item.name === "boolean" && booleanEnabled) setSelectedTool("boolean");
               }}
               className={`btn text-blue-100 ${
                 selectedTool === item.name

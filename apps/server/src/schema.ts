@@ -13,7 +13,7 @@ export const geometryObjects = sqliteTable(
   {
     id: text("id").primaryKey(),
     roomId: text("room_id").notNull().references(() => rooms.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["box", "cylinder", "sphere"] }).notNull(),
+    type: text("type", { enum: ["box", "cylinder", "sphere", "mesh"] }).notNull(),
     cx: real("cx").notNull(),
     cy: real("cy").notNull(),
     cz: real("cz").notNull(),
@@ -22,6 +22,9 @@ export const geometryObjects = sqliteTable(
     depth: real("depth"),
     radius: real("radius"),
     color: text("color"),
+    positions: text("positions"),
+    normals: text("normals"),
+    indices: text("indices"),
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (t) => [index("idx_objects_room").on(t.roomId, t.createdAt)]

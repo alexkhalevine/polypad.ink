@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
-import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
+import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
 import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
@@ -13,6 +13,8 @@ import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
 import { computeAlignedPosition } from "../align-math";
+import { brushFrom, evaluateBoolean } from "../csg-utils";
+import { toWireMesh } from "../queries/wire-converters";
 import { useErrorStore } from "@/app/error-store";
 import { useRoomSocket } from "../realtime/use-room-socket";
 
@@ -37,6 +39,10 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setAlignXSide = useRoomStore((s) => s.setAlignXSide);
   const setAlignYSide = useRoomStore((s) => s.setAlignYSide);
   const setAlignZSide = useRoomStore((s) => s.setAlignZSide);
+  const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
+  const booleanOperation = useRoomStore((s) => s.booleanOperation);
+  const setBooleanTargetId = useRoomStore((s) => s.setBooleanTargetId);
+  const setBooleanOperation = useRoomStore((s) => s.setBooleanOperation);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
@@ -127,23 +133,28 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       }),
     [serverObjects, sphereDraw.placedSpheres, liveDimensions],
   );
+  const placedMeshes = useMemo<PlacedMesh[]>(
+    () => serverObjects?.meshes ?? [],
+    [serverObjects],
+  );
 
-  const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | null>(() => {
+  const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | "mesh" | null>(() => {
     if (!selectedObjectId) return null;
     if (placedBoxes.some((b) => b.id === selectedObjectId)) return "box";
     if (placedCylinders.some((c) => c.id === selectedObjectId)) return "cylinder";
     if (placedSpheres.some((s) => s.id === selectedObjectId)) return "sphere";
+    if (placedMeshes.some((m) => m.id === selectedObjectId)) return "mesh";
     return null;
-  }, [selectedObjectId, placedBoxes, placedCylinders, placedSpheres]);
+  }, [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
 
-  const selectedObject = useMemo(
+  const selectedObject = useMemo<PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | undefined>(
     () =>
       selectedObjectId
-        ? [...placedBoxes, ...placedCylinders, ...placedSpheres].find(
+        ? [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedMeshes].find(
             (o) => o.id === selectedObjectId,
           )
         : undefined,
-    [selectedObjectId, placedBoxes, placedCylinders, placedSpheres],
+    [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedMeshes],
   );
 
   const selectedObjectCoords = selectedObject
@@ -246,6 +257,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
   const handleAlignApply = useCallback(() => {
     if (!selectedObjectId || !alignTargetId || !selectedObject || !selectedObjectType) return;
+    // Align math only knows parametric primitives — mesh source/target is not supported.
+    if (selectedObjectType === "mesh") return;
 
     const lockHolder = objectLocks[selectedObjectId];
     if (lockHolder && lockHolder !== localUserId) {
@@ -255,21 +268,21 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       return;
     }
 
-    const allObjects = [...placedBoxes, ...placedCylinders, ...placedSpheres];
-    const targetObject = allObjects.find((o) => o.id === alignTargetId);
+    const parametric = [...placedBoxes, ...placedCylinders, ...placedSpheres];
+    const targetObject = parametric.find((o) => o.id === alignTargetId);
     if (!targetObject) {
       setAlignTargetId(null);
       return;
     }
 
-    const targetType = placedBoxes.some((b) => b.id === alignTargetId)
+    const targetType: "box" | "cylinder" | "sphere" = placedBoxes.some((b) => b.id === alignTargetId)
       ? "box"
       : placedCylinders.some((c) => c.id === alignTargetId)
         ? "cylinder"
         : "sphere";
 
     const newPos = computeAlignedPosition(
-      selectedObject,
+      selectedObject as PlacedBox | PlacedCylinder | PlacedSphere,
       selectedObjectType,
       targetObject,
       targetType,
@@ -310,6 +323,118 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setAlignZSide("center");
   }, [setAlignTargetId, setSelectedTool, setAlignXSide, setAlignYSide, setAlignZSide]);
 
+  const handleBooleanCancel = useCallback(() => {
+    if (selectedObjectId) releaseLock(selectedObjectId);
+    if (booleanTargetId) releaseLock(booleanTargetId);
+    setBooleanTargetId(null);
+    setBooleanOperation("ADDITION");
+    setSelectedTool(null);
+  }, [selectedObjectId, booleanTargetId, releaseLock, setBooleanTargetId, setBooleanOperation, setSelectedTool]);
+
+  const handleBooleanApply = useCallback(async () => {
+    if (!selectedObjectId || !booleanTargetId || !selectedObject || !selectedObjectType) return;
+
+    const allObjects = [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedMeshes];
+    const targetObject = allObjects.find((o) => o.id === booleanTargetId);
+    if (!targetObject) {
+      setBooleanTargetId(null);
+      return;
+    }
+    const targetType: "box" | "cylinder" | "sphere" | "mesh" = placedBoxes.some(
+      (b) => b.id === booleanTargetId,
+    )
+      ? "box"
+      : placedCylinders.some((c) => c.id === booleanTargetId)
+        ? "cylinder"
+        : placedSpheres.some((s) => s.id === booleanTargetId)
+          ? "sphere"
+          : "mesh";
+
+    // Acquire locks on both inputs. If either fails, release whatever we got
+    // and abort — the user can retry once the lock holder moves on.
+    const lockSource = await requestLock(selectedObjectId);
+    if (!lockSource.ok) {
+      addError("Source object is locked by another user — try again.");
+      return;
+    }
+    const lockTarget = await requestLock(booleanTargetId);
+    if (!lockTarget.ok) {
+      releaseLock(selectedObjectId);
+      addError("Target object is locked by another user — try again.");
+      return;
+    }
+
+    // Compute the CSG result, then place-then-delete so a place failure leaves
+    // the originals intact (no orphan state on a partial failure).
+    let result;
+    try {
+      const a = brushFrom(selectedObject, selectedObjectType);
+      const b = brushFrom(targetObject, targetType);
+      result = evaluateBoolean(a, b, booleanOperation);
+    } catch (err) {
+      releaseLock(selectedObjectId);
+      releaseLock(booleanTargetId);
+      addError("Boolean operation failed. Try a different shape combination.");
+      return;
+    }
+
+    if (result.positions.length === 0) {
+      releaseLock(selectedObjectId);
+      releaseLock(booleanTargetId);
+      addError("Boolean operation produced an empty result.");
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const wire = toWireMesh({
+      id,
+      position: new THREE.Vector3(0, 0, 0),
+      positions: result.positions,
+      normals: result.normals,
+      indices: result.indices,
+      color: selectedObject.color ?? null,
+    });
+
+    placeObject.mutate(
+      { type: "mesh", data: wire },
+      {
+        onSuccess: () => {
+          // Originals can now be safely deleted. Use the mutation directly
+          // (deleteObjectMutation accepts a string id).
+          deleteObjectMutation.mutate(selectedObjectId);
+          deleteObjectMutation.mutate(booleanTargetId);
+          releaseLock(selectedObjectId);
+          releaseLock(booleanTargetId);
+          setSelectedObjectId(null);
+          setBooleanTargetId(null);
+          setSelectedTool(null);
+        },
+        onError: () => {
+          releaseLock(selectedObjectId);
+          releaseLock(booleanTargetId);
+        },
+      },
+    );
+  }, [
+    selectedObjectId,
+    booleanTargetId,
+    selectedObject,
+    selectedObjectType,
+    booleanOperation,
+    placedBoxes,
+    placedCylinders,
+    placedSpheres,
+    placedMeshes,
+    requestLock,
+    releaseLock,
+    placeObject,
+    deleteObjectMutation,
+    setSelectedObjectId,
+    setBooleanTargetId,
+    setSelectedTool,
+    addError,
+  ]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (document.activeElement as HTMLElement)?.tagName;
@@ -327,6 +452,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if (e.key === "s" || e.key === "S") handleSelectClick();
       if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
       if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
+      if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
 
       if (selectedTool === "align") {
         if (e.key === "Enter") {
@@ -337,10 +463,22 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         if (e.key === "y") setAlignYSide(useRoomStore.getState().alignYSide === null ? "center" : null);
         if (e.key === "z") setAlignZSide(useRoomStore.getState().alignZSide === null ? "center" : null);
       }
+
+      if (selectedTool === "boolean") {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleBooleanApply();
+        }
+        if (e.key === "1") setBooleanOperation("ADDITION");
+        if (e.key === "2") setBooleanOperation("SUBTRACTION");
+        if (e.key === "3") setBooleanOperation("REVERSE_SUBTRACTION");
+        if (e.key === "4") setBooleanOperation("DIFFERENCE");
+        if (e.key === "5") setBooleanOperation("INTERSECTION");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
 
   useEffect(() => {
     if (isObjectsError) {
@@ -383,6 +521,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     placedBoxes,
     placedCylinders,
     placedSpheres,
+    placedMeshes,
     selectedObject,
     selectedObjectType,
     selectedTool,
@@ -403,5 +542,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     alignTargetId,
     handleAlignApply,
     handleAlignCancel,
+    booleanTargetId,
+    handleBooleanApply,
+    handleBooleanCancel,
   };
 };

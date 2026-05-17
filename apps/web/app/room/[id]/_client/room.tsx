@@ -12,6 +12,7 @@ import { InviteButton } from "./invite-button";
 import { ContextMenu } from "./context-menu";
 import { ExportModal } from "./export-modal";
 import { AlignPanel } from "./align-panel";
+import { BooleanPanel } from "./boolean-panel";
 import { RightPanel } from "./right-panel";
 import { DimentionsPanel } from "./dimentions-panel";
 import { ShortcutsHelp } from "./shortcuts-help";
@@ -31,7 +32,8 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
   const hasObjects =
     editor.placedBoxes.length +
       editor.placedCylinders.length +
-      editor.placedSpheres.length >
+      editor.placedSpheres.length +
+      editor.placedMeshes.length >
     0;
 
   const [contextMenu, setContextMenu] = useState<{
@@ -95,6 +97,39 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
               />
             </div>
           )}
+          {editor.selectedTool === "boolean" && editor.selectedObject && editor.selectedObjectType && (
+            <div className="mt-5 border-t-2 border-teal-700 pt-5">
+              <BooleanPanel
+                source={editor.selectedObject}
+                sourceKind={editor.selectedObjectType}
+                target={
+                  editor.booleanTargetId
+                    ? [
+                        ...editor.placedBoxes,
+                        ...editor.placedCylinders,
+                        ...editor.placedSpheres,
+                        ...editor.placedMeshes,
+                      ].find((o) => o.id === editor.booleanTargetId) ?? null
+                    : null
+                }
+                targetKind={
+                  editor.booleanTargetId
+                    ? editor.placedBoxes.some((b) => b.id === editor.booleanTargetId)
+                      ? "box"
+                      : editor.placedCylinders.some((c) => c.id === editor.booleanTargetId)
+                        ? "cylinder"
+                        : editor.placedSpheres.some((s) => s.id === editor.booleanTargetId)
+                          ? "sphere"
+                          : editor.placedMeshes.some((m) => m.id === editor.booleanTargetId)
+                            ? "mesh"
+                            : null
+                    : null
+                }
+                onApply={editor.handleBooleanApply}
+                onCancel={editor.handleBooleanCancel}
+              />
+            </div>
+          )}
         </RightPanel>
         {editor.isPending && (
           <div className="absolute top-4 right-4">
@@ -112,6 +147,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             placedBoxes={editor.placedBoxes}
             placedCylinders={editor.placedCylinders}
             placedSpheres={editor.placedSpheres}
+            placedMeshes={editor.placedMeshes}
             selectedObject={editor.selectedObject ?? null}
             selectedObjectType={editor.selectedObjectType}
             onGroundStartDraw={editor.activeDraw?.handleGroundStartDraw ?? noop}

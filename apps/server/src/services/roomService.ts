@@ -81,6 +81,20 @@ function rowToWire(row: ObjectRow): WireObject {
           color: row.color ?? null,
         },
       };
+    case "mesh":
+      return {
+        type: "mesh",
+        data: {
+          id: row.id,
+          cx: row.cx,
+          cy: row.cy,
+          cz: row.cz,
+          positions: row.positions ?? "",
+          normals: row.normals ?? "",
+          indices: row.indices ?? null,
+          color: row.color ?? null,
+        },
+      };
   }
 }
 
@@ -128,6 +142,21 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         color: d.color ?? null,
       };
     }
+    case "mesh": {
+      const d = wire.data;
+      return {
+        id: d.id,
+        roomId,
+        type: "mesh",
+        cx: d.cx,
+        cy: d.cy,
+        cz: d.cz,
+        color: d.color ?? null,
+        positions: d.positions,
+        normals: d.normals,
+        indices: d.indices ?? null,
+      };
+    }
   }
 }
 
@@ -141,6 +170,8 @@ function withServerId(wire: WireObject, id: string): WireObject {
       return { type: "cylinder", data: { ...wire.data, id } };
     case "sphere":
       return { type: "sphere", data: { ...wire.data, id } };
+    case "mesh":
+      return { type: "mesh", data: { ...wire.data, id } };
   }
 }
 
@@ -156,6 +187,7 @@ export async function listObjects(roomId: string): Promise<GetObjectsResponse> {
     boxes: [],
     cylinders: [],
     spheres: [],
+    meshes: [],
   };
 
   for (const row of rows) {
@@ -169,6 +201,9 @@ export async function listObjects(roomId: string): Promise<GetObjectsResponse> {
         break;
       case "sphere":
         response.spheres.push(wire.data);
+        break;
+      case "mesh":
+        response.meshes.push(wire.data);
         break;
     }
   }
@@ -255,6 +290,8 @@ const ALLOWED_DIMENSIONS: Record<ObjectRow["type"], DimensionField[]> = {
   box: ["width", "height", "depth"],
   cylinder: ["radius", "height"],
   sphere: ["radius"],
+  // Boolean-result meshes are non-parametric; only color/center can be patched.
+  mesh: [],
 };
 
 export interface UpdatePatch {
