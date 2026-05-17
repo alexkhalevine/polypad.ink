@@ -14,6 +14,7 @@ import { ExportModal } from "./export-modal";
 import { AlignPanel } from "./align-panel";
 import { RightPanel } from "./right-panel";
 import { DimentionsPanel } from "./dimentions-panel";
+import { ShortcutsHelp } from "./shortcuts-help";
 
 const idleState = { phase: "idle" as const };
 const noop = () => {};
@@ -77,6 +78,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           <InviteButton />
           <UserAvatars />
         </div>
+        <ShortcutsHelp />
         <RightPanel>
           {editor.selectedObject && (
             <DimentionsPanel

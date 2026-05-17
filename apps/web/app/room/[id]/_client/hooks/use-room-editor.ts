@@ -324,6 +324,10 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         handleDeleteObject();
       }
 
+      if (e.key === "s" || e.key === "S") handleSelectClick();
+      if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
+      if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
+
       if (selectedTool === "align") {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -336,7 +340,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool]);
 
   useEffect(() => {
     if (isObjectsError) {
