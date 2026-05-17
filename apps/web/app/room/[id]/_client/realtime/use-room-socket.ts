@@ -4,8 +4,8 @@ import * as THREE from "three";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoomStore } from "../room-store";
 import { roomKeys } from "../queries/query-keys";
-import { fromWireBox, fromWireCylinder, fromWireSphere } from "../queries/wire-converters";
-import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
+import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireMesh } from "../queries/wire-converters";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
 import { useErrorStore } from "@/app/error-store";
 import {
   createRoomSocket,
@@ -31,6 +31,7 @@ interface RoomObjects {
   boxes: PlacedBox[];
   cylinders: PlacedCylinder[];
   spheres: PlacedSphere[];
+  meshes: PlacedMesh[];
 }
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "full" | "denied";
@@ -124,6 +125,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
         boxes: payload.objects.boxes.map(fromWireBox),
         cylinders: payload.objects.cylinders.map(fromWireCylinder),
         spheres: payload.objects.spheres.map(fromWireSphere),
+        meshes: (payload.objects.meshes ?? []).map(fromWireMesh),
       });
     });
 
@@ -181,6 +183,10 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
           if (prev.spheres.some((s) => s.id === obj.data.id)) return prev;
           return { ...prev, spheres: [...prev.spheres, fromWireSphere(obj.data)] };
         }
+        if (obj.type === "mesh") {
+          if (prev.meshes.some((m) => m.id === obj.data.id)) return prev;
+          return { ...prev, meshes: [...prev.meshes, fromWireMesh(obj.data)] };
+        }
         return prev;
       });
     });
@@ -224,6 +230,14 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...(radius !== undefined ? { radius } : {}),
             };
           }),
+          meshes: prev.meshes.map((m) => {
+            if (m.id !== payload.objectId) return m;
+            return {
+              ...m,
+              ...(color !== undefined ? { color } : {}),
+              ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+            };
+          }),
         };
       });
 
@@ -239,6 +253,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
           boxes: prev.boxes.filter((b) => b.id !== payload.objectId),
           cylinders: prev.cylinders.filter((c) => c.id !== payload.objectId),
           spheres: prev.spheres.filter((s) => s.id !== payload.objectId),
+          meshes: prev.meshes.filter((m) => m.id !== payload.objectId),
         };
       });
       useRoomStore.getState().releaseRemoteLock(payload.objectId);

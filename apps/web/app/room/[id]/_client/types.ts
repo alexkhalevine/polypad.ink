@@ -1,7 +1,14 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean";
 export type AxisSide = "min" | "center" | "max" | null;
+
+export type BooleanOperation =
+  | "ADDITION"
+  | "SUBTRACTION"
+  | "REVERSE_SUBTRACTION"
+  | "DIFFERENCE"
+  | "INTERSECTION";
 export type DrawPhase = "idle" | "footprint" | "height";
 
 export interface IdleState {
@@ -47,6 +54,17 @@ export interface PlacedSphere {
   // Bottom point of the sphere on the ground: (centerX, 0, centerZ)
   position: THREE.Vector3;
   radius: number;
+  color: string | null;
+}
+
+export interface PlacedMesh {
+  id: string;
+  // Anchor offset for the baked BufferGeometry. The geometry already lives in world
+  // space when produced by a boolean op, so `position` is typically (0,0,0).
+  position: THREE.Vector3;
+  positions: Float32Array;
+  normals: Float32Array;
+  indices: Uint32Array | null;
   color: string | null;
 }
 

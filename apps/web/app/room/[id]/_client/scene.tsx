@@ -4,10 +4,11 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
 import { AlignPreviewOverlay } from "./align-preview-overlay";
+import { BooleanPreviewOverlay } from "./boolean-preview-overlay";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -16,6 +17,7 @@ import { PreviewSphere } from "@/app/components/preview-sphere";
 import { PlacedBoxMesh } from "@/app/components/placed-box-mesh";
 import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
+import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
@@ -39,8 +41,9 @@ interface SceneProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | null;
-  selectedObjectType: "box" | "cylinder" | "sphere" | null;
+  placedMeshes: PlacedMesh[];
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "mesh" | null;
   onGroundStartDraw: (point: THREE.Vector3) => void;
   onGroundPointerMove: (point: THREE.Vector3) => void;
   onGroundClick: (point: THREE.Vector3) => void;
@@ -95,6 +98,56 @@ function AlignSection({
   );
 }
 
+// ─── Boolean helper (groups source/target lookup for the live preview) ────────
+
+function BooleanSection({
+  source,
+  sourceType,
+  placedBoxes,
+  placedCylinders,
+  placedSpheres,
+  placedMeshes,
+  booleanTargetId,
+}: {
+  source: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
+  sourceType: "box" | "cylinder" | "sphere" | "mesh";
+  placedBoxes: PlacedBox[];
+  placedCylinders: PlacedCylinder[];
+  placedSpheres: PlacedSphere[];
+  placedMeshes: PlacedMesh[];
+  booleanTargetId: string | null;
+}) {
+  const target = useMemo(() => {
+    if (!booleanTargetId) return null;
+    return (
+      placedBoxes.find((b) => b.id === booleanTargetId) ??
+      placedCylinders.find((c) => c.id === booleanTargetId) ??
+      placedSpheres.find((s) => s.id === booleanTargetId) ??
+      placedMeshes.find((m) => m.id === booleanTargetId) ??
+      null
+    );
+  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
+
+  const targetType = useMemo<"box" | "cylinder" | "sphere" | "mesh" | null>(() => {
+    if (!booleanTargetId) return null;
+    if (placedBoxes.some((b) => b.id === booleanTargetId)) return "box";
+    if (placedCylinders.some((c) => c.id === booleanTargetId)) return "cylinder";
+    if (placedSpheres.some((s) => s.id === booleanTargetId)) return "sphere";
+    if (placedMeshes.some((m) => m.id === booleanTargetId)) return "mesh";
+    return null;
+  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
+
+  if (!target || !targetType) return null;
+  return (
+    <BooleanPreviewOverlay
+      source={source}
+      sourceKind={sourceType}
+      target={target}
+      targetKind={targetType}
+    />
+  );
+}
+
 // ─── Scene root ───────────────────────────────────────────────────────────────
 
 function SceneContent({
@@ -103,6 +156,7 @@ function SceneContent({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedMeshes,
   selectedObject,
   selectedObjectType,
   onGroundStartDraw,
@@ -125,10 +179,12 @@ function SceneContent({
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const setHoveredObjectId = useRoomStore((s) => s.setHoveredObjectId);
   const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
+  const setBooleanTargetId = useRoomStore((s) => s.setBooleanTargetId);
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const remoteUsers = useRoomStore((s) => s.remoteUsers);
   const localUserId = useRoomStore((s) => s.localUserId);
   const alignTargetId = useRoomStore((s) => s.alignTargetId);
+  const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -152,6 +208,10 @@ function SceneContent({
   function tryLocalSelect(objectId: string) {
     if (selectedTool === "align") {
       if (objectId !== selectedObjectId) setAlignTargetId(objectId);
+      return;
+    }
+    if (selectedTool === "boolean") {
+      if (objectId !== selectedObjectId) setBooleanTargetId(objectId);
       return;
     }
     if (selectionMode !== "select") return;
@@ -181,7 +241,7 @@ function SceneContent({
         dampingFactor={0.08}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 2}
-        enabled={selectedTool !== "align"}
+        enabled={selectedTool !== "align" && selectedTool !== "boolean"}
       />
 
       <ambientLight intensity={Math.PI / 2} />
@@ -208,25 +268,43 @@ function SceneContent({
         />
       )}
 
-      {selectedTool === "align" && selectedObject && selectedObjectType && (
-        <AlignSection
+      {selectedTool === "align" &&
+        selectedObject &&
+        selectedObjectType &&
+        selectedObjectType !== "mesh" && (
+          <AlignSection
+            source={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere}
+            sourceType={selectedObjectType as "box" | "cylinder" | "sphere"}
+            placedBoxes={placedBoxes}
+            placedCylinders={placedCylinders}
+            placedSpheres={placedSpheres}
+            alignTargetId={alignTargetId}
+          />
+        )}
+
+      {selectedTool === "boolean" && selectedObject && selectedObjectType && (
+        <BooleanSection
           source={selectedObject}
           sourceType={selectedObjectType}
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
-          alignTargetId={alignTargetId}
+          placedMeshes={placedMeshes}
+          booleanTargetId={booleanTargetId}
         />
       )}
 
-      {selectionMode === "select" && selectedObject && selectedObjectType && (
-        <DimensionHelpers
-          selectedObject={selectedObject}
-          selectedObjectType={selectedObjectType}
-          positionOverride={livePositions[selectedObject.id]}
-          onDimensionCommit={onDimensionCommit}
-        />
-      )}
+      {selectionMode === "select" &&
+        selectedObject &&
+        selectedObjectType &&
+        selectedObjectType !== "mesh" && (
+          <DimensionHelpers
+            selectedObject={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere}
+            selectedObjectType={selectedObjectType as "box" | "cylinder" | "sphere"}
+            positionOverride={livePositions[selectedObject.id]}
+            onDimensionCommit={onDimensionCommit}
+          />
+        )}
 
       <GroundPlane
         phase={drawState.phase}
@@ -256,13 +334,13 @@ function SceneContent({
             positionOverride={livePositions[box.id]}
             color={box.color}
             isSelected={box.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align") && box.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && box.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(box.id)}
             selectionInfo={getSelectionInfo(box.id)}
             onClick={() => tryLocalSelect(box.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(box.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}
         {placedCylinders.map((cylinder) => (
@@ -272,13 +350,13 @@ function SceneContent({
             positionOverride={livePositions[cylinder.id]}
             color={cylinder.color}
             isSelected={cylinder.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align") && cylinder.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && cylinder.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(cylinder.id)}
             selectionInfo={getSelectionInfo(cylinder.id)}
             onClick={() => tryLocalSelect(cylinder.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(cylinder.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cylinder.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}
         {placedSpheres.map((sphere) => (
@@ -288,13 +366,29 @@ function SceneContent({
             positionOverride={livePositions[sphere.id]}
             color={sphere.color}
             isSelected={sphere.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align") && sphere.id === hoveredObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && sphere.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(sphere.id)}
             selectionInfo={getSelectionInfo(sphere.id)}
             onClick={() => tryLocalSelect(sphere.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(sphere.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(sphere.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+          />
+        ))}
+        {placedMeshes.map((mesh) => (
+          <PlacedMeshComponent
+            key={mesh.id}
+            mesh={mesh}
+            positionOverride={livePositions[mesh.id]}
+            color={mesh.color}
+            isSelected={mesh.id === selectedObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean") && mesh.id === hoveredObjectId}
+            wireframe={wireframeEnabled}
+            lockInfo={getLockInfo(mesh.id)}
+            selectionInfo={getSelectionInfo(mesh.id)}
+            onClick={() => tryLocalSelect(mesh.id)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(mesh.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}
       </group>
@@ -311,7 +405,7 @@ export function Scene(props: SceneProps) {
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const cursor =
-    selectedTool === "align"
+    selectedTool === "align" || selectedTool === "boolean"
       ? "pointer"
       : props.drawState.phase !== "idle" || selectionMode === "select"
       ? "crosshair"

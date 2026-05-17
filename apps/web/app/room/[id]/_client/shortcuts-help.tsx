@@ -1,16 +1,25 @@
 "use client";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
+
+// Module-level subscriber set so the dismiss action can notify the store.
+const listeners = new Set<() => void>();
+
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => { listeners.delete(cb); };
+}
+
+const getSnapshot = () => !localStorage.getItem("shortcuts-help-dismissed");
+const getServerSnapshot = () => false;
 
 export const ShortcutsHelp = () => {
-  const [visible, setVisible] = useState(
-    () => typeof window !== "undefined" && !localStorage.getItem("shortcuts-help-dismissed"),
-  );
+  const visible = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   if (!visible) return null;
 
   const dismiss = () => {
     localStorage.setItem("shortcuts-help-dismissed", "1");
-    setVisible(false);
+    listeners.forEach((cb) => cb());
   };
 
   return (
