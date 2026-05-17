@@ -13,7 +13,7 @@ import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
 import { computeAlignedPosition } from "../align-math";
-import { brushFrom, evaluateBoolean } from "../csg-utils";
+import { brushFrom, evaluateBooleanCentered } from "../csg-utils";
 import { toWireMesh } from "../queries/wire-converters";
 import { useErrorStore } from "@/app/error-store";
 import { useRoomSocket } from "../realtime/use-room-socket";
@@ -370,7 +370,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     try {
       const a = brushFrom(selectedObject, selectedObjectType);
       const b = brushFrom(targetObject, targetType);
-      result = evaluateBoolean(a, b, booleanOperation);
+      result = evaluateBooleanCentered(a, b, booleanOperation);
     } catch (err) {
       console.error("[handleBooleanApply] CSG failed:", err);
       releaseLock(selectedObjectId);
@@ -389,7 +389,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     const id = crypto.randomUUID();
     const wire = toWireMesh({
       id,
-      position: new THREE.Vector3(0, 0, 0),
+      position: result.centroid,
       positions: result.positions,
       normals: result.normals,
       indices: result.indices,
