@@ -262,6 +262,7 @@ function SceneContent({
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
+          placedMeshes={placedMeshes}
           onObjectMove={onObjectMove}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}

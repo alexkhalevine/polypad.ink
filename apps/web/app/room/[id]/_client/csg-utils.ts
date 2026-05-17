@@ -127,6 +127,53 @@ export function evaluateBoolean(a: Brush, b: Brush, op: BooleanOperation): Boole
   }
 }
 
+// ─── Re-centering helpers ─────────────────────────────────────────────────────
+// Boolean results come out in world space. We want to store the geometry
+// centered at its own AABB centroid so that `PlacedMesh.position` is the
+// visual anchor (used by the transform gizmo and the group offset in the scene).
+
+export function computeCentroid(positions: Float32Array): THREE.Vector3 {
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    minX = Math.min(minX, positions[i]);     maxX = Math.max(maxX, positions[i]);
+    minY = Math.min(minY, positions[i + 1]); maxY = Math.max(maxY, positions[i + 1]);
+    minZ = Math.min(minZ, positions[i + 2]); maxZ = Math.max(maxZ, positions[i + 2]);
+  }
+  return new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+}
+
+function subtractCentroid(positions: Float32Array, c: THREE.Vector3): Float32Array {
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    out[i]     = positions[i]     - c.x;
+    out[i + 1] = positions[i + 1] - c.y;
+    out[i + 2] = positions[i + 2] - c.z;
+  }
+  return out;
+}
+
+export interface BooleanResultCentered extends BooleanResult {
+  centroid: THREE.Vector3;
+}
+
+// Used by handleBooleanApply to persist the result. Returns re-centered geometry
+// (vertices at origin) plus the centroid to store as PlacedMesh.position.
+export function evaluateBooleanCentered(
+  a: Brush,
+  b: Brush,
+  op: BooleanOperation,
+): BooleanResultCentered {
+  const raw = evaluateBoolean(a, b, op);
+  const centroid = computeCentroid(raw.positions);
+  return {
+    positions: subtractCentroid(raw.positions, centroid),
+    normals: raw.normals,
+    indices: raw.indices,
+    centroid,
+  };
+}
+
 // Helper: build the THREE.BufferGeometry for a PlacedMesh suitable for rendering.
 export function geometryFromPlacedMesh(mesh: PlacedMesh): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();

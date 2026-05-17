@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { useRef, useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
-import { PlacedBox, PlacedCylinder, PlacedSphere } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
 import { useRoomStore } from "./room-store";
 
 interface TransformGizmoProps {
@@ -12,6 +12,7 @@ interface TransformGizmoProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  placedMeshes: PlacedMesh[];
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
@@ -22,6 +23,7 @@ export function TransformGizmo({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedMeshes,
   onObjectMove,
   onDragStart,
   onDragEnd,
@@ -38,6 +40,7 @@ export function TransformGizmo({
     ...placedBoxes.map((b) => ({ id: b.id, position: b.position })),
     ...placedCylinders.map((c) => ({ id: c.id, position: c.position })),
     ...placedSpheres.map((s) => ({ id: s.id, position: s.position })),
+    ...placedMeshes.map((m) => ({ id: m.id, position: m.position })),
   ];
 
   const selected = selectedObjectId
