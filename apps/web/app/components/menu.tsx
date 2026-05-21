@@ -83,6 +83,7 @@ export const Menu = ({
   onSelectClick: () => void;
   onMouseUpColorPicked: () => void;
   onPositionCommit: (x: number, y: number, z: number) => void;
+  onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
 }) => {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
