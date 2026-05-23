@@ -45,6 +45,7 @@ This starts:
 | `RATE_LIMIT_WINDOW_MS` | `900000` | Rate limit window (ms) |
 | `RATE_LIMIT_MAX` | `100` | Max requests per window per IP |
 | `MCP_BEARER_TOKEN` | _(unset)_ | If set, requests with matching `Authorization: Bearer <token>` bypass rate limiting. Used by the MCP server. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | API base URL used by the web app (must be set at Next.js build time) |
 
 ## Project structure
 
@@ -53,9 +54,44 @@ apps/
   web/     # Next.js frontend
   server/  # Express backend
   mcp/     # MCP server (lets Claude / other agents drive the room)
-packages/
-  shared/  # Shared types between web and server
 ```
+
+## API documentation
+
+The server exposes an interactive API reference via Swagger UI:
+
+```
+http://localhost:4000/api-docs
+```
+
+The raw OpenAPI 3.1 spec (JSON) is available at:
+
+```
+http://localhost:4000/openapi.json
+```
+
+The spec is also committed to the repo at [`apps/server/openapi.json`](apps/server/openapi.json) so the web build doesn't need the server running.
+
+### Regenerating the spec and client after API changes
+
+When you change request/response shapes in `apps/server/src/openapi/schemas.ts` or add routes in `apps/server/src/openapi/spec.ts`, regenerate and commit both artifacts:
+
+```sh
+pnpm --filter server generate:spec   # rewrites apps/server/openapi.json
+pnpm --filter web generate:api       # rewrites apps/web/src/api/generated/
+```
+
+### How the typed client works
+
+The web app imports from `apps/web/src/api/generated/` — never write to these files by hand. The generation pipeline is:
+
+```
+Zod schemas (schemas.ts)
+  → OpenAPI spec (openapi.json)   via @asteasolutions/zod-to-openapi
+  → TypeScript client             via orval
+```
+
+All Zod schemas live in `apps/server/src/openapi/schemas.ts` and are the single source of truth for both server-side runtime validation and the OpenAPI spec.
 
 ## Running tests
 
@@ -163,6 +199,8 @@ Open `http://localhost:3000/room/demo` — the red box should appear within ~2 s
 
 ## Few project details:
 
-- nextjs for UI
-- express for API server
-- we use daisyUI for UI components
+- Next.js for UI
+- Express for API server
+- DaisyUI for UI components
+- Zod + `@asteasolutions/zod-to-openapi` for API schema and OpenAPI spec generation
+- orval for generating the typed TypeScript client in the web app

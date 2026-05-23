@@ -1,26 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_BASE } from "./api-base";
 import { roomKeys } from "./query-keys";
 import type { WireObject } from "./wire-types";
 import { ApiError } from "./api-error";
 import { useErrorStore } from "@/app/error-store";
-import { jsonHeaders } from "./api-headers";
-
-async function placeObject(roomId: string, object: WireObject): Promise<void> {
-  const response = await fetch(`${API_BASE}/rooms/${roomId}/objects`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify(object),
-  });
-  if (!response.ok) {
-    throw new ApiError("Failed to place object", response.status);
-  }
-}
+import { postRoomsIdObjects } from "@/src/api/generated/endpoints/objects/objects";
 
 export function usePlaceObject(roomId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (object: WireObject) => placeObject(roomId, object),
+    mutationFn: (object: WireObject) => postRoomsIdObjects(roomId, object),
     onError: (error: unknown) => {
       const status = error instanceof ApiError ? error.status : 0;
       const msg =

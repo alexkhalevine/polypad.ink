@@ -1,0 +1,897 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Polypad API",
+    "version": "1.0.0",
+    "description": "REST API for the Polypad collaborative 3D room editor. Manage rooms and geometry objects. Real-time collaboration uses Socket.IO (not documented here)."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Vec3": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "WireBox": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "cz": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "cx",
+          "cy",
+          "cz",
+          "width",
+          "height",
+          "depth",
+          "color"
+        ]
+      },
+      "WireCylinder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "cz": {
+            "type": "number"
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "cx",
+          "cy",
+          "cz",
+          "radius",
+          "height",
+          "color"
+        ]
+      },
+      "WireSphere": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "cz": {
+            "type": "number"
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "cx",
+          "cy",
+          "cz",
+          "radius",
+          "color"
+        ]
+      },
+      "WireMesh": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "cz": {
+            "type": "number"
+          },
+          "positions": {
+            "type": "string",
+            "description": "Base64-encoded Float32Array of vertex positions"
+          },
+          "normals": {
+            "type": "string",
+            "description": "Base64-encoded Float32Array of vertex normals"
+          },
+          "indices": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base64-encoded Uint32Array of face indices, or null for non-indexed geometry"
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "cx",
+          "cy",
+          "cz",
+          "positions",
+          "normals",
+          "indices",
+          "color"
+        ]
+      },
+      "WireObject": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "box"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/WireBox"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cylinder"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/WireCylinder"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sphere"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/WireSphere"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mesh"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/WireMesh"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          }
+        ]
+      },
+      "GetObjectsResponse": {
+        "type": "object",
+        "properties": {
+          "boxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireBox"
+            }
+          },
+          "cylinders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireCylinder"
+            }
+          },
+          "spheres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireSphere"
+            }
+          },
+          "meshes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireMesh"
+            }
+          }
+        },
+        "required": [
+          "boxes",
+          "cylinders",
+          "spheres",
+          "meshes"
+        ]
+      },
+      "CreateRoomBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "BatchCreateObjectBody": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireObject"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "objects"
+        ]
+      },
+      "UpdatePatch": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$"
+          },
+          "center": {
+            "$ref": "#/components/schemas/Vec3"
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "CreateRoomResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "inviteCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "inviteCode"
+        ]
+      },
+      "VerifyRoomResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "CreateObjectResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "id"
+        ]
+      },
+      "BatchCreateObjectResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "inserted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "inserted",
+          "ids"
+        ]
+      },
+      "UpdateObjectResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "ConflictResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "locked",
+              "selected"
+            ]
+          },
+          "lockedBy": {
+            "type": "string"
+          },
+          "selectedBy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/rooms": {
+      "post": {
+        "tags": [
+          "rooms"
+        ],
+        "summary": "Create a new room",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoomBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Room created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateRoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Room with that name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/verify": {
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "summary": "Verify access to a room using an invite code",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "code",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyRoomResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found or invite code mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyRoomResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/objects": {
+      "get": {
+        "tags": [
+          "objects"
+        ],
+        "summary": "List all geometry objects in a room",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All geometry objects grouped by type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetObjectsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "objects"
+        ],
+        "summary": "Create a single geometry object",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "x-polypad-user-id",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WireObject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Object created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateObjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid object format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Room object limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/objects/batch": {
+      "post": {
+        "tags": [
+          "objects"
+        ],
+        "summary": "Batch create geometry objects",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "x-polypad-user-id",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchCreateObjectBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Objects created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCreateObjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Would exceed room object limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/objects/{objectId}": {
+      "delete": {
+        "tags": [
+          "objects"
+        ],
+        "summary": "Delete a geometry object",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "objectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "x-polypad-user-id",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Object deleted"
+          },
+          "404": {
+            "description": "Object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Object is locked or selected by another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "objects"
+        ],
+        "summary": "Update properties of a geometry object",
+        "description": "Partially update an object's color, position (center), or dimensions. Fields not included in the request are left unchanged.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "objectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "x-polypad-user-id",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Object updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateObjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid patch fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Object is locked or selected by another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

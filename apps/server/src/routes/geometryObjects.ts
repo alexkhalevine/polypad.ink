@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { getLockManager, getSelectionRegistry } from "../realtime/registry.js";
 import { listObjects, createObject, batchCreateObjects, updateObject, deleteObject } from "../services/roomService.js";
-import type { WireObject } from "../types.js";
+import { WireObjectSchema, BatchCreateObjectBodySchema, UpdatePatchSchema } from "../openapi/schemas.js";
 
 const router = Router();
 
@@ -19,14 +19,14 @@ router.get("/:id/objects", async (req, res) => {
 
 router.post("/:id/objects", async (req, res) => {
   const { id } = req.params;
-  const body = req.body as WireObject;
+  const parsed = WireObjectSchema.safeParse(req.body);
 
-  if (!body.type || !body.data) {
+  if (!parsed.success) {
     res.status(400).json({ error: "Invalid object format" });
     return;
   }
 
-  const result = await createObject(id, body, { actor: actorFor(req) });
+  const result = await createObject(id, parsed.data, { actor: actorFor(req) });
 
   if ("error" in result) {
     res.status(result.status).json({ error: result.error });
@@ -38,21 +38,14 @@ router.post("/:id/objects", async (req, res) => {
 
 router.post("/:id/objects/batch", async (req, res) => {
   const { id } = req.params;
-  const body = req.body as { objects?: WireObject[] };
+  const parsed = BatchCreateObjectBodySchema.safeParse(req.body);
 
-  if (!body.objects || !Array.isArray(body.objects) || body.objects.length === 0) {
+  if (!parsed.success) {
     res.status(400).json({ error: "Body must include a non-empty 'objects' array" });
     return;
   }
 
-  for (const obj of body.objects) {
-    if (!obj || !obj.type || !obj.data) {
-      res.status(400).json({ error: "Invalid object format in batch" });
-      return;
-    }
-  }
-
-  const result = await batchCreateObjects(id, body.objects, { actor: actorFor(req) });
+  const result = await batchCreateObjects(id, parsed.data.objects, { actor: actorFor(req) });
 
   if ("error" in result) {
     res.status(result.status).json({ error: result.error });
@@ -96,14 +89,13 @@ router.delete("/:id/objects/:objectId", async (req, res) => {
 
 router.patch("/:id/objects/:objectId", async (req, res) => {
   const { id, objectId } = req.params;
-  const body = req.body as {
-    color?: string;
-    center?: { x: number; y: number; z: number };
-    width?: number;
-    height?: number;
-    depth?: number;
-    radius?: number;
-  };
+  const parsed = UpdatePatchSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid patch fields" });
+    return;
+  }
+
   const actor = actorFor(req);
 
   if (!req.isMcp) {
@@ -119,7 +111,7 @@ router.patch("/:id/objects/:objectId", async (req, res) => {
     }
   }
 
-  const result = await updateObject(id, objectId, body, { actor });
+  const result = await updateObject(id, objectId, parsed.data, { actor });
 
   if ("error" in result) {
     res.status(result.status).json({ error: result.error });
