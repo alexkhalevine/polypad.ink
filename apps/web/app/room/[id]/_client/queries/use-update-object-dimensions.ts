@@ -1,9 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_BASE } from "./api-base";
 import { roomKeys } from "./query-keys";
 import { ApiError } from "./api-error";
 import { useErrorStore } from "@/app/error-store";
-import { jsonHeaders } from "./api-headers";
+import { patchRoomsIdObjectsObjectId } from "@/src/api/generated/endpoints/objects/objects";
 
 export type DimensionPatch = Partial<{
   width: number;
@@ -11,21 +10,6 @@ export type DimensionPatch = Partial<{
   depth: number;
   radius: number;
 }>;
-
-async function updateObjectDimensions(
-  roomId: string,
-  objectId: string,
-  dimensions: DimensionPatch,
-): Promise<void> {
-  const response = await fetch(`${API_BASE}/rooms/${roomId}/objects/${objectId}`, {
-    method: "PATCH",
-    headers: jsonHeaders(),
-    body: JSON.stringify(dimensions),
-  });
-  if (!response.ok) {
-    throw new ApiError("Failed to update object dimensions", response.status);
-  }
-}
 
 export function useUpdateObjectDimensions(roomId: string) {
   const qc = useQueryClient();
@@ -36,7 +20,7 @@ export function useUpdateObjectDimensions(roomId: string) {
     }: {
       objectId: string;
       dimensions: DimensionPatch;
-    }) => updateObjectDimensions(roomId, objectId, dimensions),
+    }) => patchRoomsIdObjectsObjectId(roomId, objectId, dimensions),
     onError: (error: unknown) => {
       const status = error instanceof ApiError ? error.status : 0;
       const msg =

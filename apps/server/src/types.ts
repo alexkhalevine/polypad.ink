@@ -1,56 +1,18 @@
-// Wire format types for room objects - duplicated from web for server use
+import type { z } from "zod";
+import type {
+  WireBoxSchema,
+  WireCylinderSchema,
+  WireSphereSchema,
+  WireMeshSchema,
+  WireObjectSchema,
+  GetObjectsResponseSchema,
+  Vec3Schema,
+} from "./openapi/schemas.js";
 
-export interface WireBox {
-  id: string;
-  cx: number;
-  cy: number;
-  cz: number;
-  width: number;
-  height: number;
-  depth: number;
-  color: string | null;
-}
-
-export interface WireCylinder {
-  id: string;
-  cx: number;
-  cy: number;
-  cz: number;
-  radius: number;
-  height: number;
-  color: string | null;
-}
-
-export interface WireSphere {
-  id: string;
-  cx: number;
-  cy: number;
-  cz: number;
-  radius: number;
-  color: string | null;
-}
-
-export interface WireMesh {
-  id: string;
-  cx: number;
-  cy: number;
-  cz: number;
-  // Base64-encoded raw buffers for the BufferGeometry attributes.
-  positions: string;        // Float32Array
-  normals: string;          // Float32Array
-  indices: string | null;   // Uint32Array, or null for non-indexed
-  color: string | null;
-}
-
-export type WireObject =
-  | { type: "box"; data: WireBox }
-  | { type: "cylinder"; data: WireCylinder }
-  | { type: "sphere"; data: WireSphere }
-  | { type: "mesh"; data: WireMesh };
-
-export interface GetObjectsResponse {
-  boxes: WireBox[];
-  cylinders: WireCylinder[];
-  spheres: WireSphere[];
-  meshes: WireMesh[];
-}
+export type Vec3 = z.infer<typeof Vec3Schema>;
+export type WireBox = z.infer<typeof WireBoxSchema>;
+export type WireCylinder = z.infer<typeof WireCylinderSchema>;
+export type WireSphere = z.infer<typeof WireSphereSchema>;
+export type WireMesh = z.infer<typeof WireMeshSchema>;
+export type WireObject = z.infer<typeof WireObjectSchema>;
+export type GetObjectsResponse = z.infer<typeof GetObjectsResponseSchema>;

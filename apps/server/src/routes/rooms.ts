@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { createRoom, findRoomById } from "../services/roomService.js";
 import { safeEqualCode } from "../services/inviteCode.js";
+import { CreateRoomBodySchema } from "../openapi/schemas.js";
 
 const router = Router();
 
 router.post("/", async (req, res) => {
-  const name = typeof req.body?.name === "string" ? req.body.name : "";
-  const result = createRoom(name);
+  const parsed = CreateRoomBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  const result = createRoom(parsed.data.name);
   if ("error" in result) {
     res.status(result.status).json({ error: result.error });
     return;
