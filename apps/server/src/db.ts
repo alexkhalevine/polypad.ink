@@ -39,7 +39,7 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS geometryObjects (
       id         TEXT PRIMARY KEY,
       room_id    TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere')),
+      type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere','mesh')),
       cx         REAL NOT NULL,
       cy         REAL NOT NULL,
       cz         REAL NOT NULL,
@@ -48,15 +48,82 @@ async function initDb() {
       depth      REAL,
       radius     REAL,
       color      TEXT,
+      positions  TEXT,
+      normals    TEXT,
+      indices    TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_objects_room ON geometryObjects(room_id, created_at);
   `);
 
+  migrateMeshSupport(sqlDb);
+
   db = drizzle(sqlDb, { schema });
 
   return saveDb;
+}
+
+// Older dev DBs were created with the original CHECK (box,cylinder,sphere) and without
+// the positions/normals/indices columns. SQLite doesn't allow modifying a CHECK in place,
+// so when we detect the old schema we rebuild the table preserving existing rows.
+function migrateMeshSupport(s: SqlJsDatabase): void {
+  const cols = s.exec(`PRAGMA table_info('geometryObjects')`);
+  const colNames = cols[0]?.values.map((row) => row[1] as string) ?? [];
+  const hasNewColumns =
+    colNames.includes("positions") && colNames.includes("normals") && colNames.includes("indices");
+
+  const ddlRow = s.exec(
+    `SELECT sql FROM sqlite_master WHERE type='table' AND name='geometryObjects'`,
+  );
+  const ddl = (ddlRow[0]?.values?.[0]?.[0] as string | undefined) ?? "";
+  const hasMeshInCheck = ddl.includes("'mesh'");
+
+  if (hasNewColumns && hasMeshInCheck) return;
+
+  s.run("BEGIN TRANSACTION;");
+  try {
+    s.run(`
+      CREATE TABLE geometryObjects_new (
+        id         TEXT PRIMARY KEY,
+        room_id    TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere','mesh')),
+        cx         REAL NOT NULL,
+        cy         REAL NOT NULL,
+        cz         REAL NOT NULL,
+        width      REAL,
+        height     REAL,
+        depth      REAL,
+        radius     REAL,
+        color      TEXT,
+        positions  TEXT,
+        normals    TEXT,
+        indices    TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
+    const carryPositions = colNames.includes("positions") ? "positions" : "NULL AS positions";
+    const carryNormals = colNames.includes("normals") ? "normals" : "NULL AS normals";
+    const carryIndices = colNames.includes("indices") ? "indices" : "NULL AS indices";
+
+    s.run(`
+      INSERT INTO geometryObjects_new
+        (id, room_id, type, cx, cy, cz, width, height, depth, radius, color, positions, normals, indices, created_at)
+      SELECT id, room_id, type, cx, cy, cz, width, height, depth, radius, color,
+             ${carryPositions}, ${carryNormals}, ${carryIndices}, created_at
+      FROM geometryObjects;
+    `);
+
+    s.run("DROP TABLE geometryObjects;");
+    s.run("ALTER TABLE geometryObjects_new RENAME TO geometryObjects;");
+    s.run("CREATE INDEX IF NOT EXISTS idx_objects_room ON geometryObjects(room_id, created_at);");
+    s.run("COMMIT;");
+    markDirty();
+  } catch (err) {
+    s.run("ROLLBACK;");
+    throw err;
+  }
 }
 
 async function saveDb(): Promise<void> {

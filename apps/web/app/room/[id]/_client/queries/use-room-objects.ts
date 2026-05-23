@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "./api-base";
 import { roomKeys } from "./query-keys";
-import { fromWireBox, fromWireCylinder, fromWireSphere } from "./wire-converters";
-import type { PlacedBox, PlacedCylinder, PlacedSphere } from "../types";
+import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireMesh } from "./wire-converters";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
 import { ApiError } from "./api-error";
 
 interface RoomObjects {
   boxes: PlacedBox[];
   cylinders: PlacedCylinder[];
   spheres: PlacedSphere[];
+  meshes: PlacedMesh[];
 }
 
 async function fetchRoomObjects(id: string): Promise<RoomObjects> {
@@ -21,6 +22,7 @@ async function fetchRoomObjects(id: string): Promise<RoomObjects> {
     boxes: data.boxes.map(fromWireBox),
     cylinders: data.cylinders.map(fromWireCylinder),
     spheres: data.spheres.map(fromWireSphere),
+    meshes: (data.meshes ?? []).map(fromWireMesh),
   };
 }
 

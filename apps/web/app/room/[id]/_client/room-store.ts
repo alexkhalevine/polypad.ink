@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence, AxisSide } from "./types";
+import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -43,6 +43,12 @@ interface RoomStore {
   setAlignYSide: (side: AxisSide) => void;
   setAlignZSide: (side: AxisSide) => void;
 
+  // Boolean-operation tool state
+  booleanTargetId: string | null;
+  booleanOperation: BooleanOperation;
+  setBooleanTargetId: (id: string | null) => void;
+  setBooleanOperation: (op: BooleanOperation) => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -83,6 +89,8 @@ export const useRoomStore = create<RoomStore>((set) => ({
       alignXSide: "center",
       alignYSide: null,
       alignZSide: "center",
+      booleanTargetId: null,
+      booleanOperation: "ADDITION",
     }),
 
   livePositions: {},
@@ -118,6 +126,11 @@ export const useRoomStore = create<RoomStore>((set) => ({
   setAlignXSide: (side) => set({ alignXSide: side }),
   setAlignYSide: (side) => set({ alignYSide: side }),
   setAlignZSide: (side) => set({ alignZSide: side }),
+
+  booleanTargetId: null,
+  booleanOperation: "ADDITION",
+  setBooleanTargetId: (id) => set({ booleanTargetId: id }),
+  setBooleanOperation: (op) => set({ booleanOperation: op }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

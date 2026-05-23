@@ -1,0 +1,186 @@
+import * as THREE from "three";
+import {
+  Brush,
+  Evaluator,
+  ADDITION,
+  SUBTRACTION,
+  REVERSE_SUBTRACTION,
+  DIFFERENCE,
+  INTERSECTION,
+} from "three-bvh-csg";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, BooleanOperation } from "./types";
+
+export type AnyShape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
+export type ShapeKind = "box" | "cylinder" | "sphere" | "mesh";
+
+const OP_MAP: Record<BooleanOperation, ReturnType<typeof Number>> = {
+  ADDITION: ADDITION as unknown as number,
+  SUBTRACTION: SUBTRACTION as unknown as number,
+  REVERSE_SUBTRACTION: REVERSE_SUBTRACTION as unknown as number,
+  DIFFERENCE: DIFFERENCE as unknown as number,
+  INTERSECTION: INTERSECTION as unknown as number,
+};
+
+// ─── Position-convention bridge ───────────────────────────────────────────────
+// Three.js primitive geometries are centered at their own origin. Our PlacedX
+// position fields store the anchor (bottom-min corner for box, base centerline
+// for cylinder, bottom contact point for sphere), so each Brush gets translated
+// to the geometric center in world space before evaluation.
+
+function brushFromBox(box: PlacedBox): Brush {
+  const geo = new THREE.BoxGeometry(box.width, box.height, box.depth);
+  const b = new Brush(geo);
+  b.position.set(
+    box.position.x + box.width / 2,
+    box.position.y + box.height / 2,
+    box.position.z + box.depth / 2,
+  );
+  b.updateMatrixWorld();
+  return b;
+}
+
+function brushFromCylinder(cyl: PlacedCylinder): Brush {
+  const geo = new THREE.CylinderGeometry(cyl.radius, cyl.radius, cyl.height, 32);
+  const b = new Brush(geo);
+  b.position.set(cyl.position.x, cyl.position.y + cyl.height / 2, cyl.position.z);
+  b.updateMatrixWorld();
+  return b;
+}
+
+function brushFromSphere(sph: PlacedSphere): Brush {
+  const geo = new THREE.SphereGeometry(sph.radius, 32, 16);
+  const b = new Brush(geo);
+  b.position.set(sph.position.x, sph.position.y + sph.radius, sph.position.z);
+  b.updateMatrixWorld();
+  return b;
+}
+
+function brushFromMesh(mesh: PlacedMesh): Brush {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(mesh.normals, 3));
+  if (mesh.indices) geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+  const b = new Brush(geo);
+  b.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+  b.updateMatrixWorld();
+  return b;
+}
+
+export function brushFrom(shape: AnyShape, kind: ShapeKind): Brush {
+  switch (kind) {
+    case "box":
+      return brushFromBox(shape as PlacedBox);
+    case "cylinder":
+      return brushFromCylinder(shape as PlacedCylinder);
+    case "sphere":
+      return brushFromSphere(shape as PlacedSphere);
+    case "mesh":
+      return brushFromMesh(shape as PlacedMesh);
+  }
+}
+
+// ─── Evaluation ───────────────────────────────────────────────────────────────
+
+export interface BooleanResult {
+  positions: Float32Array;
+  normals: Float32Array;
+  indices: Uint32Array | null;
+}
+
+// Convert the resulting Brush's geometry to plain typed-array buffers we can
+// persist over the wire. The result geometry already encodes world-space
+// vertices, so the PlacedMesh anchor stays at (0,0,0).
+function geometryToResult(brush: Brush): BooleanResult {
+  const geo = brush.geometry;
+  const pos = geo.getAttribute("position");
+  const nrm = geo.getAttribute("normal");
+  if (!pos) {
+    return {
+      positions: new Float32Array(0),
+      normals: new Float32Array(0),
+      indices: null,
+    };
+  }
+  // Materialize the array data so we own a stable Float32Array we can persist.
+  const positions = new Float32Array(pos.array as Float32Array);
+  const normals = nrm
+    ? new Float32Array(nrm.array as Float32Array)
+    : new Float32Array(positions.length);
+  const idxAttr = geo.getIndex();
+  const indices = idxAttr ? new Uint32Array(idxAttr.array as ArrayLike<number>) : null;
+  return { positions, normals, indices };
+}
+
+export function evaluateBoolean(a: Brush, b: Brush, op: BooleanOperation): BooleanResult {
+  // New evaluator per call — the singleton approach caused geometryBuilders state
+  // to leak between the 5 concurrent thumbnail renders. Dropping 'uv' from
+  // attributes avoids the "Attribute uv not available" error on PlacedMesh brushes.
+  const evaluator = new Evaluator();
+  evaluator.attributes = ["position", "normal"];
+  evaluator.useGroups = false;
+  try {
+    const out = evaluator.evaluate(a, b, OP_MAP[op] as unknown as number);
+    return geometryToResult(out);
+  } catch (err) {
+    console.error("[csg-utils] evaluateBoolean failed:", err);
+    throw err;
+  }
+}
+
+// ─── Re-centering helpers ─────────────────────────────────────────────────────
+// Boolean results come out in world space. We want to store the geometry
+// centered at its own AABB centroid so that `PlacedMesh.position` is the
+// visual anchor (used by the transform gizmo and the group offset in the scene).
+
+export function computeCentroid(positions: Float32Array): THREE.Vector3 {
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    minX = Math.min(minX, positions[i]);     maxX = Math.max(maxX, positions[i]);
+    minY = Math.min(minY, positions[i + 1]); maxY = Math.max(maxY, positions[i + 1]);
+    minZ = Math.min(minZ, positions[i + 2]); maxZ = Math.max(maxZ, positions[i + 2]);
+  }
+  return new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+}
+
+function subtractCentroid(positions: Float32Array, c: THREE.Vector3): Float32Array {
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    out[i]     = positions[i]     - c.x;
+    out[i + 1] = positions[i + 1] - c.y;
+    out[i + 2] = positions[i + 2] - c.z;
+  }
+  return out;
+}
+
+export interface BooleanResultCentered extends BooleanResult {
+  centroid: THREE.Vector3;
+}
+
+// Used by handleBooleanApply to persist the result. Returns re-centered geometry
+// (vertices at origin) plus the centroid to store as PlacedMesh.position.
+export function evaluateBooleanCentered(
+  a: Brush,
+  b: Brush,
+  op: BooleanOperation,
+): BooleanResultCentered {
+  const raw = evaluateBoolean(a, b, op);
+  const centroid = computeCentroid(raw.positions);
+  return {
+    positions: subtractCentroid(raw.positions, centroid),
+    normals: raw.normals,
+    indices: raw.indices,
+    centroid,
+  };
+}
+
+// Helper: build the THREE.BufferGeometry for a PlacedMesh suitable for rendering.
+export function geometryFromPlacedMesh(mesh: PlacedMesh): THREE.BufferGeometry {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(mesh.normals, 3));
+  if (mesh.indices) geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return geo;
+}
