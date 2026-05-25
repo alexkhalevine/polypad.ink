@@ -174,7 +174,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="max-w-xl w-full flex flex-col items-center text-center gap-8">
           {/* Hero text */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4" id="logo">
             <h1 className="w-full text-gradient text-4xl sm:text-5xl font-sans font-semibold tracking-tight text-base-content">
               polypad
             </h1>
