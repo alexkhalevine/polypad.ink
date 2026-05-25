@@ -13,6 +13,7 @@ const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "move", label: "Move", icon: moveIcon },
   { name: "align", label: "Align", icon: moveIcon },
   { name: "boolean", label: "Boolean", icon: moveIcon },
+  { name: "clone", label: "Clone", icon: moveIcon },
 ];
 
 type Axis = "x" | "y" | "z";
@@ -100,6 +101,7 @@ export const Menu = ({
   const moveEnabled = !!selectedObjectId;
   const alignEnabled = !!selectedObjectId;
   const booleanEnabled = !!selectedObjectId;
+  const cloneEnabled = !!selectedObjectId;
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 
@@ -130,7 +132,8 @@ export const Menu = ({
             const isDisabled =
               (item.name === "move" && !moveEnabled) ||
               (item.name === "align" && !alignEnabled) ||
-              (item.name === "boolean" && !booleanEnabled);
+              (item.name === "boolean" && !booleanEnabled) ||
+              (item.name === "clone" && !cloneEnabled);
             return (
             <button
               key={item.name}
@@ -140,6 +143,7 @@ export const Menu = ({
                 if (item.name === "move" && moveEnabled) setSelectedTool("move");
                 if (item.name === "align" && alignEnabled) setSelectedTool("align");
                 if (item.name === "boolean" && booleanEnabled) setSelectedTool("boolean");
+                if (item.name === "clone" && cloneEnabled) setSelectedTool("clone");
               }}
               className={`btn text-blue-100 ${
                 selectedTool === item.name

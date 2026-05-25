@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone";
 export type AxisSide = "min" | "center" | "max" | null;
 
 export type BooleanOperation =

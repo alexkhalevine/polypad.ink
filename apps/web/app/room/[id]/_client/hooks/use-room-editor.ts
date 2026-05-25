@@ -43,6 +43,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const booleanOperation = useRoomStore((s) => s.booleanOperation);
   const setBooleanTargetId = useRoomStore((s) => s.setBooleanTargetId);
   const setBooleanOperation = useRoomStore((s) => s.setBooleanOperation);
+  const setClonePreviewPosition = useRoomStore((s) => s.setClonePreviewPosition);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
@@ -202,8 +203,11 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     (point: THREE.Vector3) => {
       emitCursor({ x: point.x, y: point.y, z: point.z });
       activeDraw?.handleGroundPointerMove(point);
+      if (selectedTool === "clone") {
+        setClonePreviewPosition({ x: point.x, y: 0, z: point.z });
+      }
     },
-    [emitCursor, activeDraw],
+    [emitCursor, activeDraw, selectedTool, setClonePreviewPosition],
   );
 
   const handleDragStart = useCallback(
@@ -436,6 +440,83 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     addError,
   ]);
 
+  const handleCloneApply = useCallback(
+    (point: THREE.Vector3) => {
+      if (!selectedObject || !selectedObjectType) return;
+      const newPos = new THREE.Vector3(point.x, 0, point.z);
+      const id = crypto.randomUUID();
+
+      if (selectedObjectType === "box") {
+        const src = selectedObject as PlacedBox;
+        placeObject.mutate({
+          type: "box",
+          data: toWireBox({
+            id,
+            position: newPos,
+            width: src.width,
+            height: src.height,
+            depth: src.depth,
+            color: src.color,
+          }),
+        });
+      } else if (selectedObjectType === "cylinder") {
+        const src = selectedObject as PlacedCylinder;
+        placeObject.mutate({
+          type: "cylinder",
+          data: toWireCylinder({
+            id,
+            position: newPos,
+            radius: src.radius,
+            height: src.height,
+            color: src.color,
+          }),
+        });
+      } else if (selectedObjectType === "sphere") {
+        const src = selectedObject as PlacedSphere;
+        placeObject.mutate({
+          type: "sphere",
+          data: toWireSphere({
+            id,
+            position: newPos,
+            radius: src.radius,
+            color: src.color,
+          }),
+        });
+      } else {
+        // Mesh: copy buffers verbatim. The mesh geometry is already in world space
+        // (see PlacedMesh comment in types.ts); position is the world-space offset
+        // we want to apply on top, so we hand the click point straight through.
+        const src = selectedObject as PlacedMesh;
+        placeObject.mutate({
+          type: "mesh",
+          data: toWireMesh({
+            id,
+            position: newPos,
+            positions: src.positions,
+            normals: src.normals,
+            indices: src.indices,
+            color: src.color,
+          }),
+        });
+      }
+
+      setClonePreviewPosition(null);
+      setSelectedTool(null);
+    },
+    [selectedObject, selectedObjectType, placeObject, setClonePreviewPosition, setSelectedTool],
+  );
+
+  const handleGroundClick = useCallback(
+    (point: THREE.Vector3) => {
+      if (selectedTool === "clone") {
+        handleCloneApply(point);
+        return;
+      }
+      activeDraw?.handleGroundClick(point);
+    },
+    [selectedTool, handleCloneApply, activeDraw],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (document.activeElement as HTMLElement)?.tagName;
@@ -454,6 +535,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
       if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
       if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
+      if ((e.key === "c" || e.key === "C") && selectedObjectId) setSelectedTool("clone");
 
       if (selectedTool === "align") {
         if (e.key === "Enter") {
@@ -535,6 +617,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleObjectMove,
     onMouseUpColorPicked,
     handleGroundPointerMove,
+    handleGroundClick,
     handleDragStart,
     handleDragEnd,
     handlePositionCommit,
