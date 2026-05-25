@@ -141,7 +141,7 @@ const CLAUDE_DESKTOP_CONFIG = `{
       "args": ["/path/to/polypad.ink/apps/mcp/dist/index.js"],
       "env": {
         "POLYPAD_DEFAULT_ROOM_ID": "your-room-id",
-        "API_URL": "http://localhost:4000"
+        "API_URL": "https://api.polypad.ink"
       }
     }
   }
