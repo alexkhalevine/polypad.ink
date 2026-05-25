@@ -49,6 +49,10 @@ interface RoomStore {
   setBooleanTargetId: (id: string | null) => void;
   setBooleanOperation: (op: BooleanOperation) => void;
 
+  // Clone tool state — tracks ground-plane cursor so the preview ghost can follow.
+  clonePreviewPosition: { x: number; y: number; z: number } | null;
+  setClonePreviewPosition: (pos: { x: number; y: number; z: number } | null) => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -91,6 +95,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
       alignZSide: "center",
       booleanTargetId: null,
       booleanOperation: "ADDITION",
+      clonePreviewPosition: null,
     }),
 
   livePositions: {},
@@ -131,6 +136,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
   booleanOperation: "ADDITION",
   setBooleanTargetId: (id) => set({ booleanTargetId: id }),
   setBooleanOperation: (op) => set({ booleanOperation: op }),
+
+  clonePreviewPosition: null,
+  setClonePreviewPosition: (pos) => set({ clonePreviewPosition: pos }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

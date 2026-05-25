@@ -9,6 +9,7 @@ import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
 import { AlignPreviewOverlay } from "./align-preview-overlay";
 import { BooleanPreviewOverlay } from "./boolean-preview-overlay";
+import { ClonePreviewOverlay } from "./clone-preview-overlay";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -185,6 +186,7 @@ function SceneContent({
   const localUserId = useRoomStore((s) => s.localUserId);
   const alignTargetId = useRoomStore((s) => s.alignTargetId);
   const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
+  const clonePreviewPosition = useRoomStore((s) => s.clonePreviewPosition);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -295,6 +297,14 @@ function SceneContent({
         />
       )}
 
+      {selectedTool === "clone" && selectedObject && selectedObjectType && clonePreviewPosition && (
+        <ClonePreviewOverlay
+          source={selectedObject}
+          sourceType={selectedObjectType}
+          position={clonePreviewPosition}
+        />
+      )}
+
       {selectionMode === "select" &&
         selectedObject &&
         selectedObjectType &&
@@ -310,6 +320,7 @@ function SceneContent({
       <GroundPlane
         phase={drawState.phase}
         toolActive={selectedTool !== null}
+        clickMode={selectedTool === "clone" ? "place" : "draw"}
         onStartDraw={(p) => onGroundStartDraw(snapPoint(p, snapEnabled))}
         onPointerMove={(p) => onGroundPointerMove(snapPoint(p, snapEnabled))}
         onClick={(p) => onGroundClick(snapPoint(p, snapEnabled))}
@@ -408,7 +419,7 @@ export function Scene(props: SceneProps) {
   const cursor =
     selectedTool === "align" || selectedTool === "boolean"
       ? "pointer"
-      : props.drawState.phase !== "idle" || selectionMode === "select"
+      : selectedTool === "clone" || props.drawState.phase !== "idle" || selectionMode === "select"
       ? "crosshair"
       : "default";
 

@@ -152,7 +152,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             selectedObjectType={editor.selectedObjectType}
             onGroundStartDraw={editor.activeDraw?.handleGroundStartDraw ?? noop}
             onGroundPointerMove={editor.handleGroundPointerMove}
-            onGroundClick={editor.activeDraw?.handleGroundClick ?? noop}
+            onGroundClick={editor.handleGroundClick}
             onHeightPointerMove={
               editor.activeDraw?.handleHeightPointerMove ?? noop
             }

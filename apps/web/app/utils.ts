@@ -14,6 +14,9 @@ export function getHelpText(ctx: HelpContext): string {
   if (selectedTool === "move") {
     return "Move the selected object";
   }
+  if (selectedTool === "clone") {
+    return "Move the cursor to where you want the clone, then click. Esc to cancel.";
+  }
   if (phase === "height") {
     return "drag mouse to define the height of the primitive, left click to confirm";
   }
