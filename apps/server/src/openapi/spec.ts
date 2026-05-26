@@ -210,6 +210,6 @@ export function buildOpenApiSpec() {
       description:
         "REST API for the Polypad collaborative 3D room editor. Manage rooms and geometry objects. Real-time collaboration uses Socket.IO (not documented here).",
     },
-    servers: [{ url: process.env.API_BASE_URL ?? "http://localhost:4000" }],
+    servers: [{ url: process.env.API_BASE_URL ?? "https://api.polypad.ink" }],
   });
 }
