@@ -169,7 +169,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] flex flex-col hp-bg">
+    <div className="min-h-screen shrink-0 flex flex-col hp-bg">
       {/* Hero section */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="max-w-xl w-full flex flex-col items-center text-center gap-8">
