@@ -172,7 +172,7 @@ export default function Home() {
   return (
     <div className="min-h-screen shrink-0 flex flex-col hp-bg overflow-x-hidden">
       {/* Hero section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+      <main className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
         <div className="max-w-xl w-full flex flex-col items-center text-center gap-5 sm:gap-8">
           {/* Hero text */}
           <PolypadLogo />
@@ -241,7 +241,7 @@ export default function Home() {
       <section
         ref={mcpRef}
         id="mcp-section"
-        className="w-full px-4 sm:px-6 py-12 sm:py-20 flex flex-col items-center gap-8 sm:gap-14 mt-16 sm:mt-32 lg:mt-48"
+        className="w-full min-h-screen px-4 sm:px-6 flex flex-col items-center justify-center gap-8 sm:gap-14"
       >
         {/* Header */}
         <div className="max-w-2xl w-full flex flex-col items-center text-center gap-4">
