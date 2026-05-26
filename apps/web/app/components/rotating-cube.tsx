@@ -23,7 +23,7 @@ function WireframeCube() {
 
 export function RotatingCube() {
   return (
-    <div className="w-48 h-48 pointer-events-none">
+    <div className="w-32 h-32 sm:w-48 sm:h-48 pointer-events-none">
       <Canvas camera={{ position: [3, 2, 3], fov: 50 }}>
         <WireframeCube />
       </Canvas>

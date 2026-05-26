@@ -1,12 +1,10 @@
+import { PolypadLogo } from "../components/polypad-logo";
+
 export default function ApiDocsPage() {
   return (
     <div className="flex-1 hp-bg flex flex-col px-8 pb-8">
       <div className="flex justify-center py-12">
-        <div className="flex flex-col gap-4" id="logo-container">
-          <h1 className="w-full text-gradient text-4xl sm:text-5xl font-sans font-semibold tracking-tight text-base-content">
-            polypad
-          </h1>
-        </div>
+        <PolypadLogo />
       </div>
 
       <div

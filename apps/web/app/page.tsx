@@ -3,6 +3,7 @@
 import { HcaptchaButton } from "./components/hcaptcha-button";
 import { ContactFormModal } from "./components/contact-form-modal";
 import { RotatingCube } from "./components/rotating-cube";
+import { PolypadLogo } from "./components/polypad-logo";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import "./globals.css";
@@ -169,24 +170,20 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen shrink-0 flex flex-col hp-bg">
+    <div className="min-h-screen shrink-0 flex flex-col hp-bg overflow-x-hidden">
       {/* Hero section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="max-w-xl w-full flex flex-col items-center text-center gap-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+        <div className="max-w-xl w-full flex flex-col items-center text-center gap-5 sm:gap-8">
           {/* Hero text */}
-          <div className="flex flex-col gap-4" id="logo-container">
-            <h1 className="w-full text-gradient text-4xl sm:text-5xl font-sans font-semibold tracking-tight text-base-content">
-              polypad
-            </h1>
-          </div>
+          <PolypadLogo />
 
           {/* Rotating wireframe cube */}
           <RotatingCube />
 
           <div className="flex flex-col items-center">
-            <pre className="text-lg font-sans text-purple-300 text-left mb-10">
+            <p className="text-base sm:text-lg font-sans text-purple-300 text-center mb-6 sm:mb-10">
               Create 3d scenes in real-time collaboration.
-            </pre>
+            </p>
             <div className="flex flex-wrap gap-4 items-center justify-center">
               {!showCaptcha ? (
                 <button
@@ -217,7 +214,7 @@ export default function Home() {
             {/* Scroll to MCP section */}
             <button
               onClick={scrollToMcp}
-              className="mt-10 flex flex-col items-center gap-2 text-purple-300/70 hover:text-purple-200 transition-colors font-sans text-sm cursor-pointer"
+              className="mt-6 sm:mt-10 flex flex-col items-center gap-2 text-purple-300/70 hover:text-purple-200 transition-colors font-sans text-sm cursor-pointer"
             >
               <span>Use with AI Agents</span>
               <svg
@@ -244,7 +241,7 @@ export default function Home() {
       <section
         ref={mcpRef}
         id="mcp-section"
-        className="w-full px-6 py-20 flex flex-col items-center gap-14 mt-48"
+        className="w-full px-4 sm:px-6 py-12 sm:py-20 flex flex-col items-center gap-8 sm:gap-14 mt-16 sm:mt-32 lg:mt-48"
       >
         {/* Header */}
         <div className="max-w-2xl w-full flex flex-col items-center text-center gap-4">
@@ -300,7 +297,7 @@ export default function Home() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-600/50 text-white flex items-center justify-center text-xs font-bold">
                 2
               </span>
-              <span>
+              <span className="min-w-0">
                 Add to your Claude Desktop (or any MCP client) config:
                 <pre className="mt-2 px-3 py-3 rounded-lg bg-black/40 text-purple-300 font-mono text-xs overflow-x-auto whitespace-pre">
                   {CLAUDE_DESKTOP_CONFIG}
