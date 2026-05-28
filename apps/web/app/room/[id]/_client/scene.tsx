@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, ExtrudeFace } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
 import { AlignPreviewOverlay } from "./align-preview-overlay";
@@ -20,6 +20,7 @@ import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
+import { ExtrudeOverlay } from "@/app/components/extrude-overlay";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
 import { ExportHandler, PLACED_OBJECTS_GROUP } from "./export-handler";
@@ -54,6 +55,29 @@ interface SceneProps {
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
+  onExtrudeFaceSelect: (face: ExtrudeFace) => void;
+  onExtrude: (
+    field: "width" | "height" | "depth",
+    value: number,
+    position: { x: number; y: number; z: number } | null,
+    persist: boolean,
+  ) => void;
+}
+
+// Derive which face was clicked from the raycast hit normal. Box/cylinder meshes are
+// axis-aligned and unrotated, so the local face normal maps directly to a world axis.
+// Cylinder side faces (radial normal) are not extrudable — only the y caps.
+function pickFace(e: ThreeEvent<MouseEvent>, type: "box" | "cylinder"): ExtrudeFace | null {
+  const n = e.face?.normal;
+  if (!n) return null;
+  const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
+  if (type === "cylinder") {
+    if (ay > 0.9) return { axis: "y", side: n.y > 0 ? "max" : "min" };
+    return null;
+  }
+  if (ax >= ay && ax >= az) return { axis: "x", side: n.x > 0 ? "max" : "min" };
+  if (ay >= az) return { axis: "y", side: n.y > 0 ? "max" : "min" };
+  return { axis: "z", side: n.z > 0 ? "max" : "min" };
 }
 
 // ─── Align helper (groups arrow + preview so target lookup stays local) ────────
@@ -169,6 +193,8 @@ function SceneContent({
   onDragStart,
   onDragEnd,
   onDimensionCommit,
+  onExtrudeFaceSelect,
+  onExtrude,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -187,6 +213,8 @@ function SceneContent({
   const alignTargetId = useRoomStore((s) => s.alignTargetId);
   const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
   const clonePreviewPosition = useRoomStore((s) => s.clonePreviewPosition);
+  const extrudeFace = useRoomStore((s) => s.extrudeFace);
+  const isExtrudeDragging = useRoomStore((s) => s.isExtrudeDragging);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -225,6 +253,22 @@ function SceneContent({
     setSelectedObjectId(objectId);
   }
 
+  // While the extrude tool is active, a click on the selected object's mesh picks a
+  // face instead of (re)selecting; otherwise fall back to normal selection.
+  function handleObjectClick(
+    objectId: string,
+    type: "box" | "cylinder",
+    e: ThreeEvent<MouseEvent>,
+  ) {
+    if (selectedTool === "extrude") {
+      if (objectId !== selectedObjectId) return;
+      const f = pickFace(e, type);
+      if (f) onExtrudeFaceSelect(f);
+      return;
+    }
+    tryLocalSelect(objectId);
+  }
+
   const heightAnchorX =
     drawState.phase === "height"
       ? (drawState.start.x + drawState.end.x) / 2
@@ -243,7 +287,7 @@ function SceneContent({
         dampingFactor={0.08}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 2}
-        enabled={selectedTool !== "align" && selectedTool !== "boolean"}
+        enabled={selectedTool !== "align" && selectedTool !== "boolean" && !isExtrudeDragging}
       />
 
       <ambientLight intensity={Math.PI / 2} />
@@ -317,6 +361,22 @@ function SceneContent({
           />
         )}
 
+      {selectedTool === "extrude" &&
+        selectedObject &&
+        (selectedObjectType === "box" || selectedObjectType === "cylinder") &&
+        extrudeFace && (
+          <ExtrudeOverlay
+            selectedObject={selectedObject as PlacedBox | PlacedCylinder}
+            selectedObjectType={selectedObjectType}
+            face={extrudeFace}
+            positionOverride={livePositions[selectedObject.id]}
+            snapEnabled={snapEnabled}
+            onExtrude={onExtrude}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          />
+        )}
+
       <GroundPlane
         phase={drawState.phase}
         toolActive={selectedTool !== null}
@@ -350,7 +410,7 @@ function SceneContent({
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(box.id)}
             selectionInfo={getSelectionInfo(box.id)}
-            onClick={() => tryLocalSelect(box.id)}
+            onClick={(e) => handleObjectClick(box.id, "box", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
@@ -366,7 +426,7 @@ function SceneContent({
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(cylinder.id)}
             selectionInfo={getSelectionInfo(cylinder.id)}
-            onClick={() => tryLocalSelect(cylinder.id)}
+            onClick={(e) => handleObjectClick(cylinder.id, "cylinder", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cylinder.id); }}
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />

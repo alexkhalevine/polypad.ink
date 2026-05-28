@@ -14,6 +14,7 @@ const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "align", label: "Align", icon: moveIcon },
   { name: "boolean", label: "Boolean", icon: moveIcon },
   { name: "clone", label: "Clone", icon: moveIcon },
+  { name: "extrude", label: "Extrude", icon: moveIcon },
 ];
 
 type Axis = "x" | "y" | "z";
@@ -73,6 +74,7 @@ const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }
 
 export const Menu = ({
   currentColor,
+  selectedObjectType,
   onToolSelect,
   onSelectClick,
   onMouseUpColorPicked,
@@ -102,6 +104,8 @@ export const Menu = ({
   const alignEnabled = !!selectedObjectId;
   const booleanEnabled = !!selectedObjectId;
   const cloneEnabled = !!selectedObjectId;
+  const extrudeEnabled =
+    !!selectedObjectId && (selectedObjectType === "box" || selectedObjectType === "cylinder");
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 
@@ -133,7 +137,8 @@ export const Menu = ({
               (item.name === "move" && !moveEnabled) ||
               (item.name === "align" && !alignEnabled) ||
               (item.name === "boolean" && !booleanEnabled) ||
-              (item.name === "clone" && !cloneEnabled);
+              (item.name === "clone" && !cloneEnabled) ||
+              (item.name === "extrude" && !extrudeEnabled);
             return (
             <button
               key={item.name}
@@ -144,6 +149,7 @@ export const Menu = ({
                 if (item.name === "align" && alignEnabled) setSelectedTool("align");
                 if (item.name === "boolean" && booleanEnabled) setSelectedTool("boolean");
                 if (item.name === "clone" && cloneEnabled) setSelectedTool("clone");
+                if (item.name === "extrude" && extrudeEnabled) setSelectedTool("extrude");
               }}
               className={`btn text-blue-100 ${
                 selectedTool === item.name

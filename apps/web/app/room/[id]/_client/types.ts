@@ -1,7 +1,12 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone" | "extrude";
 export type AxisSide = "min" | "center" | "max" | null;
+
+export interface ExtrudeFace {
+  axis: "x" | "y" | "z";
+  side: "min" | "max";
+}
 
 export type BooleanOperation =
   | "ADDITION"

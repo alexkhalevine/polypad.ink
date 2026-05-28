@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation } from "./types";
+import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation, ExtrudeFace } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -53,6 +53,13 @@ interface RoomStore {
   clonePreviewPosition: { x: number; y: number; z: number } | null;
   setClonePreviewPosition: (pos: { x: number; y: number; z: number } | null) => void;
 
+  // Extrude tool state — the picked face, and a flag that's true while the arrow
+  // is being dragged (used to suspend OrbitControls so the camera doesn't rotate).
+  extrudeFace: ExtrudeFace | null;
+  isExtrudeDragging: boolean;
+  setExtrudeFace: (face: ExtrudeFace | null) => void;
+  setExtrudeDragging: (v: boolean) => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -96,6 +103,8 @@ export const useRoomStore = create<RoomStore>((set) => ({
       booleanTargetId: null,
       booleanOperation: "ADDITION",
       clonePreviewPosition: null,
+      extrudeFace: null,
+      isExtrudeDragging: false,
     }),
 
   livePositions: {},
@@ -139,6 +148,11 @@ export const useRoomStore = create<RoomStore>((set) => ({
 
   clonePreviewPosition: null,
   setClonePreviewPosition: (pos) => set({ clonePreviewPosition: pos }),
+
+  extrudeFace: null,
+  isExtrudeDragging: false,
+  setExtrudeFace: (face) => set({ extrudeFace: face }),
+  setExtrudeDragging: (v) => set({ isExtrudeDragging: v }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

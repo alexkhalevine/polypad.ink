@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
-import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
+import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, ExtrudeFace } from "../types";
 import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
@@ -45,8 +45,11 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setBooleanOperation = useRoomStore((s) => s.setBooleanOperation);
   const setClonePreviewPosition = useRoomStore((s) => s.setClonePreviewPosition);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
+  const clearLivePosition = useRoomStore((s) => s.clearLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
+  const clearLiveDimensions = useRoomStore((s) => s.clearLiveDimensions);
+  const setExtrudeFace = useRoomStore((s) => s.setExtrudeFace);
   const addError = useErrorStore((s) => s.addError);
 
   const objectLocks = useRoomStore((s) => s.objectLocks);
@@ -165,14 +168,26 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;
   const showObjectSelected = selectionMode === "select" && !!selectedObjectId;
 
+  // Discard any uncommitted live preview and clear the picked face. Used when the
+  // extrude tool is left (tool switch / deselect / Escape) so a half-finished drag
+  // doesn't linger as a preview that diverges from server state.
+  const clearExtrudeState = useCallback(() => {
+    if (selectedObjectId) {
+      clearLiveDimensions(selectedObjectId);
+      clearLivePosition(selectedObjectId);
+    }
+    setExtrudeFace(null);
+  }, [selectedObjectId, clearLiveDimensions, clearLivePosition, setExtrudeFace]);
+
   const handleToolSelect = useCallback(
     (tool: ToolType) => {
       cancelAll();
+      clearExtrudeState();
       setSelectedTool(tool);
       setSelectionMode("draw");
       setSelectedObjectId(null);
     },
-    [cancelAll, setSelectedTool, setSelectionMode, setSelectedObjectId],
+    [cancelAll, clearExtrudeState, setSelectedTool, setSelectionMode, setSelectedObjectId],
   );
 
   const handleSelectClick = useCallback(() => {
@@ -180,7 +195,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setSelectedObjectId(null);
     setSelectedTool(null);
     cancelAll();
-  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll]);
+    clearExtrudeState();
+  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll, clearExtrudeState]);
 
   const handleObjectMove = useCallback(
     (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
@@ -245,6 +261,33 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setLiveDimension(selectedObjectId, field, value);
     },
     [selectedObjectId, updateObjectDimensions, setLiveDimension],
+  );
+
+  const handleExtrudeFaceSelect = useCallback(
+    (face: ExtrudeFace) => {
+      setExtrudeFace(face);
+    },
+    [setExtrudeFace],
+  );
+
+  // The overlay computes the resulting absolute dimension + position; we just apply
+  // the live overlay and (on release/commit) persist via the existing mutations.
+  const handleExtrude = useCallback(
+    (
+      field: "width" | "height" | "depth",
+      value: number,
+      position: { x: number; y: number; z: number } | null,
+      persist: boolean,
+    ) => {
+      if (!selectedObjectId) return;
+      setLiveDimension(selectedObjectId, field, value);
+      if (position) setLivePosition(selectedObjectId, position);
+      if (persist) {
+        updateObjectDimensions.mutate({ objectId: selectedObjectId, dimensions: { [field]: value } });
+        if (position) updateObjectPosition.mutate({ objectId: selectedObjectId, position });
+      }
+    },
+    [selectedObjectId, setLiveDimension, setLivePosition, updateObjectDimensions, updateObjectPosition],
   );
 
   const handleDeleteObject = useCallback(() => {
@@ -524,6 +567,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
       if (e.key === "Escape") {
         cancelAll();
+        clearExtrudeState();
         resetEditorState();
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedObjectId) {
@@ -536,6 +580,12 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
       if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
       if ((e.key === "c" || e.key === "C") && selectedObjectId) setSelectedTool("clone");
+      if (
+        (e.key === "e" || e.key === "E") &&
+        selectedObjectId &&
+        (selectedObjectType === "box" || selectedObjectType === "cylinder")
+      )
+        setSelectedTool("extrude");
 
       if (selectedTool === "align") {
         if (e.key === "Enter") {
@@ -561,7 +611,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
+  }, [cancelAll, clearExtrudeState, resetEditorState, selectedObjectId, selectedObjectType, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
 
   useEffect(() => {
     if (isObjectsError) {
@@ -622,6 +672,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleDragEnd,
     handlePositionCommit,
     handleDimensionCommit,
+    handleExtrudeFaceSelect,
+    handleExtrude,
     handleDeleteObject,
     alignTargetId,
     handleAlignApply,

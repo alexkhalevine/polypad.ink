@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { PlacedCylinder } from "@/app/room/[id]/_client/types";
 import { RemoteSelectionOutline } from "./remote-selection-outline";
 
@@ -15,7 +16,7 @@ interface PlacedCylinderMeshProps {
   wireframe?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
-  onClick?: () => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
 }

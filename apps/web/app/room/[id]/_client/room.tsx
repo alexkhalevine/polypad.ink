@@ -161,6 +161,8 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             onDragStart={editor.handleDragStart}
             onDragEnd={editor.handleDragEnd}
             onDimensionCommit={editor.handleDimensionCommit}
+            onExtrudeFaceSelect={editor.handleExtrudeFaceSelect}
+            onExtrude={editor.handleExtrude}
           />
         </div>
         {contextMenu && (
