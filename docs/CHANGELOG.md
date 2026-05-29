@@ -1,27 +1,31 @@
-# added extrude face tool (box & cylinder)
+# added extrude face tool (real mesh extrude — box, cylinder & mesh)
 
 ### commit hash:
-### date: 28.05.26
+### date: 29.05.26
 
 ### description
 
-Adds an **Extrude** tool that lets the user push/pull a single face of a box or cylinder. After selecting an object, the user clicks **Extrude** (or presses `E`), then clicks a face: the face border highlights, an outward arrow appears, and a small input field (styled like the dimension helpers) shows the extrusion range. Dragging the arrow grows/shrinks the object along the face normal and live-updates the input; typing into the input applies the same change. Drag and input stay in sync.
+Adds a Blender/3ds-Max-style **Extrude** tool that *creates new geometry*. After selecting a box, cylinder, or mesh, the user clicks **Extrude** (or presses `E`), then clicks a face: the face rim highlights, an outward cyan arrow appears, and a small input field (styled like the dimension helpers) shows the extrusion distance. Dragging the arrow pulls the selected face outward along its normal — duplicating the face, moving the copy, and stitching new **side walls** between the old rim and the new position — and live-updates the input; typing the distance applies the same. The extruded result becomes an editable `PlacedMesh`, so faces of meshes (boolean results, previously-extruded objects) can be extruded again to build complex shapes (L-shapes, steps, towers). Outward only this phase; cylinder is restricted to the flat top/bottom caps; sphere is excluded.
 
-Key design point: for an axis-aligned box or cylinder, extruding a face is **purely parametric** — a change to one dimension plus, for "min"-side faces, a shift of `position`. No mesh/CSG generation is involved; it reuses the existing dimension + position mutations and their live-overlay state. Mesh and sphere are out of scope (the button is disabled for them). Cylinder side faces are not extrudable — only the top/bottom caps. Extruding a bottom face downward is allowed to grow the object below the ground plane (the ground clamp is not applied to extrude). When snap-to-grid is on, arrow drags land the moving face on integer coordinates; typed values are used as-is.
+Key design points:
+- **No "update mesh geometry" API exists** (only place / delete / position / dimensions / color). So each committed extrude follows the boolean pattern: `placeObject.mutate({type:"mesh"})` a new mesh and delete the original. The new mesh stays selected with the tool active for chained extrudes.
+- **Live preview is client-only** — while dragging, the original object is hidden and the growing extruded mesh is rendered in-scene; the single server write happens on release (or input commit). When snap-to-grid is on, the drag distance snaps to integers.
 
-- `apps/web/app/components/extrude-overlay.tsx` — New component. Renders the face-border highlight (drei `<Line>` loop — box face rectangle or cylinder cap circle), a draggable cyan arrow oriented along the outward face normal, and an `<Html>` extrusion-range input. Owns all geometry math: snapshots the base geometry at drag/input start, intersects the pointer ray with a camera-facing plane through the drag axis to get a signed distance, applies the min-size clamp and optional grid snap, and emits the resulting dimension field + value + position.
+- `apps/web/app/room/[id]/_client/extrude-utils.ts` — New. Pure geometry: `buildWorldGeometry` (box/cylinder/mesh → world-space `BufferGeometry`), `weldByPosition` (position-only `mergeVertices` so non-indexed boolean soup and split-vertex primitives gain shared-edge adjacency), `selectCoplanarFaceGroup` (flood-fill the connected coplanar triangles at the hit point and find the boundary edge loop), `extrudeFaceGroup` (offset the face vertices and add bridging side-wall quads), and `finalizeExtruded` (flat-shade via `toNonIndexed` + `computeVertexNormals`, then re-center with `computeCentroid`). `previewGeometry` produces the live drag preview.
 
-- `apps/web/app/room/[id]/_client/hooks/use-room-editor.ts` — `handleExtrudeFaceSelect` stores the picked face; `handleExtrude` applies the live overlay (`setLiveDimension`/`setLivePosition`) and, on release/commit, persists via the existing `updateObjectDimensions`/`updateObjectPosition` mutations. `clearExtrudeState` discards an uncommitted preview and clears the face on tool switch / deselect / Esc. Keyboard shortcut `E` enters extrude mode when a box or cylinder is selected. Drag locking reuses the existing `handleDragStart`/`handleDragEnd`.
+- `apps/web/app/components/extrude-overlay.tsx` — Rewritten. Builds the welded base + resolved face group once per pick (memoized), renders the flat-shaded preview mesh + edges + rim highlight, the draggable arrow, and the `<Html>` distance input. Drag math intersects the pointer ray with a camera-facing plane through the extrusion axis, projects onto the outward normal, clamps `≥ 0`, and snap-rounds when enabled; commits `finalizeExtruded(extrudeFaceGroup(...))` to `onExtrudeCommit`.
 
-- `apps/web/app/room/[id]/_client/room-store.ts` — Adds `extrudeFace` and `isExtrudeDragging` state with setters. `resetEditorState` clears both. The dragging flag suspends `OrbitControls` so the camera doesn't rotate while pulling the arrow.
+- `apps/web/app/room/[id]/_client/hooks/use-room-editor.ts` — `handleExtrudeFaceSelect` stores the picked face; `handleExtrudeCommit` locks the original, places the new mesh, then deletes the original and selects the result (keeping the extrude tool active) — mirroring `handleBooleanApply`. `E` shortcut now also covers meshes.
 
-- `apps/web/app/room/[id]/_client/types.ts` — `ToolType` gains `"extrude"`; new `ExtrudeFace` interface (`{ axis: "x"|"y"|"z"; side: "min"|"max" }`).
+- `apps/web/app/room/[id]/_client/room-store.ts` — `extrudeFace` (now a `{ normal, point }` plane descriptor) and `isExtrudeDragging` state; both cleared in `resetEditorState`. The dragging flag suspends `OrbitControls`.
 
-- `apps/web/app/components/menu.tsx` — Adds the **Extrude** button to `objectOperationItems`, enabled only when the selected object is a box or cylinder.
+- `apps/web/app/room/[id]/_client/types.ts` — `ToolType` gains `"extrude"`; `ExtrudeFace` is `{ normal: {x,y,z}; point: {x,y,z} }` (world-space hit plane, works for any object).
 
-- `apps/web/app/components/placed-box-mesh.tsx` and `placed-cylinder-mesh.tsx` — `onClick` now forwards the R3F `ThreeEvent` so the scene can read the hit face normal.
+- `apps/web/app/components/menu.tsx` — **Extrude** button enabled for box, cylinder, and mesh selections.
 
-- `apps/web/app/room/[id]/_client/scene.tsx` — `pickFace` derives the clicked face from the raycast normal (rejecting cylinder side faces); a click on the selected object while the extrude tool is active picks a face instead of reselecting. Renders `ExtrudeOverlay` for the selected box/cylinder, and disables `OrbitControls` during an extrude drag.
+- `apps/web/app/components/placed-{box,cylinder,mesh}-mesh.tsx` — `onClick` forwards the R3F `ThreeEvent` so the scene can read the hit face normal/point.
+
+- `apps/web/app/room/[id]/_client/scene.tsx` — `pickFace` returns the world-space `{normal, point}` (rejecting cylinder side faces); clicking the selected object while extruding picks a face. The original object is hidden once a face is picked, the `ExtrudeOverlay` renders the preview, and `OrbitControls` is suspended during the drag.
 
 ---
 

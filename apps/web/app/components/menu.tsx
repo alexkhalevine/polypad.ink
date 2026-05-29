@@ -105,7 +105,10 @@ export const Menu = ({
   const booleanEnabled = !!selectedObjectId;
   const cloneEnabled = !!selectedObjectId;
   const extrudeEnabled =
-    !!selectedObjectId && (selectedObjectType === "box" || selectedObjectType === "cylinder");
+    !!selectedObjectId &&
+    (selectedObjectType === "box" ||
+      selectedObjectType === "cylinder" ||
+      selectedObjectType === "mesh");
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 

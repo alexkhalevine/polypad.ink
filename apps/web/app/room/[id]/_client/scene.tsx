@@ -21,6 +21,7 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { ExtrudeOverlay } from "@/app/components/extrude-overlay";
+import type { ExtrudeResult, ExtrudableType } from "./extrude-utils";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
 import { ExportHandler, PLACED_OBJECTS_GROUP } from "./export-handler";
@@ -56,28 +57,23 @@ interface SceneProps {
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
   onExtrudeFaceSelect: (face: ExtrudeFace) => void;
-  onExtrude: (
-    field: "width" | "height" | "depth",
-    value: number,
-    position: { x: number; y: number; z: number } | null,
-    persist: boolean,
-  ) => void;
+  onExtrudeCommit: (result: ExtrudeResult) => void;
 }
 
-// Derive which face was clicked from the raycast hit normal. Box/cylinder meshes are
-// axis-aligned and unrotated, so the local face normal maps directly to a world axis.
-// Cylinder side faces (radial normal) are not extrudable — only the y caps.
-function pickFace(e: ThreeEvent<MouseEvent>, type: "box" | "cylinder"): ExtrudeFace | null {
+// Resolve the picked face into a world-space plane descriptor (normal + a point on
+// it). Objects are unrotated, so the local hit normal equals the world normal.
+// Cylinder side faces (radial normal) are not extrudable — only the flat y caps.
+function pickFace(
+  e: ThreeEvent<MouseEvent>,
+  type: "box" | "cylinder" | "mesh",
+): ExtrudeFace | null {
   const n = e.face?.normal;
   if (!n) return null;
-  const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
-  if (type === "cylinder") {
-    if (ay > 0.9) return { axis: "y", side: n.y > 0 ? "max" : "min" };
-    return null;
-  }
-  if (ax >= ay && ax >= az) return { axis: "x", side: n.x > 0 ? "max" : "min" };
-  if (ay >= az) return { axis: "y", side: n.y > 0 ? "max" : "min" };
-  return { axis: "z", side: n.z > 0 ? "max" : "min" };
+  if (type === "cylinder" && Math.abs(n.y) <= 0.9) return null;
+  return {
+    normal: { x: n.x, y: n.y, z: n.z },
+    point: { x: e.point.x, y: e.point.y, z: e.point.z },
+  };
 }
 
 // ─── Align helper (groups arrow + preview so target lookup stays local) ────────
@@ -194,7 +190,7 @@ function SceneContent({
   onDragEnd,
   onDimensionCommit,
   onExtrudeFaceSelect,
-  onExtrude,
+  onExtrudeCommit,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -257,7 +253,7 @@ function SceneContent({
   // face instead of (re)selecting; otherwise fall back to normal selection.
   function handleObjectClick(
     objectId: string,
-    type: "box" | "cylinder",
+    type: ExtrudableType,
     e: ThreeEvent<MouseEvent>,
   ) {
     if (selectedTool === "extrude") {
@@ -268,6 +264,17 @@ function SceneContent({
     }
     tryLocalSelect(objectId);
   }
+
+  // Once a face is picked, the extrude overlay renders the (live) preview of the
+  // selected object, so the original is hidden to avoid z-fighting.
+  const extrudeActive =
+    selectedTool === "extrude" &&
+    !!extrudeFace &&
+    !!selectedObject &&
+    (selectedObjectType === "box" ||
+      selectedObjectType === "cylinder" ||
+      selectedObjectType === "mesh");
+  const hiddenForExtrude = extrudeActive ? selectedObjectId : null;
 
   const heightAnchorX =
     drawState.phase === "height"
@@ -361,21 +368,16 @@ function SceneContent({
           />
         )}
 
-      {selectedTool === "extrude" &&
-        selectedObject &&
-        (selectedObjectType === "box" || selectedObjectType === "cylinder") &&
-        extrudeFace && (
-          <ExtrudeOverlay
-            selectedObject={selectedObject as PlacedBox | PlacedCylinder}
-            selectedObjectType={selectedObjectType}
-            face={extrudeFace}
-            positionOverride={livePositions[selectedObject.id]}
-            snapEnabled={snapEnabled}
-            onExtrude={onExtrude}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
-        )}
+      {extrudeActive && selectedObject && extrudeFace && (
+        <ExtrudeOverlay
+          selectedObject={selectedObject as PlacedBox | PlacedCylinder | PlacedMesh}
+          selectedObjectType={selectedObjectType as ExtrudableType}
+          face={extrudeFace}
+          color={selectedObject.color}
+          snapEnabled={snapEnabled}
+          onExtrudeCommit={onExtrudeCommit}
+        />
+      )}
 
       <GroundPlane
         phase={drawState.phase}
@@ -399,7 +401,7 @@ function SceneContent({
       {selectedTool === "sphere" && <PreviewSphere drawState={drawState} />}
 
       <group name={PLACED_OBJECTS_GROUP}>
-        {placedBoxes.map((box) => (
+        {placedBoxes.map((box) => box.id === hiddenForExtrude ? null : (
           <PlacedBoxMesh
             key={box.id}
             box={box}
@@ -415,7 +417,7 @@ function SceneContent({
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}
-        {placedCylinders.map((cylinder) => (
+        {placedCylinders.map((cylinder) => cylinder.id === hiddenForExtrude ? null : (
           <PlacedCylinderMesh
             key={cylinder.id}
             cylinder={cylinder}
@@ -447,7 +449,7 @@ function SceneContent({
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}
-        {placedMeshes.map((mesh) => (
+        {placedMeshes.map((mesh) => mesh.id === hiddenForExtrude ? null : (
           <PlacedMeshComponent
             key={mesh.id}
             mesh={mesh}
@@ -458,7 +460,7 @@ function SceneContent({
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(mesh.id)}
             selectionInfo={getSelectionInfo(mesh.id)}
-            onClick={() => tryLocalSelect(mesh.id)}
+            onClick={(e) => handleObjectClick(mesh.id, "mesh", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(mesh.id); }}
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />

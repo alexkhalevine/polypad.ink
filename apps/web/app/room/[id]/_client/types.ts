@@ -3,9 +3,12 @@ import * as THREE from "three";
 export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone" | "extrude";
 export type AxisSide = "min" | "center" | "max" | null;
 
+// A picked face, described by its world-space normal and a point lying on it.
+// Works for any object (box/cylinder cap/arbitrary planar mesh face) because the
+// actual face triangles are resolved from the geometry at extrude time.
 export interface ExtrudeFace {
-  axis: "x" | "y" | "z";
-  side: "min" | "max";
+  normal: { x: number; y: number; z: number };
+  point: { x: number; y: number; z: number };
 }
 
 export type BooleanOperation =

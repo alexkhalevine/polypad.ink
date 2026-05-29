@@ -4,6 +4,7 @@ import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
 import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, ExtrudeFace } from "../types";
+import type { ExtrudeResult } from "../extrude-utils";
 import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
@@ -45,10 +46,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setBooleanOperation = useRoomStore((s) => s.setBooleanOperation);
   const setClonePreviewPosition = useRoomStore((s) => s.setClonePreviewPosition);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
-  const clearLivePosition = useRoomStore((s) => s.clearLivePosition);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
-  const clearLiveDimensions = useRoomStore((s) => s.clearLiveDimensions);
   const setExtrudeFace = useRoomStore((s) => s.setExtrudeFace);
   const addError = useErrorStore((s) => s.addError);
 
@@ -168,16 +167,11 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;
   const showObjectSelected = selectionMode === "select" && !!selectedObjectId;
 
-  // Discard any uncommitted live preview and clear the picked face. Used when the
-  // extrude tool is left (tool switch / deselect / Escape) so a half-finished drag
-  // doesn't linger as a preview that diverges from server state.
+  // Drop the picked face when the extrude tool is left (tool switch / deselect / Esc).
+  // The live preview is client-only (no server writes), so there is nothing to undo.
   const clearExtrudeState = useCallback(() => {
-    if (selectedObjectId) {
-      clearLiveDimensions(selectedObjectId);
-      clearLivePosition(selectedObjectId);
-    }
     setExtrudeFace(null);
-  }, [selectedObjectId, clearLiveDimensions, clearLivePosition, setExtrudeFace]);
+  }, [setExtrudeFace]);
 
   const handleToolSelect = useCallback(
     (tool: ToolType) => {
@@ -270,24 +264,56 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     [setExtrudeFace],
   );
 
-  // The overlay computes the resulting absolute dimension + position; we just apply
-  // the live overlay and (on release/commit) persist via the existing mutations.
-  const handleExtrude = useCallback(
-    (
-      field: "width" | "height" | "depth",
-      value: number,
-      position: { x: number; y: number; z: number } | null,
-      persist: boolean,
-    ) => {
-      if (!selectedObjectId) return;
-      setLiveDimension(selectedObjectId, field, value);
-      if (position) setLivePosition(selectedObjectId, position);
-      if (persist) {
-        updateObjectDimensions.mutate({ objectId: selectedObjectId, dimensions: { [field]: value } });
-        if (position) updateObjectPosition.mutate({ objectId: selectedObjectId, position });
+  // Real mesh extrude: the overlay produced new geometry. Persist it as a fresh
+  // mesh and delete the original — same place-then-delete pattern as boolean apply.
+  // The new mesh stays selected and the extrude tool stays active, so the user can
+  // immediately extrude another face and build up complex shapes.
+  const handleExtrudeCommit = useCallback(
+    async (result: ExtrudeResult) => {
+      if (!selectedObjectId || !selectedObject) return;
+      const originalId = selectedObjectId;
+      const color = selectedObject.color ?? null;
+
+      const lock = await requestLock(originalId);
+      if (!lock.ok) {
+        addError("Object is locked by another user — try again in a moment.");
+        return;
       }
+
+      const newId = crypto.randomUUID();
+      const wire = toWireMesh({
+        id: newId,
+        position: result.centroid,
+        positions: result.positions,
+        normals: result.normals,
+        indices: result.indices,
+        color,
+      });
+
+      placeObject.mutate(
+        { type: "mesh", data: wire },
+        {
+          onSuccess: () => {
+            deleteObjectMutation.mutate(originalId);
+            releaseLock(originalId);
+            setExtrudeFace(null);
+            setSelectedObjectId(newId);
+          },
+          onError: () => releaseLock(originalId),
+        },
+      );
     },
-    [selectedObjectId, setLiveDimension, setLivePosition, updateObjectDimensions, updateObjectPosition],
+    [
+      selectedObjectId,
+      selectedObject,
+      requestLock,
+      releaseLock,
+      placeObject,
+      deleteObjectMutation,
+      setExtrudeFace,
+      setSelectedObjectId,
+      addError,
+    ],
   );
 
   const handleDeleteObject = useCallback(() => {
@@ -583,7 +609,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if (
         (e.key === "e" || e.key === "E") &&
         selectedObjectId &&
-        (selectedObjectType === "box" || selectedObjectType === "cylinder")
+        (selectedObjectType === "box" ||
+          selectedObjectType === "cylinder" ||
+          selectedObjectType === "mesh")
       )
         setSelectedTool("extrude");
 
@@ -673,7 +701,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handlePositionCommit,
     handleDimensionCommit,
     handleExtrudeFaceSelect,
-    handleExtrude,
+    handleExtrudeCommit,
     handleDeleteObject,
     alignTargetId,
     handleAlignApply,
