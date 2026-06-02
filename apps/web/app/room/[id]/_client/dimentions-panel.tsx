@@ -52,7 +52,15 @@ function DimensionInput({
   );
 }
 
-export function DimentionsPanel({ selectedObject, selectedObjectType, onDimensionCommit}: any) {
+export function DimentionsPanel({
+  selectedObject,
+  selectedObjectType,
+  onDimensionCommit,
+}: {
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "mesh" | null;
+  onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
+}) {
   return (
     <>
       {selectedObjectType === "box" && (
