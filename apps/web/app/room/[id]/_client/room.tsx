@@ -163,6 +163,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             onDimensionCommit={editor.handleDimensionCommit}
             onExtrudeFaceSelect={editor.handleExtrudeFaceSelect}
             onExtrudeCommit={editor.handleExtrudeCommit}
+            onFaceSelect={editor.handleFaceSelect}
           />
         </div>
         {contextMenu && (

@@ -21,6 +21,7 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { ExtrudeOverlay } from "@/app/components/extrude-overlay";
+import { FaceHighlightOverlay } from "@/app/components/face-highlight-overlay";
 import type { ExtrudeResult, ExtrudableType } from "./extrude-utils";
 import { useRoomStore } from "./room-store";
 import { RemoteCursors } from "./remote-cursors";
@@ -58,6 +59,7 @@ interface SceneProps {
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
   onExtrudeFaceSelect: (face: ExtrudeFace) => void;
   onExtrudeCommit: (result: ExtrudeResult) => void;
+  onFaceSelect: (face: ExtrudeFace) => void;
 }
 
 // Resolve the picked face into a world-space plane descriptor (normal + a point on
@@ -191,6 +193,7 @@ function SceneContent({
   onDimensionCommit,
   onExtrudeFaceSelect,
   onExtrudeCommit,
+  onFaceSelect,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -211,6 +214,7 @@ function SceneContent({
   const clonePreviewPosition = useRoomStore((s) => s.clonePreviewPosition);
   const extrudeFace = useRoomStore((s) => s.extrudeFace);
   const isExtrudeDragging = useRoomStore((s) => s.isExtrudeDragging);
+  const selectedFace = useRoomStore((s) => s.selectedFace);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -260,6 +264,12 @@ function SceneContent({
       if (objectId !== selectedObjectId) return;
       const f = pickFace(e, type);
       if (f) onExtrudeFaceSelect(f);
+      return;
+    }
+    if (selectedTool === "face") {
+      if (objectId !== selectedObjectId) return;
+      const f = pickFace(e, type);
+      if (f) onFaceSelect(f);
       return;
     }
     tryLocalSelect(objectId);
@@ -379,6 +389,13 @@ function SceneContent({
         />
       )}
 
+      {selectedTool === "face" &&
+        selectedObjectType === "mesh" &&
+        selectedObject &&
+        selectedFace?.objectId === selectedObject.id && (
+          <FaceHighlightOverlay mesh={selectedObject as PlacedMesh} face={selectedFace} />
+        )}
+
       <GroundPlane
         phase={drawState.phase}
         toolActive={selectedTool !== null}
@@ -455,14 +472,14 @@ function SceneContent({
             mesh={mesh}
             positionOverride={livePositions[mesh.id]}
             color={mesh.color}
-            isSelected={mesh.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "boolean") && mesh.id === hoveredObjectId}
+            isSelected={selectedTool === "face" ? selectedFace?.objectId === mesh.id : mesh.id === selectedObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") && mesh.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(mesh.id)}
             selectionInfo={getSelectionInfo(mesh.id)}
             onClick={(e) => handleObjectClick(mesh.id, "mesh", e)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(mesh.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") setHoveredObjectId(mesh.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") setHoveredObjectId(null); }}
           />
         ))}
       </group>

@@ -60,6 +60,10 @@ interface RoomStore {
   setExtrudeFace: (face: ExtrudeFace | null) => void;
   setExtrudeDragging: (v: boolean) => void;
 
+  // Face-select tool — the currently selected face of a mesh (visual highlight).
+  selectedFace: { objectId: string } & ExtrudeFace | null;
+  setSelectedFace: (face: ({ objectId: string } & ExtrudeFace) | null) => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -105,6 +109,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
       clonePreviewPosition: null,
       extrudeFace: null,
       isExtrudeDragging: false,
+      selectedFace: null,
     }),
 
   livePositions: {},
@@ -153,6 +158,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
   isExtrudeDragging: false,
   setExtrudeFace: (face) => set({ extrudeFace: face }),
   setExtrudeDragging: (v) => set({ isExtrudeDragging: v }),
+
+  selectedFace: null,
+  setSelectedFace: (face) => set({ selectedFace: face }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

@@ -49,6 +49,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
   const setExtrudeFace = useRoomStore((s) => s.setExtrudeFace);
+  const setSelectedFace = useRoomStore((s) => s.setSelectedFace);
   const addError = useErrorStore((s) => s.addError);
 
   const objectLocks = useRoomStore((s) => s.objectLocks);
@@ -167,11 +168,20 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const showSelectHelp = selectionMode === "select" && !selectedObjectId;
   const showObjectSelected = selectionMode === "select" && !!selectedObjectId;
 
-  // Drop the picked face when the extrude tool is left (tool switch / deselect / Esc).
-  // The live preview is client-only (no server writes), so there is nothing to undo.
+  // Drop the picked extrude face and selected face when a sub-tool is left (tool
+  // switch / deselect / Esc). These are client-only visual state, nothing to undo.
   const clearExtrudeState = useCallback(() => {
     setExtrudeFace(null);
-  }, [setExtrudeFace]);
+    setSelectedFace(null);
+  }, [setExtrudeFace, setSelectedFace]);
+
+  const handleFaceSelect = useCallback(
+    (face: ExtrudeFace) => {
+      if (!selectedObjectId) return;
+      setSelectedFace({ objectId: selectedObjectId, ...face });
+    },
+    [selectedObjectId, setSelectedFace],
+  );
 
   const handleToolSelect = useCallback(
     (tool: ToolType) => {
@@ -617,6 +627,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
           selectedObjectType === "mesh")
       )
         setSelectedTool("extrude");
+      if ((e.key === "f" || e.key === "F") && selectedObjectId && selectedObjectType === "mesh")
+        setSelectedTool("face");
 
       if (selectedTool === "align") {
         if (e.key === "Enter") {
@@ -705,6 +717,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleDimensionCommit,
     handleExtrudeFaceSelect,
     handleExtrudeCommit,
+    handleFaceSelect,
     handleDeleteObject,
     alignTargetId,
     handleAlignApply,

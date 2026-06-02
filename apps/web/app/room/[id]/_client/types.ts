@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone" | "extrude";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone" | "extrude" | "face";
 export type AxisSide = "min" | "center" | "max" | null;
 
 // A picked face, described by its world-space normal and a point lying on it.

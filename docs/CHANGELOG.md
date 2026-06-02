@@ -1,3 +1,23 @@
+# added Face selection tool for meshes
+
+### commit hash:
+### date: 02.06.26
+
+### description
+
+Adds a dedicated **Face** tool for selecting individual faces of a mesh (visual highlight; a foundation for future per-face operations). The button is enabled only when a mesh is selected (and via the `F` shortcut). While active: **hovering** the mesh highlights its edges; **clicking** a face highlights the edges *and* fills that face translucently. Edges are dim when idle so hover reads clearly. Whole-object selection (move/delete/color) is unaffected.
+
+Reuses the extrude face-resolution stack — `pickFace` turns the raycast hit into a `{normal, point}`, and `selectCoplanarFaceGroup` flood-fills the connected coplanar triangles so a whole face (e.g. a box side or a cap) highlights, not a single triangle.
+
+- `apps/web/app/components/face-highlight-overlay.tsx` — New. Welds the mesh, resolves the clicked face's triangle group, and renders a translucent fill (`faceGeometryFromGroup`, `polygonOffset` to avoid z-fighting).
+- `apps/web/app/room/[id]/_client/extrude-utils.ts` — New `faceGeometryFromGroup(base, group)` helper.
+- `apps/web/app/room/[id]/_client/room-store.ts` + `types.ts` — `"face"` tool; `selectedFace` state (`{ objectId } & {normal,point}`), cleared in `resetEditorState`.
+- `apps/web/app/components/menu.tsx` — **Face** button, enabled for mesh selections.
+- `apps/web/app/room/[id]/_client/hooks/use-room-editor.ts` — `handleFaceSelect`; clears face state on tool switch / deselect / Esc; `F` shortcut.
+- `apps/web/app/room/[id]/_client/scene.tsx` — face-pick on click of the selected mesh; mesh hover/selected edge-highlight conditions include the Face tool; renders `FaceHighlightOverlay`.
+
+---
+
 # persist mesh edges so extrude shows construction edges (Blender-style)
 
 ### commit hash:
