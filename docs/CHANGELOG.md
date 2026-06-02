@@ -1,3 +1,26 @@
+# persist mesh edges so extrude shows construction edges (Blender-style)
+
+### commit hash:
+### date: 02.06.26
+
+### description
+
+Follow-up to the extrude tool. Pulling a flat face straight out produces side walls that are **coplanar** with the existing sides, so Three.js `EdgesGeometry` (feature edges only) hid the original face's rim loop — the "extrude seam" Blender keeps visible. That seam can't be recovered from triangle soup, so meshes now **carry an explicit polygon-edge list** that is generated at extrude time and persisted. Also: the dimensions panel now shows a **read-only bounding box (W×H×D)** for mesh objects (previously blank, since meshes have no parametric dimensions).
+
+- `apps/server/src/db.ts`, `src/schema.ts`, `src/services/roomService.ts`, `src/openapi/schemas.ts` — new nullable `edges` column / `WireMesh.edges` field (base64 Float32Array of line-segment endpoints). `db.ts` adds the column to the `CREATE TABLE` and an idempotent `ALTER TABLE … ADD COLUMN edges` migration for existing dev DBs. Spec + web client regenerated (`generate:spec` / `generate:api`).
+
+- `apps/web/app/room/[id]/_client/extrude-utils.ts` — `featureEdges` (clean edges of a primitive via `EdgesGeometry`), `buildExtrudeEdges` (transforms the source edges and adds the rim loop at the original position + wall verticals — the construction edges), and `finalizeExtruded` now also re-centers and returns the edge buffer. `ExtrudeResult` gains `edges`. Repeated extrudes accumulate by reading the source mesh's stored edges.
+
+- `apps/web/app/components/placed-mesh.tsx` — renders `mesh.edges` as `LineSegments` when present; falls back to `EdgesGeometry` otherwise (boolean results / pre-edge meshes).
+
+- `apps/web/app/components/extrude-overlay.tsx`, `hooks/use-room-editor.ts` — overlay computes the edge buffer on commit; `handleExtrudeCommit` persists it. Boolean results pass `edges: null`; clone copies the source's edges.
+
+- `apps/web/…/types.ts`, `queries/wire-types.ts`, `queries/wire-converters.ts` — `PlacedMesh.edges` / wire encode-decode (base64, null-safe).
+
+- `apps/web/app/components/dimentions-panel.tsx` + `csg-utils.ts` — `computeBoundingSize` helper and a read-only W×H×D branch for meshes (new `readOnly` flag on `DimensionInput`).
+
+---
+
 # added extrude face tool (real mesh extrude — box, cylinder & mesh)
 
 ### commit hash:

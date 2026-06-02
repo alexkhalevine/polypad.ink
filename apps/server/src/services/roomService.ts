@@ -92,6 +92,7 @@ function rowToWire(row: ObjectRow): WireObject {
           positions: row.positions ?? "",
           normals: row.normals ?? "",
           indices: row.indices ?? null,
+          edges: row.edges ?? null,
           color: row.color ?? null,
         },
       };
@@ -155,6 +156,7 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         positions: d.positions,
         normals: d.normals,
         indices: d.indices ?? null,
+        edges: d.edges ?? null,
       };
     }
   }

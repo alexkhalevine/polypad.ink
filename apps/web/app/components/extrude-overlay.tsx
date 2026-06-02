@@ -13,6 +13,8 @@ import {
   previewGeometry,
   extrudeFaceGroup,
   finalizeExtruded,
+  featureEdges,
+  buildExtrudeEdges,
   type ExtrudableType,
   type ExtrudeResult,
 } from "@/app/room/[id]/_client/extrude-utils";
@@ -51,7 +53,22 @@ export function ExtrudeOverlay({
     const base = weldByPosition(world);
     const group = selectCoplanarFaceGroup(base, face.normal, face.point);
     const normal = group.normal.clone();
-    return { base, group, normal, center0: group.centroid.clone() };
+    // Source edges to carry into the result. A mesh already carries its polygon
+    // edges (worldize by its centroid offset); primitives derive feature edges.
+    let sourceEdges: Float32Array;
+    if (selectedObjectType === "mesh" && (selectedObject as PlacedMesh).edges?.length) {
+      const m = selectedObject as PlacedMesh;
+      const src = m.edges as Float32Array;
+      sourceEdges = new Float32Array(src.length);
+      for (let i = 0; i < src.length; i += 3) {
+        sourceEdges[i] = src[i] + m.position.x;
+        sourceEdges[i + 1] = src[i + 1] + m.position.y;
+        sourceEdges[i + 2] = src[i + 2] + m.position.z;
+      }
+    } else {
+      sourceEdges = featureEdges(base);
+    }
+    return { base, group, normal, sourceEdges, center0: group.centroid.clone() };
   }, [selectedObject, selectedObjectType, face]);
 
   const [distance, setDistance] = useState(0);
@@ -123,7 +140,14 @@ export function ExtrudeOverlay({
       return; // no-op; keep the face picked so the user can try again
     }
     const world = extrudeFaceGroup(session.base, session.group, session.normal, d);
-    onExtrudeCommit(finalizeExtruded(world));
+    const worldEdges = buildExtrudeEdges(
+      session.base,
+      session.group,
+      session.normal,
+      d,
+      session.sourceEdges,
+    );
+    onExtrudeCommit(finalizeExtruded(world, worldEdges));
     setDistance(0);
   }
 

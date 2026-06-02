@@ -65,6 +65,10 @@ export const WireMeshSchema = registry.register(
       .string()
       .nullable()
       .openapi({ description: "Base64-encoded Uint32Array of face indices, or null for non-indexed geometry" }),
+    edges: z
+      .string()
+      .nullable()
+      .openapi({ description: "Base64-encoded Float32Array of polygon-edge segment endpoints, or null" }),
     color: z.string().nullable(),
   }),
 );

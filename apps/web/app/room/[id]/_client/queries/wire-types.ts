@@ -38,6 +38,7 @@ export interface WireMesh {
   positions: string;        // base64(Float32Array.buffer)
   normals: string;          // base64(Float32Array.buffer)
   indices: string | null;   // base64(Uint32Array.buffer) or null
+  edges: string | null;     // base64(Float32Array.buffer) of polygon-edge segment endpoints, or null
   color: string | null;
 }
 

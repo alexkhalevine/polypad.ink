@@ -57,10 +57,19 @@ export function PlacedMeshComponent({
       >
         <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
       </mesh>
-      <lineSegments>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      {mesh.edges && mesh.edges.length > 0 ? (
+        <lineSegments>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[mesh.edges, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color={edgeColor} />
+        </lineSegments>
+      ) : (
+        <lineSegments>
+          <edgesGeometry args={[geo]} />
+          <lineBasicMaterial color={edgeColor} />
+        </lineSegments>
+      )}
       {lockInfo && (
         <Html position={[0, labelY, 0]} center pointerEvents="none">
           <div

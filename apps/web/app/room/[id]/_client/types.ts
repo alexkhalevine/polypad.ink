@@ -73,6 +73,10 @@ export interface PlacedMesh {
   positions: Float32Array;
   normals: Float32Array;
   indices: Uint32Array | null;
+  // Polygon-edge segment endpoints ([ax,ay,az, bx,by,bz, …]) centered like `positions`.
+  // Rendered as LineSegments so flat construction edges (e.g. an extrude seam) stay
+  // visible; null falls back to THREE.EdgesGeometry (feature edges only).
+  edges: Float32Array | null;
   color: string | null;
 }
 

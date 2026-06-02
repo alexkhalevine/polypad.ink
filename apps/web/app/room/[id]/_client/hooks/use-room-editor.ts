@@ -287,6 +287,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         positions: result.positions,
         normals: result.normals,
         indices: result.indices,
+        edges: result.edges,
         color,
       });
 
@@ -466,6 +467,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       positions: result.positions,
       normals: result.normals,
       indices: result.indices,
+      edges: null,
       color: selectedObject.color ?? null,
     });
 
@@ -564,6 +566,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
             positions: src.positions,
             normals: src.normals,
             indices: src.indices,
+            edges: src.edges,
             color: src.color,
           }),
         });

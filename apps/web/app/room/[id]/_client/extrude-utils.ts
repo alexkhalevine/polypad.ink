@@ -23,6 +23,7 @@ export interface ExtrudeResult {
   positions: Float32Array; // centered at centroid
   normals: Float32Array;
   indices: Uint32Array | null;
+  edges: Float32Array | null; // polygon-edge segments, centered at centroid
   centroid: THREE.Vector3;
 }
 
@@ -251,9 +252,85 @@ export function extrudeFaceGroup(
   return g;
 }
 
-// ─── 5. Flat-shade + re-center for persistence ──────────────────────────────────
+// ─── 5. Polygon-edge tracking (Blender-style construction edges) ────────────────
 
-export function finalizeExtruded(worldGeo: THREE.BufferGeometry): ExtrudeResult {
+const KEY_PRECISION = 1e4;
+const keyOf = (x: number, y: number, z: number) =>
+  `${Math.round(x * KEY_PRECISION)}_${Math.round(y * KEY_PRECISION)}_${Math.round(z * KEY_PRECISION)}`;
+
+// Feature edges (sharp dihedral + boundary) of a geometry, as a flat segment buffer.
+// Used as the source edge set for the first extrude of a primitive.
+export function featureEdges(geo: THREE.BufferGeometry): Float32Array {
+  const eg = new THREE.EdgesGeometry(geo, 1);
+  const pos = eg.getAttribute("position");
+  return new Float32Array(pos.array as ArrayLike<number>);
+}
+
+// Build the result's polygon-edge set (world space) by transforming the source edges
+// and adding the construction edges the extrude creates. Unlike EdgesGeometry, this
+// keeps the original face rim loop (the flat "seam"), so it stays visible.
+export function buildExtrudeEdges(
+  base: THREE.BufferGeometry,
+  group: FaceGroup,
+  normal: { x: number; y: number; z: number },
+  distance: number,
+  sourceEdges: Float32Array,
+): Float32Array {
+  const basePos = base.getAttribute("position");
+  const n = new THREE.Vector3(normal.x, normal.y, normal.z).normalize();
+  const off = n.clone().multiplyScalar(distance);
+
+  // Positions of the moving face's vertices, so we can tell which source-edge
+  // endpoints ride along with the face.
+  const movedKeys = new Set<string>();
+  const v = new THREE.Vector3();
+  for (const vi of group.vertexIndices) {
+    v.fromBufferAttribute(basePos, vi);
+    movedKeys.add(keyOf(v.x, v.y, v.z));
+  }
+
+  const out: number[] = [];
+  // 1. Source edges, with endpoints on the moving face translated by the offset.
+  for (let i = 0; i + 5 < sourceEdges.length; i += 6) {
+    const ax = sourceEdges[i], ay = sourceEdges[i + 1], az = sourceEdges[i + 2];
+    const bx = sourceEdges[i + 3], by = sourceEdges[i + 4], bz = sourceEdges[i + 5];
+    const am = movedKeys.has(keyOf(ax, ay, az));
+    const bm = movedKeys.has(keyOf(bx, by, bz));
+    out.push(
+      ax + (am ? off.x : 0), ay + (am ? off.y : 0), az + (am ? off.z : 0),
+      bx + (bm ? off.x : 0), by + (bm ? off.y : 0), bz + (bm ? off.z : 0),
+    );
+  }
+
+  // 2. Rim loop at the ORIGINAL position — the extrude seam EdgesGeometry would hide.
+  const va = new THREE.Vector3();
+  const vb = new THREE.Vector3();
+  for (const [a, b] of group.boundaryLoop) {
+    va.fromBufferAttribute(basePos, a);
+    vb.fromBufferAttribute(basePos, b);
+    out.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
+  }
+
+  // 3. Wall verticals at each boundary vertex (original → offset).
+  const boundaryVerts = new Set<number>();
+  for (const [a, b] of group.boundaryLoop) {
+    boundaryVerts.add(a);
+    boundaryVerts.add(b);
+  }
+  for (const vi of boundaryVerts) {
+    va.fromBufferAttribute(basePos, vi);
+    out.push(va.x, va.y, va.z, va.x + off.x, va.y + off.y, va.z + off.z);
+  }
+
+  return new Float32Array(out);
+}
+
+// ─── 6. Flat-shade + re-center for persistence ──────────────────────────────────
+
+export function finalizeExtruded(
+  worldGeo: THREE.BufferGeometry,
+  worldEdges?: Float32Array | null,
+): ExtrudeResult {
   const flat = worldGeo.toNonIndexed();
   flat.computeVertexNormals();
   const posAttr = flat.getAttribute("position");
@@ -267,7 +344,18 @@ export function finalizeExtruded(worldGeo: THREE.BufferGeometry): ExtrudeResult 
     positions[i + 1] = worldPositions[i + 1] - centroid.y;
     positions[i + 2] = worldPositions[i + 2] - centroid.z;
   }
-  return { positions, normals, indices: null, centroid };
+
+  let edges: Float32Array | null = null;
+  if (worldEdges && worldEdges.length > 0) {
+    edges = new Float32Array(worldEdges.length);
+    for (let i = 0; i < worldEdges.length; i += 3) {
+      edges[i] = worldEdges[i] - centroid.x;
+      edges[i + 1] = worldEdges[i + 1] - centroid.y;
+      edges[i + 2] = worldEdges[i + 2] - centroid.z;
+    }
+  }
+
+  return { positions, normals, indices: null, edges, centroid };
 }
 
 // Convenience for the preview: produce a flat-shaded, renderable world geometry for
