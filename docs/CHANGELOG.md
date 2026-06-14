@@ -1,3 +1,26 @@
+# added Playwright E2E testing + agent browser verification
+
+### commit hash: a35cabc44a17c0f100fb1ed3aff1c549ba55aa7f
+### date: 14.06.26
+
+### description
+
+Adds a Playwright E2E suite for the web app and wires up the tooling so Claude Code can drive a real browser to verify features during development, alongside the automated suite.
+
+`playwright.config.ts` auto-starts both `apps/web` (port 3000) and `apps/server` (port 4000) via `webServer` and tears them down after each run; the server readiness probe hits `/openapi.json` since `GET /rooms` isn't a defined route (only `POST /rooms` is) and would 404 forever. Two spec files cover the room creation flow — bypassing hCaptcha via the `hcaptcha_token` cookie, since server-side verification is already skipped outside production — and 3D editor basics: canvas renders, the primitive toolbar is visible, and drawing a box (a 3-click footprint → height flow across the ground plane and height-capture plane) triggers the `POST /rooms/:id/objects` call. Visiting `/room/[id]` requires the `?invite=<inviteCode>` query param returned from room creation, or the page 404s.
+
+For agent-driven verification, `.claude/settings.json` enables the Playwright MCP for this project, and the `playwright-cli` skill (installed machine-wide via `npm i -g @playwright/cli && playwright-cli install --skills`, registered as a Claude Code plugin) gives Claude a snapshot-based interactive browser CLI — separate from and complementary to the automated suite.
+
+- `apps/web/playwright.config.ts` — New. Chromium project; `webServer` array starts the web app and server, `baseURL: http://localhost:3000`.
+- `apps/web/e2e/room-creation.spec.ts` — New. Sets the `hcaptcha_token` cookie, fills the `/room/setup` form, asserts redirect to `/room/:id` and canvas visibility.
+- `apps/web/e2e/editor-basics.spec.ts` — New. Creates rooms via `POST /rooms`, navigates with the returned `inviteCode`, and tests canvas visibility, toolbar rendering, and the 3-click box-draw flow with a `waitForRequest` assertion on the place-object call.
+- `apps/web/app/components/menu.tsx` — `data-testid="tool-{box,cylinder,sphere}"` on the primitive tool buttons so E2E tests can target them.
+- `apps/web/package.json` — `@playwright/test` devDep; `test:e2e`, `test:e2e:ui`, `test:e2e:headed` scripts.
+- `.claude/settings.json` — New. Registers the Playwright MCP server for this project.
+- `README.md` — New "E2E tests (Playwright)" and "Agent-driven browser verification" sections.
+
+---
+
 # added Face selection tool for meshes
 
 ### commit hash:
