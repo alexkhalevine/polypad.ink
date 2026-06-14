@@ -68,3 +68,4 @@ temp/
 *.seed
 .deployment
 redeploy.sh
+apps/web/test-results/.last-run.json
