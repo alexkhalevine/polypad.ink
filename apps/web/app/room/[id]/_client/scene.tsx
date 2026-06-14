@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -215,6 +215,14 @@ function SceneContent({
   const extrudeFace = useRoomStore((s) => s.extrudeFace);
   const isExtrudeDragging = useRoomStore((s) => s.isExtrudeDragging);
   const selectedFace = useRoomStore((s) => s.selectedFace);
+  const faceSelectEnabled = useRoomStore((s) => s.faceSelectEnabled);
+  const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
+
+  // Face-select hover preview: the coplanar face under the cursor on the selected
+  // object. Updated only when the hovered *plane* changes (see handleFaceHover) so
+  // moving within one face doesn't re-render every mesh.
+  const [hoveredFace, setHoveredFace] = useState<ExtrudeFace | null>(null);
+  const lastFaceRef = useRef<ExtrudeFace | null>(null);
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -272,7 +280,48 @@ function SceneContent({
       if (f) onFaceSelect(f);
       return;
     }
+    // Face-select mode: clicking a face on the selected object picks it and drops
+    // straight into the extrude tool so the arrow appears in one gesture. Only when
+    // no other operation tool is consuming the click (selectedTool null here, since
+    // the extrude case returned above).
+    if (faceSelectEnabled && objectId === selectedObjectId && selectedTool === null) {
+      const f = pickFace(e, type);
+      if (f) {
+        onExtrudeFaceSelect(f);
+        setSelectedTool("extrude");
+        return;
+      }
+    }
     tryLocalSelect(objectId);
+  }
+
+  // Two picked faces are "the same" when they lie on the same plane (parallel
+  // normals + equal signed distance). Used to throttle hover updates to face
+  // crossings rather than every pointer move.
+  function samePlane(a: ExtrudeFace, b: ExtrudeFace): boolean {
+    if (a.normal.x * b.normal.x + a.normal.y * b.normal.y + a.normal.z * b.normal.z < 0.999)
+      return false;
+    const da = a.normal.x * a.point.x + a.normal.y * a.point.y + a.normal.z * a.point.z;
+    const db = b.normal.x * b.point.x + b.normal.y * b.point.y + b.normal.z * b.point.z;
+    return Math.abs(da - db) < 1e-3;
+  }
+
+  function handleFaceHover(e: ThreeEvent<MouseEvent>, type: ExtrudableType) {
+    const f = pickFace(e, type);
+    if (!f) {
+      clearHoveredFace();
+      return;
+    }
+    const last = lastFaceRef.current;
+    if (last && samePlane(last, f)) return;
+    lastFaceRef.current = f;
+    setHoveredFace(f);
+  }
+
+  function clearHoveredFace() {
+    if (lastFaceRef.current === null && hoveredFace === null) return;
+    lastFaceRef.current = null;
+    setHoveredFace(null);
   }
 
   // Once a face is picked, the extrude overlay renders the (live) preview of the
@@ -285,6 +334,24 @@ function SceneContent({
       selectedObjectType === "cylinder" ||
       selectedObjectType === "mesh");
   const hiddenForExtrude = extrudeActive ? selectedObjectId : null;
+
+  // Focus mode: once an object is selected, fade out and disable every *other*
+  // object so the user works on the selection in isolation (until they deselect
+  // with Esc). Suspended for align/boolean, which need other objects as targets.
+  const focusMode =
+    !!selectedObjectId && selectedTool !== "align" && selectedTool !== "boolean";
+
+  // Face-select hover highlight is shown only on the selected (extrudable) object,
+  // never while the extrude arrow/drag is up (the object is hidden then), and only
+  // when no click-consuming operation tool (align/boolean/move/clone) is active.
+  const faceSelectActive =
+    faceSelectEnabled &&
+    !!selectedObject &&
+    (selectedObjectType === "box" ||
+      selectedObjectType === "cylinder" ||
+      selectedObjectType === "mesh") &&
+    !extrudeActive &&
+    (selectedTool === null || selectedTool === "extrude");
 
   const heightAnchorX =
     drawState.phase === "height"
@@ -393,8 +460,20 @@ function SceneContent({
         selectedObjectType === "mesh" &&
         selectedObject &&
         selectedFace?.objectId === selectedObject.id && (
-          <FaceHighlightOverlay mesh={selectedObject as PlacedMesh} face={selectedFace} />
+          <FaceHighlightOverlay
+            selectedObject={selectedObject as PlacedMesh}
+            selectedObjectType="mesh"
+            face={selectedFace}
+          />
         )}
+
+      {faceSelectActive && selectedObject && hoveredFace && (
+        <FaceHighlightOverlay
+          selectedObject={selectedObject as PlacedBox | PlacedCylinder | PlacedMesh}
+          selectedObjectType={selectedObjectType as ExtrudableType}
+          face={hoveredFace}
+        />
+      )}
 
       <GroundPlane
         phase={drawState.phase}
@@ -427,11 +506,13 @@ function SceneContent({
             isSelected={box.id === selectedObjectId}
             isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && box.id === hoveredObjectId}
             wireframe={wireframeEnabled}
+            dimmed={focusMode && box.id !== selectedObjectId}
             lockInfo={getLockInfo(box.id)}
             selectionInfo={getSelectionInfo(box.id)}
             onClick={(e) => handleObjectClick(box.id, "box", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); clearHoveredFace(); }}
+            onPointerMove={faceSelectActive && box.id === selectedObjectId ? (e) => handleFaceHover(e, "box") : undefined}
           />
         ))}
         {placedCylinders.map((cylinder) => cylinder.id === hiddenForExtrude ? null : (
@@ -443,11 +524,13 @@ function SceneContent({
             isSelected={cylinder.id === selectedObjectId}
             isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && cylinder.id === hoveredObjectId}
             wireframe={wireframeEnabled}
+            dimmed={focusMode && cylinder.id !== selectedObjectId}
             lockInfo={getLockInfo(cylinder.id)}
             selectionInfo={getSelectionInfo(cylinder.id)}
             onClick={(e) => handleObjectClick(cylinder.id, "cylinder", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cylinder.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); clearHoveredFace(); }}
+            onPointerMove={faceSelectActive && cylinder.id === selectedObjectId ? (e) => handleFaceHover(e, "cylinder") : undefined}
           />
         ))}
         {placedSpheres.map((sphere) => (
@@ -459,6 +542,7 @@ function SceneContent({
             isSelected={sphere.id === selectedObjectId}
             isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && sphere.id === hoveredObjectId}
             wireframe={wireframeEnabled}
+            dimmed={focusMode && sphere.id !== selectedObjectId}
             lockInfo={getLockInfo(sphere.id)}
             selectionInfo={getSelectionInfo(sphere.id)}
             onClick={() => tryLocalSelect(sphere.id)}
@@ -475,11 +559,13 @@ function SceneContent({
             isSelected={selectedTool === "face" ? selectedFace?.objectId === mesh.id : mesh.id === selectedObjectId}
             isHovered={(selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") && mesh.id === hoveredObjectId}
             wireframe={wireframeEnabled}
+            dimmed={focusMode && mesh.id !== selectedObjectId}
             lockInfo={getLockInfo(mesh.id)}
             selectionInfo={getSelectionInfo(mesh.id)}
             onClick={(e) => handleObjectClick(mesh.id, "mesh", e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") setHoveredObjectId(mesh.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") setHoveredObjectId(null); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean" || selectedTool === "face") setHoveredObjectId(null); clearHoveredFace(); }}
+            onPointerMove={faceSelectActive && mesh.id === selectedObjectId ? (e) => handleFaceHover(e, "mesh") : undefined}
           />
         ))}
       </group>

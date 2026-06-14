@@ -4,7 +4,7 @@ import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireMesh } from "./w
 import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
 import { getRoomsIdObjects } from "@/src/api/generated/endpoints/objects/objects";
 
-interface RoomObjects {
+export interface RoomObjects {
   boxes: PlacedBox[];
   cylinders: PlacedCylinder[];
   spheres: PlacedSphere[];

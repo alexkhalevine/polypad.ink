@@ -93,6 +93,7 @@ export const Menu = ({
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
   const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
+  const faceSelectEnabled = useRoomStore((s) => s.faceSelectEnabled);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const livePositions = useRoomStore((s) => s.livePositions);
@@ -100,6 +101,7 @@ export const Menu = ({
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
   const toggleSnap = useRoomStore((s) => s.toggleSnap);
   const toggleWireframe = useRoomStore((s) => s.toggleWireframe);
+  const toggleFaceSelect = useRoomStore((s) => s.toggleFaceSelect);
 
   const moveEnabled = !!selectedObjectId;
   const alignEnabled = !!selectedObjectId;
@@ -236,6 +238,20 @@ export const Menu = ({
             className="toggle"
           />
         </div>
+        {extrudeEnabled && (
+          <div
+            id="face-select-mode"
+            className="flex items-center gap-2 justify-between"
+          >
+            <span>face select</span>
+            <input
+              type="checkbox"
+              checked={faceSelectEnabled}
+              onChange={toggleFaceSelect}
+              className="toggle"
+            />
+          </div>
+        )}
         <div
           id="color-picker"
           className="flex items-center gap-2 justify-between"

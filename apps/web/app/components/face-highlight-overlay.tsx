@@ -1,45 +1,78 @@
 "use client";
 
 import { useMemo } from "react";
-import type { PlacedMesh, ExtrudeFace } from "@/app/room/[id]/_client/types";
+import * as THREE from "three";
+import type { PlacedBox, PlacedCylinder, PlacedMesh, ExtrudeFace } from "@/app/room/[id]/_client/types";
 import {
   buildWorldGeometry,
   weldByPosition,
   selectCoplanarFaceGroup,
-  faceGeometryFromGroup,
+  faceGroupFillGeometry,
+  type ExtrudableType,
 } from "@/app/room/[id]/_client/extrude-utils";
 
-const FILL_COLOR = "#22d3ee";
+const COLOR = "#22d3ee";
 
 interface FaceHighlightOverlayProps {
-  mesh: PlacedMesh;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedMesh;
+  selectedObjectType: ExtrudableType;
   face: ExtrudeFace;
 }
 
-// Translucent fill over the coplanar face the user clicked. The geometry is built in
-// world space (buildWorldGeometry already bakes mesh.position in), so it renders at
-// the origin and lines up with the placed mesh.
-export function FaceHighlightOverlay({ mesh, face }: FaceHighlightOverlayProps) {
-  const fillGeo = useMemo(() => {
-    const base = weldByPosition(buildWorldGeometry(mesh, "mesh"));
+// Translucent fill + rim painted over the coplanar face under the cursor, so the
+// user can see which face the extrude pick will land on before clicking. All
+// geometry is world-space, rendered at the scene root like the extrude overlay.
+export function FaceHighlightOverlay({
+  selectedObject,
+  selectedObjectType,
+  face,
+}: FaceHighlightOverlayProps) {
+  // Welded base — once per object; the hovered face just re-resolves the group.
+  const base = useMemo(
+    () => weldByPosition(buildWorldGeometry(selectedObject, selectedObjectType)),
+    [selectedObject, selectedObjectType],
+  );
+
+  const { fill, rim } = useMemo(() => {
     const group = selectCoplanarFaceGroup(base, face.normal, face.point);
-    return faceGeometryFromGroup(base, group);
-    // mesh identity changes when geometry changes; face changes per click.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mesh, face]);
+    if (group.triIndices.length === 0) return { fill: null, rim: new Float32Array(0) };
+    const fill = faceGroupFillGeometry(base, group);
+    const pos = base.getAttribute("position");
+    const seg: number[] = [];
+    const v = new THREE.Vector3();
+    for (const [a, b] of group.boundaryLoop) {
+      v.fromBufferAttribute(pos, a);
+      seg.push(v.x, v.y, v.z);
+      v.fromBufferAttribute(pos, b);
+      seg.push(v.x, v.y, v.z);
+    }
+    return { fill, rim: new Float32Array(seg) };
+  }, [base, face]);
+
+  if (!fill) return null;
 
   return (
-    <mesh geometry={fillGeo}>
-      <meshBasicMaterial
-        color={FILL_COLOR}
-        transparent
-        opacity={0.35}
-        side={2 /* THREE.DoubleSide */}
-        depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-1}
-        polygonOffsetUnits={-1}
-      />
-    </mesh>
+    <>
+      <mesh geometry={fill}>
+        <meshBasicMaterial
+          color={COLOR}
+          transparent
+          opacity={0.3}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
+        />
+      </mesh>
+      {rim.length > 0 && (
+        <lineSegments>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[rim, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color={COLOR} depthTest={false} transparent />
+        </lineSegments>
+      )}
+    </>
   );
 }

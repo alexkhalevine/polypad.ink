@@ -198,26 +198,28 @@ export function selectCoplanarFaceGroup(
   return { triIndices, boundaryLoop, vertexIndices, centroid, normal: n };
 }
 
-// Build a (non-indexed) geometry of just a face group's triangles — used to render
-// a translucent fill over a selected face.
-export function faceGeometryFromGroup(
-  geo: THREE.BufferGeometry,
+// Renderable fill for a face group: a flat-shaded, non-indexed geometry containing
+// just the group's triangles (positions pulled from the welded base). Used to paint
+// a translucent highlight over the hovered face.
+export function faceGroupFillGeometry(
+  base: THREE.BufferGeometry,
   group: FaceGroup,
 ): THREE.BufferGeometry {
-  const srcPos = geo.getAttribute("position");
-  const srcIdx = geo.getIndex();
-  if (!srcIdx) throw new Error("faceGeometryFromGroup requires an indexed geometry");
-  const ai = srcIdx.array;
-  const out: number[] = [];
+  const index = base.getIndex();
+  const pos = base.getAttribute("position");
+  if (!index) throw new Error("faceGroupFillGeometry requires an indexed geometry");
+  const idx = index.array;
+  const positions: number[] = [];
   const v = new THREE.Vector3();
   for (const t of group.triIndices) {
     for (let k = 0; k < 3; k++) {
-      v.fromBufferAttribute(srcPos, ai[t * 3 + k]);
-      out.push(v.x, v.y, v.z);
+      v.fromBufferAttribute(pos, idx[t * 3 + k]);
+      positions.push(v.x, v.y, v.z);
     }
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+  g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  g.computeVertexNormals();
   return g;
 }
 

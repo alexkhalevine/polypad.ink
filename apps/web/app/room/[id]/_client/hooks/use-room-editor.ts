@@ -5,7 +5,10 @@ import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
 import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, ExtrudeFace } from "../types";
 import type { ExtrudeResult } from "../extrude-utils";
-import { useRoomObjects } from "../queries/use-room-objects";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRoomObjects, type RoomObjects } from "../queries/use-room-objects";
+import { roomKeys } from "../queries/query-keys";
+import { fromWireMesh } from "../queries/wire-converters";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
 import { useUpdateObjectPosition } from "../queries/use-update-object-position";
@@ -55,6 +58,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const localUserId = useRoomStore((s) => s.localUserId);
 
+  const queryClient = useQueryClient();
   const { data: serverObjects, isError: isObjectsError } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
@@ -276,8 +280,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
   // Real mesh extrude: the overlay produced new geometry. Persist it as a fresh
   // mesh and delete the original — same place-then-delete pattern as boolean apply.
-  // The new mesh stays selected and the extrude tool stays active, so the user can
-  // immediately extrude another face and build up complex shapes.
+  // The new mesh stays selected but we exit the extrude tool so it behaves like a
+  // normal selection again (clicks select/move rather than re-picking a face). With
+  // face-select on, clicking a face still chains another extrude.
   const handleExtrudeCommit = useCallback(
     async (result: ExtrudeResult) => {
       if (!selectedObjectId || !selectedObject) return;
@@ -304,11 +309,36 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       placeObject.mutate(
         { type: "mesh", data: wire },
         {
-          onSuccess: () => {
+          onSuccess: (res) => {
+            // The server assigns its own id (see withServerId) and returns it.
+            const serverId = res.status === 201 ? res.data.id : null;
+            // Reconcile the object cache deterministically: drop the original and
+            // insert the result. Unlike box/cylinder/sphere placement (which has an
+            // optimistic bridge via the draw hooks), the extrude swap otherwise
+            // relies purely on socket/refetch ordering, which can race and leave the
+            // original lingering or the result missing/mis-shown until a reload.
+            if (serverId) {
+              queryClient.setQueryData<RoomObjects>(roomKeys.objects(roomId), (prev) => {
+                if (!prev) return prev;
+                const meshes = prev.meshes.filter(
+                  (m) => m.id !== originalId && m.id !== serverId,
+                );
+                meshes.push(fromWireMesh({ ...wire, id: serverId }));
+                return {
+                  boxes: prev.boxes.filter((b) => b.id !== originalId),
+                  cylinders: prev.cylinders.filter((c) => c.id !== originalId),
+                  spheres: prev.spheres.filter((s) => s.id !== originalId),
+                  meshes,
+                };
+              });
+            }
             deleteObjectMutation.mutate(originalId);
             releaseLock(originalId);
             setExtrudeFace(null);
-            setSelectedObjectId(newId);
+            setSelectedTool(null);
+            // Select the server id — selecting the client-generated id would match
+            // no rendered object, leaving the result dimmed by focus mode until Esc.
+            setSelectedObjectId(serverId);
           },
           onError: () => releaseLock(originalId),
         },
@@ -322,8 +352,11 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       placeObject,
       deleteObjectMutation,
       setExtrudeFace,
+      setSelectedTool,
       setSelectedObjectId,
       addError,
+      queryClient,
+      roomId,
     ],
   );
 
@@ -601,13 +634,30 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (document.activeElement as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Only suppress shortcuts while a *text-entry* field is focused (typing would
+      // otherwise trigger them). Checkbox/toggle inputs keep focus after a click but
+      // must not swallow Escape or other shortcuts.
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      const inputType = tag === "INPUT" ? (el as HTMLInputElement).type : "";
+      const isTextEntry =
+        tag === "TEXTAREA" ||
+        (tag === "INPUT" &&
+          inputType !== "checkbox" &&
+          inputType !== "radio" &&
+          inputType !== "range" &&
+          inputType !== "color");
+      if (isTextEntry) return;
 
       if (e.key === "Escape") {
+        const wasSelecting = selectionMode === "select";
         cancelAll();
         clearExtrudeState();
         resetEditorState();
+        // resetEditorState drops back to "draw" mode; if the user was selecting,
+        // keep them in select mode so they can immediately pick another object
+        // (others are un-selectable only until the current one is deselected).
+        if (wasSelecting) setSelectionMode("select");
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedObjectId) {
         e.preventDefault();
@@ -654,7 +704,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, clearExtrudeState, resetEditorState, selectedObjectId, selectedObjectType, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
+  }, [cancelAll, clearExtrudeState, resetEditorState, selectionMode, setSelectionMode, selectedObjectId, selectedObjectType, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
 
   useEffect(() => {
     if (isObjectsError) {
