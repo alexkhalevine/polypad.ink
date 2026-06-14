@@ -299,14 +299,35 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         { type: "mesh", data: wire },
         {
           onSuccess: (res) => {
+            // The server assigns its own id (see withServerId) and returns it.
+            const serverId = res.status === 201 ? res.data.id : null;
+            // Reconcile the object cache deterministically: drop the original and
+            // insert the result. Unlike box/cylinder/sphere placement (which has an
+            // optimistic bridge via the draw hooks), the extrude swap otherwise
+            // relies purely on socket/refetch ordering, which can race and leave the
+            // original lingering or the result missing/mis-shown until a reload.
+            if (serverId) {
+              queryClient.setQueryData<RoomObjects>(roomKeys.objects(roomId), (prev) => {
+                if (!prev) return prev;
+                const meshes = prev.meshes.filter(
+                  (m) => m.id !== originalId && m.id !== serverId,
+                );
+                meshes.push(fromWireMesh({ ...wire, id: serverId }));
+                return {
+                  boxes: prev.boxes.filter((b) => b.id !== originalId),
+                  cylinders: prev.cylinders.filter((c) => c.id !== originalId),
+                  spheres: prev.spheres.filter((s) => s.id !== originalId),
+                  meshes,
+                };
+              });
+            }
             deleteObjectMutation.mutate(originalId);
             releaseLock(originalId);
             setExtrudeFace(null);
             setSelectedTool(null);
-            // The server assigns its own id (see withServerId) and returns it, so
-            // select THAT — selecting the client-generated id would match no
-            // rendered object, leaving the result dimmed by focus mode until Esc.
-            setSelectedObjectId(res.status === 201 ? res.data.id : null);
+            // Select the server id — selecting the client-generated id would match
+            // no rendered object, leaving the result dimmed by focus mode until Esc.
+            setSelectedObjectId(serverId);
           },
           onError: () => releaseLock(originalId),
         },
@@ -323,6 +344,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setSelectedTool,
       setSelectedObjectId,
       addError,
+      queryClient,
+      roomId,
     ],
   );
 
