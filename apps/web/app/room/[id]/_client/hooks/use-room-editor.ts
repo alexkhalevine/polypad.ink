@@ -57,6 +57,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const localUserId = useRoomStore((s) => s.localUserId);
 
+  const queryClient = useQueryClient();
   const { data: serverObjects, isError: isObjectsError } = useRoomObjects(roomId);
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
