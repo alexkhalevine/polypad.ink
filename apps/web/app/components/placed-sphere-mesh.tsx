@@ -13,6 +13,7 @@ interface PlacedSphereMeshProps {
   isSelected?: boolean;
   isHovered?: boolean;
   wireframe?: boolean;
+  dimmed?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
   onClick?: () => void;
@@ -21,8 +22,11 @@ interface PlacedSphereMeshProps {
 }
 
 const DEFAULT_COLOR = "#2f74c0";
+const DIM_OPACITY = 0.15;
+// Skip raycasting so dimmed objects can't be hovered/clicked and clicks pass through.
+const NO_RAYCAST: THREE.Object3D["raycast"] = () => {};
 
-export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
+export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, isHovered, wireframe, dimmed, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
   const geo = useMemo(
     () => new THREE.SphereGeometry(sphere.radius, 32, 16),
     [sphere.radius]
@@ -36,12 +40,12 @@ export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, 
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[0, sphere.radius, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+      <mesh geometry={geo} position={[0, sphere.radius, 0]} raycast={dimmed ? NO_RAYCAST : undefined} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </mesh>
-      <lineSegments position={[0, sphere.radius, 0]}>
+      <lineSegments position={[0, sphere.radius, 0]} raycast={NO_RAYCAST}>
         <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
+        <lineBasicMaterial color={edgeColor} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </lineSegments>
       {lockInfo && (
         <Html position={[0, sphere.radius * 2 + 0.5, 0]} center pointerEvents="none">

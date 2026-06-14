@@ -266,8 +266,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
   // Real mesh extrude: the overlay produced new geometry. Persist it as a fresh
   // mesh and delete the original — same place-then-delete pattern as boolean apply.
-  // The new mesh stays selected and the extrude tool stays active, so the user can
-  // immediately extrude another face and build up complex shapes.
+  // The new mesh stays selected but we exit the extrude tool so it behaves like a
+  // normal selection again (clicks select/move rather than re-picking a face). With
+  // face-select on, clicking a face still chains another extrude.
   const handleExtrudeCommit = useCallback(
     async (result: ExtrudeResult) => {
       if (!selectedObjectId || !selectedObject) return;
@@ -293,11 +294,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       placeObject.mutate(
         { type: "mesh", data: wire },
         {
-          onSuccess: () => {
+          onSuccess: (res) => {
             deleteObjectMutation.mutate(originalId);
             releaseLock(originalId);
             setExtrudeFace(null);
-            setSelectedObjectId(newId);
+            setSelectedTool(null);
+            // The server assigns its own id (see withServerId) and returns it, so
+            // select THAT — selecting the client-generated id would match no
+            // rendered object, leaving the result dimmed by focus mode until Esc.
+            setSelectedObjectId(res.status === 201 ? res.data.id : null);
           },
           onError: () => releaseLock(originalId),
         },
@@ -311,6 +316,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       placeObject,
       deleteObjectMutation,
       setExtrudeFace,
+      setSelectedTool,
       setSelectedObjectId,
       addError,
     ],
@@ -588,13 +594,30 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (document.activeElement as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Only suppress shortcuts while a *text-entry* field is focused (typing would
+      // otherwise trigger them). Checkbox/toggle inputs keep focus after a click but
+      // must not swallow Escape or other shortcuts.
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      const inputType = tag === "INPUT" ? (el as HTMLInputElement).type : "";
+      const isTextEntry =
+        tag === "TEXTAREA" ||
+        (tag === "INPUT" &&
+          inputType !== "checkbox" &&
+          inputType !== "radio" &&
+          inputType !== "range" &&
+          inputType !== "color");
+      if (isTextEntry) return;
 
       if (e.key === "Escape") {
+        const wasSelecting = selectionMode === "select";
         cancelAll();
         clearExtrudeState();
         resetEditorState();
+        // resetEditorState drops back to "draw" mode; if the user was selecting,
+        // keep them in select mode so they can immediately pick another object
+        // (others are un-selectable only until the current one is deselected).
+        if (wasSelecting) setSelectionMode("select");
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedObjectId) {
         e.preventDefault();
@@ -639,7 +662,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, clearExtrudeState, resetEditorState, selectedObjectId, selectedObjectType, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
+  }, [cancelAll, clearExtrudeState, resetEditorState, selectionMode, setSelectionMode, selectedObjectId, selectedObjectType, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
 
   useEffect(() => {
     if (isObjectsError) {

@@ -197,6 +197,31 @@ export function selectCoplanarFaceGroup(
   return { triIndices, boundaryLoop, vertexIndices, centroid, normal: n };
 }
 
+// Renderable fill for a face group: a flat-shaded, non-indexed geometry containing
+// just the group's triangles (positions pulled from the welded base). Used to paint
+// a translucent highlight over the hovered face.
+export function faceGroupFillGeometry(
+  base: THREE.BufferGeometry,
+  group: FaceGroup,
+): THREE.BufferGeometry {
+  const index = base.getIndex();
+  const pos = base.getAttribute("position");
+  if (!index) throw new Error("faceGroupFillGeometry requires an indexed geometry");
+  const idx = index.array;
+  const positions: number[] = [];
+  const v = new THREE.Vector3();
+  for (const t of group.triIndices) {
+    for (let k = 0; k < 3; k++) {
+      v.fromBufferAttribute(pos, idx[t * 3 + k]);
+      positions.push(v.x, v.y, v.z);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 // ─── 4. Extrude: move the face along the normal, bridge the boundary ────────────
 
 export function extrudeFaceGroup(
