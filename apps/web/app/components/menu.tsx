@@ -180,6 +180,7 @@ export const Menu = ({
           {primitiveObjectMenuItems.map((item) => (
             <div
               key={item.name}
+              data-testid={`tool-${item.name}`}
               onClick={() => onToolSelect(item.name)}
               className={`btn text-blue-100 ${
                 selectedTool === item.name

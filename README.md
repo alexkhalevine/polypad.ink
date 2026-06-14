@@ -98,9 +98,41 @@ All Zod schemas live in `apps/server/src/openapi/schemas.ts` and are the single 
 
 ## Running tests
 
+Unit tests (Vitest):
+
 ```sh
 pnpm --filter web test
 ```
+
+### E2E tests (Playwright)
+
+E2E tests live in `apps/web/e2e/` and cover the room creation flow and 3D editor basics.
+
+**First-time setup** — install the Chromium browser binary:
+
+```sh
+pnpm --filter web exec playwright install chromium
+```
+
+Run all E2E tests (automatically starts web + server, no need to run `make dev` separately):
+
+```sh
+pnpm --filter web test:e2e
+```
+
+Open the Playwright UI for interactive debugging and trace inspection:
+
+```sh
+pnpm --filter web test:e2e:ui
+```
+
+Run headed (watch the browser):
+
+```sh
+pnpm --filter web test:e2e:headed
+```
+
+The `webServer` config in `apps/web/playwright.config.ts` starts both the Next.js app (port 3000) and the Express server (port 4000) before tests run and tears them down after. On repeated local runs it reuses already-running servers automatically.
 
 ## Using with Claude (MCP)
 
@@ -199,6 +231,47 @@ The inspector lets you pick a tool, fill in arguments, and see the raw JSON-RPC 
 
 Expected response for `create_box`: `{"ok":true,"id":"<uuid>","type":"box","room_id":"demo"}`.
 Open `http://localhost:3000/room/demo` — the red box should appear within ~2 seconds.
+
+## Agent-driven browser verification (Claude Code + Playwright CLI)
+
+When working in this repo, Claude Code can open a live browser, navigate the app, and verify features by itself — separately from the automated E2E test suite.
+
+This is powered by two things that are already configured in the repo:
+
+- **`.claude/settings.json`** — enables the Playwright MCP server for this project, giving Claude browser tools (`browser_navigate`, `browser_click`, `browser_screenshot`, etc.)
+- **`playwright-cli` skill** — a richer interactive CLI that Claude can use to drive a browser, inspect page snapshots, intercept network requests, record traces, and more
+
+### Install playwright-cli (one-time, per machine)
+
+```sh
+npm install -g @playwright/cli
+playwright-cli install --skills
+```
+
+The `--skills` step installs structured reference docs that teach Claude how to use `playwright-cli` effectively. After running it, **restart Claude Code** to pick up the new skill.
+
+Verify the CLI is available:
+
+```sh
+playwright-cli --version
+```
+
+### How it works
+
+Once installed, Claude can:
+
+```
+playwright-cli open http://localhost:3000   # open a browser
+playwright-cli snapshot                    # inspect the page (no screenshot needed)
+playwright-cli click e5                    # interact via element refs from the snapshot
+playwright-cli cookie-set hcaptcha_token test  # set cookies to bypass gates
+playwright-cli requests                    # inspect network calls
+playwright-cli close
+```
+
+You can ask Claude things like _"open the app and verify the box draw tool works"_ and it will drive the browser, make observations, and report back — without running the full test suite.
+
+The automated `test:e2e` suite and the agent-driven `playwright-cli` session are complementary: the test suite is for CI and regression coverage, the CLI session is for exploratory verification during development.
 
 ## Few project details:
 
