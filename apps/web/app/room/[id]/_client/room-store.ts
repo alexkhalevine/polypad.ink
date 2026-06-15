@@ -87,7 +87,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   selectedColor: "#000000",
   snapEnabled: false,
   wireframeEnabled: false,
-  faceSelectEnabled: false,
+  faceSelectEnabled: true,
   selectionMode: "draw",
   selectedObjectId: null,
   hoveredObjectId: null,
@@ -114,7 +114,6 @@ export const useRoomStore = create<RoomStore>((set) => ({
       extrudeFace: null,
       isExtrudeDragging: false,
       selectedFace: null,
-      faceSelectEnabled: false,
     }),
 
   livePositions: {},

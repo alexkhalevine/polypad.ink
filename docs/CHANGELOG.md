@@ -1,3 +1,24 @@
+# extruded meshes are re-extrudable by default (face-click)
+
+### commit hash:
+### date: 15.06.26
+
+### description
+
+Fixes the report that an extruded object's "new geometry cannot be edited." The geometry pipeline already supported re-extruding a mesh — `pickFace`, `selectCoplanarFaceGroup`, `extrudeFaceGroup`, and `ExtrudeOverlay` all handle `type === "mesh"`, and `weldByPosition` re-indexes the non-indexed, re-centered result so the indexed precondition of `selectCoplanarFaceGroup` always holds. The blocker was **interaction gating**, not geometry.
+
+After an extrude commits, `handleExtrudeCommit` clears the active tool, and the only path that turns a plain face-click (no tool armed) into an extrude was gated behind the **"face select" toggle**, which defaulted `false` and was force-reset to `false` on every Esc/deselect. So clicking a face of the resulting mesh fell through to plain re-selection — visibly nothing — and the new faces looked uneditable.
+
+`faceSelectEnabled` now **defaults `true`** and is **no longer cleared by `resetEditorState`**, so the "select an object → click a face → extrude" flow is live out of the box and persists across selections and chained extrudes. The two-click safety is unchanged (the click branch still requires `objectId === selectedObjectId`, so a first click only selects). The menu checkbox stays as an explicit opt-out.
+
+- `apps/web/app/room/[id]/_client/room-store.ts` — `faceSelectEnabled` initial value `true`; removed the `faceSelectEnabled: false` line from `resetEditorState` so the preference survives Esc/deselect and chained commits.
+- `apps/web/app/components/extrude-overlay.tsx` — `data-testid="extrude-distance-input"` on the numeric distance input so E2E can assert the extrude is armed.
+- `apps/web/app/room/[id]/_client/tests/reextrude.test.ts` — New. Unit-tests the store defaults (default-on, preserved across reset, opt-out persists) and the previously-unverified re-extrude geometry path: box → extrude top → re-extrude the resulting mesh's top, a side face, and a 3× chained extrude all produce valid, non-degenerate geometry.
+- `apps/web/e2e/reextrude.spec.ts` — New. Drives the browser end-to-end: draw box → select → click face arms the extrude (distance input appears) → commit → click a face of the resulting mesh → input appears again → second commit (`POST /rooms/:id/objects` with `type: "mesh"`).
+- `apps/web/vitest.config.ts` — Exclude `e2e/**` from the vitest run; Playwright specs throw under the vitest runner and must only run via `playwright test`.
+
+---
+
 # added Playwright E2E testing + agent browser verification
 
 ### commit hash: a35cabc44a17c0f100fb1ed3aff1c549ba55aa7f

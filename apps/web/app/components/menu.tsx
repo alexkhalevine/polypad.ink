@@ -244,7 +244,7 @@ export const Menu = ({
             id="face-select-mode"
             className="flex items-center gap-2 justify-between"
           >
-            <span>face select</span>
+            <span>click face to extrude</span>
             <input
               type="checkbox"
               checked={faceSelectEnabled}

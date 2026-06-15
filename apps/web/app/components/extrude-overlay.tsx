@@ -222,6 +222,7 @@ function ExtrudeInput({ value, onCommit }: { value: number; onCommit: (v: number
     <div style={wrapperStyle} onPointerDown={(e) => e.stopPropagation()}>
       <span style={labelStyle}>↥</span>
       <input
+        data-testid="extrude-distance-input"
         type="number"
         step="0.1"
         min="0"
