@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { PlacedBox } from "@/app/room/[id]/_client/types";
 import { RemoteSelectionOutline } from "./remote-selection-outline";
 
@@ -13,16 +14,21 @@ interface PlacedBoxMeshProps {
   isSelected?: boolean;
   isHovered?: boolean;
   wireframe?: boolean;
+  dimmed?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
-  onClick?: () => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onPointerMove?: (e: ThreeEvent<MouseEvent>) => void;
 }
 
 const DEFAULT_COLOR = "#2f74c0";
+const DIM_OPACITY = 0.15;
+// Skip raycasting so dimmed objects can't be hovered/clicked and clicks pass through.
+const NO_RAYCAST: THREE.Object3D["raycast"] = () => {};
 
-export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
+export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHovered, wireframe, dimmed, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave, onPointerMove }: PlacedBoxMeshProps) {
   const geo = useMemo(
     () => new THREE.BoxGeometry(box.width, box.height, box.depth),
     [box.width, box.height, box.depth]
@@ -40,12 +46,12 @@ export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHove
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[hw, hh, hd]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+      <mesh geometry={geo} position={[hw, hh, hd]} raycast={dimmed ? NO_RAYCAST : undefined} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave} onPointerMove={onPointerMove}>
+        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </mesh>
-      <lineSegments position={[hw, hh, hd]}>
+      <lineSegments position={[hw, hh, hd]} raycast={NO_RAYCAST}>
         <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
+        <lineBasicMaterial color={edgeColor} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </lineSegments>
       {lockInfo && (
         <Html position={[hw, box.height + 0.5, hd]} center pointerEvents="none">

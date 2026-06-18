@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation } from "./types";
+import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation, ExtrudeFace } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -7,6 +7,7 @@ interface RoomStore {
   selectedColor: string;
   snapEnabled: boolean;
   wireframeEnabled: boolean;
+  faceSelectEnabled: boolean;
   selectionMode: "draw" | "select";
   selectedObjectId: string | null;
   hoveredObjectId: string | null;
@@ -14,6 +15,7 @@ interface RoomStore {
   setSelectedColor: (color: string) => void;
   toggleSnap: () => void;
   toggleWireframe: () => void;
+  toggleFaceSelect: () => void;
   setSelectionMode: (mode: "draw" | "select") => void;
   setSelectedObjectId: (id: string | null) => void;
   setHoveredObjectId: (id: string | null) => void;
@@ -53,6 +55,17 @@ interface RoomStore {
   clonePreviewPosition: { x: number; y: number; z: number } | null;
   setClonePreviewPosition: (pos: { x: number; y: number; z: number } | null) => void;
 
+  // Extrude tool state — the picked face, and a flag that's true while the arrow
+  // is being dragged (used to suspend OrbitControls so the camera doesn't rotate).
+  extrudeFace: ExtrudeFace | null;
+  isExtrudeDragging: boolean;
+  setExtrudeFace: (face: ExtrudeFace | null) => void;
+  setExtrudeDragging: (v: boolean) => void;
+
+  // Face-select tool — the currently selected face of a mesh (visual highlight).
+  selectedFace: { objectId: string } & ExtrudeFace | null;
+  setSelectedFace: (face: ({ objectId: string } & ExtrudeFace) | null) => void;
+
   // STL export trigger — set true to request export from inside the Canvas
   exportRequested: boolean;
   setExportRequested: (v: boolean) => void;
@@ -74,6 +87,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   selectedColor: "#000000",
   snapEnabled: false,
   wireframeEnabled: false,
+  faceSelectEnabled: true,
   selectionMode: "draw",
   selectedObjectId: null,
   hoveredObjectId: null,
@@ -81,6 +95,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   setSelectedColor: (color) => set({ selectedColor: color }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   toggleWireframe: () => set((s) => ({ wireframeEnabled: !s.wireframeEnabled })),
+  toggleFaceSelect: () => set((s) => ({ faceSelectEnabled: !s.faceSelectEnabled })),
   setSelectionMode: (mode) => set({ selectionMode: mode }),
   setSelectedObjectId: (id) => set({ selectedObjectId: id }),
   setHoveredObjectId: (id) => set({ hoveredObjectId: id }),
@@ -96,6 +111,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
       booleanTargetId: null,
       booleanOperation: "ADDITION",
       clonePreviewPosition: null,
+      extrudeFace: null,
+      isExtrudeDragging: false,
+      selectedFace: null,
     }),
 
   livePositions: {},
@@ -139,6 +157,14 @@ export const useRoomStore = create<RoomStore>((set) => ({
 
   clonePreviewPosition: null,
   setClonePreviewPosition: (pos) => set({ clonePreviewPosition: pos }),
+
+  extrudeFace: null,
+  isExtrudeDragging: false,
+  setExtrudeFace: (face) => set({ extrudeFace: face }),
+  setExtrudeDragging: (v) => set({ isExtrudeDragging: v }),
+
+  selectedFace: null,
+  setSelectedFace: (face) => set({ selectedFace: face }),
 
   exportRequested: false,
   setExportRequested: (v) => set({ exportRequested: v }),

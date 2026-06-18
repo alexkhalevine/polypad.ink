@@ -14,6 +14,8 @@ const objectOperationItems: { name: string; label: string; icon: IconSrc }[] = [
   { name: "align", label: "Align", icon: moveIcon },
   { name: "boolean", label: "Boolean", icon: moveIcon },
   { name: "clone", label: "Clone", icon: moveIcon },
+  { name: "extrude", label: "Extrude", icon: moveIcon },
+  { name: "face", label: "Face", icon: moveIcon },
 ];
 
 type Axis = "x" | "y" | "z";
@@ -73,6 +75,7 @@ const primitiveObjectMenuItems: { name: ToolType; label: string; icon: IconSrc }
 
 export const Menu = ({
   currentColor,
+  selectedObjectType,
   onToolSelect,
   onSelectClick,
   onMouseUpColorPicked,
@@ -90,6 +93,7 @@ export const Menu = ({
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
   const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
+  const faceSelectEnabled = useRoomStore((s) => s.faceSelectEnabled);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const livePositions = useRoomStore((s) => s.livePositions);
@@ -97,11 +101,18 @@ export const Menu = ({
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
   const toggleSnap = useRoomStore((s) => s.toggleSnap);
   const toggleWireframe = useRoomStore((s) => s.toggleWireframe);
+  const toggleFaceSelect = useRoomStore((s) => s.toggleFaceSelect);
 
   const moveEnabled = !!selectedObjectId;
   const alignEnabled = !!selectedObjectId;
   const booleanEnabled = !!selectedObjectId;
   const cloneEnabled = !!selectedObjectId;
+  const extrudeEnabled =
+    !!selectedObjectId &&
+    (selectedObjectType === "box" ||
+      selectedObjectType === "cylinder" ||
+      selectedObjectType === "mesh");
+  const faceEnabled = !!selectedObjectId && selectedObjectType === "mesh";
   const colorPickerEnabled = !!selectedObjectId;
   const livePosition = selectedObjectId ? livePositions[selectedObjectId] ?? null : null;
 
@@ -133,7 +144,9 @@ export const Menu = ({
               (item.name === "move" && !moveEnabled) ||
               (item.name === "align" && !alignEnabled) ||
               (item.name === "boolean" && !booleanEnabled) ||
-              (item.name === "clone" && !cloneEnabled);
+              (item.name === "clone" && !cloneEnabled) ||
+              (item.name === "extrude" && !extrudeEnabled) ||
+              (item.name === "face" && !faceEnabled);
             return (
             <button
               key={item.name}
@@ -144,6 +157,8 @@ export const Menu = ({
                 if (item.name === "align" && alignEnabled) setSelectedTool("align");
                 if (item.name === "boolean" && booleanEnabled) setSelectedTool("boolean");
                 if (item.name === "clone" && cloneEnabled) setSelectedTool("clone");
+                if (item.name === "extrude" && extrudeEnabled) setSelectedTool("extrude");
+                if (item.name === "face" && faceEnabled) setSelectedTool("face");
               }}
               className={`btn text-blue-100 ${
                 selectedTool === item.name
@@ -165,6 +180,7 @@ export const Menu = ({
           {primitiveObjectMenuItems.map((item) => (
             <div
               key={item.name}
+              data-testid={`tool-${item.name}`}
               onClick={() => onToolSelect(item.name)}
               className={`btn text-blue-100 ${
                 selectedTool === item.name
@@ -223,6 +239,20 @@ export const Menu = ({
             className="toggle"
           />
         </div>
+        {extrudeEnabled && (
+          <div
+            id="face-select-mode"
+            className="flex items-center gap-2 justify-between"
+          >
+            <span>click face to extrude</span>
+            <input
+              type="checkbox"
+              checked={faceSelectEnabled}
+              onChange={toggleFaceSelect}
+              className="toggle"
+            />
+          </div>
+        )}
         <div
           id="color-picker"
           className="flex items-center gap-2 justify-between"

@@ -51,6 +51,7 @@ async function initDb() {
       positions  TEXT,
       normals    TEXT,
       indices    TEXT,
+      edges      TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -58,6 +59,7 @@ async function initDb() {
   `);
 
   migrateMeshSupport(sqlDb);
+  migrateMeshEdges(sqlDb);
 
   db = drizzle(sqlDb, { schema });
 
@@ -124,6 +126,16 @@ function migrateMeshSupport(s: SqlJsDatabase): void {
     s.run("ROLLBACK;");
     throw err;
   }
+}
+
+// Adds the nullable `edges` column (base64 polygon-edge buffer for meshes) to DBs
+// created before edge persistence. A nullable column add needs no table rebuild.
+function migrateMeshEdges(s: SqlJsDatabase): void {
+  const cols = s.exec(`PRAGMA table_info('geometryObjects')`);
+  const colNames = cols[0]?.values.map((row) => row[1] as string) ?? [];
+  if (colNames.includes("edges")) return;
+  s.run(`ALTER TABLE geometryObjects ADD COLUMN edges TEXT;`);
+  markDirty();
 }
 
 async function saveDb(): Promise<void> {

@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { PlacedMesh } from "@/app/room/[id]/_client/types";
 import { geometryFromPlacedMesh } from "@/app/room/[id]/_client/csg-utils";
 import { RemoteSelectionOutline } from "./remote-selection-outline";
@@ -14,14 +15,19 @@ interface PlacedMeshProps {
   isSelected?: boolean;
   isHovered?: boolean;
   wireframe?: boolean;
+  dimmed?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
-  onClick?: () => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onPointerMove?: (e: ThreeEvent<MouseEvent>) => void;
 }
 
 const DEFAULT_COLOR = "#2f74c0";
+const DIM_OPACITY = 0.15;
+// Skip raycasting so dimmed objects can't be hovered/clicked and clicks pass through.
+const NO_RAYCAST: THREE.Object3D["raycast"] = () => {};
 
 export function PlacedMeshComponent({
   mesh,
@@ -30,11 +36,13 @@ export function PlacedMeshComponent({
   isSelected,
   isHovered,
   wireframe,
+  dimmed,
   lockInfo,
   selectionInfo,
   onClick,
   onPointerEnter,
   onPointerLeave,
+  onPointerMove,
 }: PlacedMeshProps) {
   const geo = useMemo(() => geometryFromPlacedMesh(mesh), [mesh]);
 
@@ -51,16 +59,27 @@ export function PlacedMeshComponent({
     <group position={[x, y, z]}>
       <mesh
         geometry={geo}
+        raycast={dimmed ? NO_RAYCAST : undefined}
         onClick={onClick}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
+        onPointerMove={onPointerMove}
       >
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </mesh>
-      <lineSegments>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      {mesh.edges && mesh.edges.length > 0 ? (
+        <lineSegments raycast={NO_RAYCAST}>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[mesh.edges, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color={edgeColor} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
+        </lineSegments>
+      ) : (
+        <lineSegments raycast={NO_RAYCAST}>
+          <edgesGeometry args={[geo]} />
+          <lineBasicMaterial color={edgeColor} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
+        </lineSegments>
+      )}
       {lockInfo && (
         <Html position={[0, labelY, 0]} center pointerEvents="none">
           <div

@@ -143,6 +143,20 @@ export function computeCentroid(positions: Float32Array): THREE.Vector3 {
   return new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
 }
 
+// AABB extents (width/height/depth) of a position buffer. Used to show a read-only
+// size for non-parametric meshes.
+export function computeBoundingSize(positions: Float32Array): THREE.Vector3 {
+  if (positions.length === 0) return new THREE.Vector3();
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    minX = Math.min(minX, positions[i]);     maxX = Math.max(maxX, positions[i]);
+    minY = Math.min(minY, positions[i + 1]); maxY = Math.max(maxY, positions[i + 1]);
+    minZ = Math.min(minZ, positions[i + 2]); maxZ = Math.max(maxZ, positions[i + 2]);
+  }
+  return new THREE.Vector3(maxX - minX, maxY - minY, maxZ - minZ);
+}
+
 function subtractCentroid(positions: Float32Array, c: THREE.Vector3): Float32Array {
   const out = new Float32Array(positions.length);
   for (let i = 0; i < positions.length; i += 3) {

@@ -1,7 +1,15 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "align" | "boolean" | "clone" | "extrude" | "face";
 export type AxisSide = "min" | "center" | "max" | null;
+
+// A picked face, described by its world-space normal and a point lying on it.
+// Works for any object (box/cylinder cap/arbitrary planar mesh face) because the
+// actual face triangles are resolved from the geometry at extrude time.
+export interface ExtrudeFace {
+  normal: { x: number; y: number; z: number };
+  point: { x: number; y: number; z: number };
+}
 
 export type BooleanOperation =
   | "ADDITION"
@@ -65,6 +73,10 @@ export interface PlacedMesh {
   positions: Float32Array;
   normals: Float32Array;
   indices: Uint32Array | null;
+  // Polygon-edge segment endpoints ([ax,ay,az, bx,by,bz, …]) centered like `positions`.
+  // Rendered as LineSegments so flat construction edges (e.g. an extrude seam) stay
+  // visible; null falls back to THREE.EdgesGeometry (feature edges only).
+  edges: Float32Array | null;
   color: string | null;
 }
 

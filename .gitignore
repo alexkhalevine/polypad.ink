@@ -68,3 +68,6 @@ temp/
 *.seed
 .deployment
 redeploy.sh
+apps/web/test-results
+.playwright-cli
+playwright-report

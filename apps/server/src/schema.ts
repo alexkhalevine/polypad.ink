@@ -25,6 +25,7 @@ export const geometryObjects = sqliteTable(
     positions: text("positions"),
     normals: text("normals"),
     indices: text("indices"),
+    edges: text("edges"),
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (t) => [index("idx_objects_room").on(t.roomId, t.createdAt)]

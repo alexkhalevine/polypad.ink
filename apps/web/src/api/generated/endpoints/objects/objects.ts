@@ -39,6 +39,8 @@ import type {
 import { customFetch } from '../../../mutator/custom-fetch';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 export type getRoomsIdObjectsResponse200 = {
@@ -79,15 +81,15 @@ export const getRoomsIdObjects = async (id: string, options?: RequestInit): Prom
 
 
 export const getGetRoomsIdObjectsMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdObjects>>, TError,{id: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdObjects>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdObjects>>, TError,{id: string}, TContext> => {
 
 const mutationKey = ['getRoomsIdObjects'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
@@ -95,7 +97,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof getRoomsIdObjects>>, {id: string}> = (props) => {
           const {id} = props ?? {};
 
-          return  getRoomsIdObjects(id,)
+          return  getRoomsIdObjects(id,requestOptions)
         }
 
 
@@ -113,7 +115,7 @@ const {mutation: mutationOptions} = options ?
  * @summary List all geometry objects in a room
  */
 export const useGetRoomsIdObjects = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdObjects>>, TError,{id: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdObjects>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof getRoomsIdObjects>>,
         TError,
@@ -182,16 +184,16 @@ export const getPostRoomsIdObjectsQueryKey = (id: string,
 
 
 export const getPostRoomsIdObjectsQueryOptions = <TData = Awaited<ReturnType<typeof postRoomsIdObjects>>, TError = ErrorResponse>(id: string,
-    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, }
+    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPostRoomsIdObjectsQueryKey(id,wireObject);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRoomsIdObjects>>> = ({ signal }) => postRoomsIdObjects(id,wireObject, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRoomsIdObjects>>> = ({ signal }) => postRoomsIdObjects(id,wireObject, { signal, ...requestOptions });
 
 
 
@@ -212,7 +214,7 @@ export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoom
           TError,
           Awaited<ReturnType<typeof postRoomsIdObjects>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoomsIdObjects>>, TError = ErrorResponse>(
@@ -223,12 +225,12 @@ export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoom
           TError,
           Awaited<ReturnType<typeof postRoomsIdObjects>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoomsIdObjects>>, TError = ErrorResponse>(
  id: string,
-    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, }
+    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -237,7 +239,7 @@ export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoom
 
 export function usePostRoomsIdObjects<TData = Awaited<ReturnType<typeof postRoomsIdObjects>>, TError = ErrorResponse>(
  id: string,
-    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, }
+    wireObject: WireObject, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjects>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -313,16 +315,16 @@ export const getPostRoomsIdObjectsBatchQueryKey = (id: string,
 
 
 export const getPostRoomsIdObjectsBatchQueryOptions = <TData = Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError = ErrorResponse>(id: string,
-    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, }
+    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPostRoomsIdObjectsBatchQueryKey(id,batchCreateObjectBody);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>> = ({ signal }) => postRoomsIdObjectsBatch(id,batchCreateObjectBody, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>> = ({ signal }) => postRoomsIdObjectsBatch(id,batchCreateObjectBody, { signal, ...requestOptions });
 
 
 
@@ -343,7 +345,7 @@ export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof pos
           TError,
           Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError = ErrorResponse>(
@@ -354,12 +356,12 @@ export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof pos
           TError,
           Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError = ErrorResponse>(
  id: string,
-    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, }
+    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -368,7 +370,7 @@ export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof pos
 
 export function usePostRoomsIdObjectsBatch<TData = Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError = ErrorResponse>(
  id: string,
-    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, }
+    batchCreateObjectBody: BatchCreateObjectBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRoomsIdObjectsBatch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -445,16 +447,16 @@ export const getDeleteRoomsIdObjectsObjectIdQueryKey = (id: string,
 
 
 export const getDeleteRoomsIdObjectsObjectIdQueryOptions = <TData = Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(id: string,
-    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, }
+    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getDeleteRoomsIdObjectsObjectIdQueryKey(id,objectId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>> = ({ signal }) => deleteRoomsIdObjectsObjectId(id,objectId, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>> = ({ signal }) => deleteRoomsIdObjectsObjectId(id,objectId, { signal, ...requestOptions });
 
 
 
@@ -475,7 +477,7 @@ export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
@@ -486,12 +488,12 @@ export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
  id: string,
-    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, }
+    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -500,7 +502,7 @@ export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeo
 
 export function useDeleteRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
  id: string,
-    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, }
+    objectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deleteRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -586,16 +588,16 @@ export const getPatchRoomsIdObjectsObjectIdQueryKey = (id: string,
 
 export const getPatchRoomsIdObjectsObjectIdQueryOptions = <TData = Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(id: string,
     objectId: string,
-    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, }
+    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPatchRoomsIdObjectsObjectIdQueryKey(id,objectId,updatePatch);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>> = ({ signal }) => patchRoomsIdObjectsObjectId(id,objectId,updatePatch, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>> = ({ signal }) => patchRoomsIdObjectsObjectId(id,objectId,updatePatch, { signal, ...requestOptions });
 
 
 
@@ -617,7 +619,7 @@ export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof
           TError,
           Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
@@ -629,13 +631,13 @@ export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof
           TError,
           Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
  id: string,
     objectId: string,
-    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, }
+    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -645,7 +647,7 @@ export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof
 export function usePatchRoomsIdObjectsObjectId<TData = Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError = ErrorResponse | ConflictResponse>(
  id: string,
     objectId: string,
-    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, }
+    updatePatch: UpdatePatch, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof patchRoomsIdObjectsObjectId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

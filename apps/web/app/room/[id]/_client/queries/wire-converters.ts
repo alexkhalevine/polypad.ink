@@ -123,6 +123,7 @@ export function toWireMesh(mesh: PlacedMesh): WireMesh {
     positions: float32ToBase64(mesh.positions),
     normals: float32ToBase64(mesh.normals),
     indices: mesh.indices ? uint32ToBase64(mesh.indices) : null,
+    edges: mesh.edges ? float32ToBase64(mesh.edges) : null,
     color: mesh.color,
   };
 }
@@ -134,6 +135,7 @@ export function fromWireMesh(wire: WireMesh): PlacedMesh {
     positions: base64ToFloat32(wire.positions),
     normals: base64ToFloat32(wire.normals),
     indices: wire.indices ? base64ToUint32(wire.indices) : null,
+    edges: wire.edges ? base64ToFloat32(wire.edges) : null,
     color: wire.color,
   };
 }

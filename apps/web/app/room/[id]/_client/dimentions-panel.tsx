@@ -1,16 +1,19 @@
 "use client";
 
-import {PlacedBox, PlacedCylinder, PlacedSphere } from "@/app/room/[id]/_client/types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "@/app/room/[id]/_client/types";
+import { computeBoundingSize } from "@/app/room/[id]/_client/csg-utils";
 import { useState } from "react";
 
 function DimensionInput({
   label,
   value,
   onCommit,
+  readOnly = false,
 }: {
   label: string;
   value: number;
-  onCommit: (next: number) => void;
+  onCommit?: (next: number) => void;
+  readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState(value.toFixed(2));
   const [lastValue, setLastValue] = useState(value);
@@ -20,12 +23,13 @@ function DimensionInput({
   }
 
   const commit = () => {
+    if (readOnly) return;
     const parsed = parseFloat(draft);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       setDraft(value.toFixed(2));
       return;
     }
-    if (parsed !== value) onCommit(parsed);
+    if (parsed !== value) onCommit?.(parsed);
   };
 
   return (
@@ -35,19 +39,28 @@ function DimensionInput({
         type="number"
         step="0.1"
         min="0.01"
-        value={draft}
+        value={readOnly ? value.toFixed(2) : draft}
+        disabled={readOnly}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="input input-sm text-blue-700 font-mono"
+        className="input input-sm text-blue-700 font-mono disabled:opacity-60"
       />
     </div>
   );
 }
 
-export function DimentionsPanel({ selectedObject, selectedObjectType, onDimensionCommit}: any) {
+export function DimentionsPanel({
+  selectedObject,
+  selectedObjectType,
+  onDimensionCommit,
+}: {
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "mesh" | null;
+  onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
+}) {
   return (
     <>
       {selectedObjectType === "box" && (
@@ -92,6 +105,19 @@ export function DimentionsPanel({ selectedObject, selectedObjectType, onDimensio
           />
         </div>
       )}
+      {selectedObjectType === "mesh" && (() => {
+        const size = computeBoundingSize((selectedObject as PlacedMesh).positions);
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-2">
+              <DimensionInput label="W" value={size.x} readOnly />
+              <DimensionInput label="H" value={size.y} readOnly />
+              <DimensionInput label="D" value={size.z} readOnly />
+            </div>
+            <span className="text-[10px] text-blue-200 opacity-70">bounding box (read-only)</span>
+          </div>
+        );
+      })()}
     </>
   );
 }

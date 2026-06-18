@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRoomStore } from "./room-store";
 
 interface ExportModalProps {
@@ -9,6 +10,9 @@ interface ExportModalProps {
 
 export function ExportModal({ hasObjects, ref }: ExportModalProps) {
   const setExportRequested = useRoomStore((s) => s.setExportRequested);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const isDisabled = !mounted || !hasObjects;
 
   function handleDownloadSTL(e: React.MouseEvent) {
     e.preventDefault();
@@ -29,7 +33,7 @@ export function ExportModal({ hasObjects, ref }: ExportModalProps) {
               </div>
               <button
                 onClick={handleDownloadSTL}
-                disabled={!hasObjects}
+                disabled={isDisabled}
                 className="btn btn-sm bg-indigo-700 text-indigo-100 border-indigo-600 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed ml-4"
               >
                 Download

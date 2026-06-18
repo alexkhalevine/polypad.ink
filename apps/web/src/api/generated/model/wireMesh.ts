@@ -20,6 +20,11 @@ export interface WireMesh {
      * @nullable
      */
   indices: string | null;
+  /**
+     * Base64-encoded Float32Array of polygon-edge segment endpoints, or null
+     * @nullable
+     */
+  edges: string | null;
   /** @nullable */
   color: string | null;
 }

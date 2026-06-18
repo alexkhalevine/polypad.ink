@@ -181,6 +181,13 @@
             ],
             "description": "Base64-encoded Uint32Array of face indices, or null for non-indexed geometry"
           },
+          "edges": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base64-encoded Float32Array of polygon-edge segment endpoints, or null"
+          },
           "color": {
             "type": [
               "string",
@@ -196,6 +203,7 @@
           "positions",
           "normals",
           "indices",
+          "edges",
           "color"
         ]
       },

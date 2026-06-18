@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { PlacedCylinder } from "@/app/room/[id]/_client/types";
 import { RemoteSelectionOutline } from "./remote-selection-outline";
 
@@ -13,16 +14,21 @@ interface PlacedCylinderMeshProps {
   isSelected?: boolean;
   isHovered?: boolean;
   wireframe?: boolean;
+  dimmed?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
-  onClick?: () => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onPointerMove?: (e: ThreeEvent<MouseEvent>) => void;
 }
 
 const DEFAULT_COLOR = "#2f74c0";
+const DIM_OPACITY = 0.15;
+// Skip raycasting so dimmed objects can't be hovered/clicked and clicks pass through.
+const NO_RAYCAST: THREE.Object3D["raycast"] = () => {};
 
-export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
+export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelected, isHovered, wireframe, dimmed, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave, onPointerMove }: PlacedCylinderMeshProps) {
   const geo = useMemo(
     () => new THREE.CylinderGeometry(cylinder.radius, cylinder.radius, cylinder.height, 32),
     [cylinder.radius, cylinder.height]
@@ -38,12 +44,12 @@ export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelect
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[0, hh, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+      <mesh geometry={geo} position={[0, hh, 0]} raycast={dimmed ? NO_RAYCAST : undefined} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave} onPointerMove={onPointerMove}>
+        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </mesh>
-      <lineSegments position={[0, hh, 0]}>
+      <lineSegments position={[0, hh, 0]} raycast={NO_RAYCAST}>
         <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
+        <lineBasicMaterial color={edgeColor} transparent={dimmed} opacity={dimmed ? DIM_OPACITY : 1} />
       </lineSegments>
       {lockInfo && (
         <Html position={[0, cylinder.height + 0.5, 0]} center pointerEvents="none">
