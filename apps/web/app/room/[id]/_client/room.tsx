@@ -6,6 +6,7 @@ import { Scene } from "./scene";
 import { getHelpText } from "@/app/utils";
 import { useRoomSocket } from "./realtime/use-room-socket";
 import { useRoomEditor } from "./hooks/use-room-editor";
+import { useFullscreen } from "./hooks/use-fullscreen";
 import { ContextMenu } from "./context-menu";
 import { ExportModal } from "./export-modal";
 import { AlignPanel } from "./align-panel";
@@ -30,6 +31,9 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
   const socket = useRoomSocket(id, inviteCode);
   const editor = useRoomEditor(id, socket);
   const setSelectedColor = useRoomStore((s) => s.setSelectedColor);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(rootRef);
 
   const exportModalRef = useRef<HTMLDialogElement>(null);
   const hasObjects =
@@ -78,7 +82,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
     : null;
 
   return (
-    <div className="relative h-full w-full flex-1 overflow-hidden">
+    <div ref={rootRef} className="relative h-full w-full flex-1 overflow-hidden">
       {/* Canvas + backdrop glow */}
       <div className="pp-canvas-glow absolute inset-0" />
       <div
@@ -113,7 +117,11 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
       <ToolRail onSelectClick={editor.handleSelectClick} />
       <ObjectToolbar onDelete={editor.handleDeleteObject} />
       <ShapeDock onToolSelect={editor.handleToolSelect} />
-      <StatusBar selectedObjectCoords={editor.selectedObjectCoords} />
+      <StatusBar
+        selectedObjectCoords={editor.selectedObjectCoords}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+      />
       <ShortcutsHelp />
 
       <Inspector

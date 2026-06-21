@@ -29,6 +29,7 @@ export const ShortcutsHelp = () => {
     ["A", "Align"],
     ["B", "Boolean"],
     ["C", "Clone"],
+    ["F", "Full screen"],
   ];
 
   return (

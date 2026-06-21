@@ -1,3 +1,86 @@
+# added full screen mode
+
+### commit hash:
+### date: 21.06.26
+
+### description
+
+Wires up the previously-decorative "Fit to view" button in the bottom-left status bar so it actually toggles full screen for the editor. Clicking it puts the whole room view — 3D canvas plus all docked chrome (top bar, tool rail, inspector, shape dock, status bar) — into the browser's native Fullscreen API; clicking again, pressing `F`, or hitting the browser's native Escape exits it.
+
+- `apps/web/app/room/[id]/_client/hooks/use-fullscreen.ts` — New hook. Takes a ref to the element to fullscreen; exposes `isFullscreen` (kept in sync via a `fullscreenchange` listener so it tracks native Escape exits, not just our own button) and `toggle()` (calls `requestFullscreen()` / `exitFullscreen()`, swallowing rejection since the browser can deny the request). Owns its own `F` keydown shortcut, guarded against firing while an input/textarea is focused.
+
+- `apps/web/app/room/[id]/_client/room.tsx` — Attaches a ref to the root container (the div wrapping `Scene` and all docked chrome) and calls `useFullscreen` on it; passes `isFullscreen` / `onToggleFullscreen` down to `StatusBar`.
+
+- `apps/web/app/room/[id]/_client/status-bar.tsx` — The "Fit to view" `ZoomButton` is now a real toggle: icon swaps `Maximize2` (enter) ↔ `Minimize2` (exit), label/title swaps "Full screen" ↔ "Exit full screen".
+
+- `apps/web/app/room/[id]/_client/shortcuts-help.tsx` — Adds `F — Full screen` to the shortcuts list.
+
+---
+
+# reworked app UI (room creation + 3D editor)
+
+### commit hash: 66dfe195c0bfce5f9428286f32dc351e99b5c57d
+### date: 21.06.26
+
+### description
+
+Hi-fi redesign of the room-creation screen and the 3D editor chrome, based on `README_design.md` (a Claude Design hand-off spec). Replaces the light DaisyUI `cupcake` look and the single cluttered bottom `Menu` bar with a dark glassmorphism aesthetic organized into docked regions, scoped only to `/room/setup` and `/room/[id]` — the homepage keeps its original theme/fonts. Icons moved to `lucide-react`. Tools without a real implementation yet (Rotate was still a stub at this point, Scale, Orbit-camera button, Group, Cone, opacity slider, zoom +/-/fit) ship as styled, disabled/no-op placeholders rather than being hidden, matching the full design spec.
+
+- `apps/web/app/layout.tsx`, `apps/web/app/globals.css` — Adds `Space_Grotesk` / `JetBrains_Mono` fonts and a `.polypad-dark` scoped token system (panel surface/blur, violet/mint accents, caret/live-dot/cursor-float/wire-spin keyframes) without touching the existing Geist/`cupcake` homepage styling.
+
+- `apps/web/app/room/setup/page.tsx`, `room-setup-form.tsx` — Rebuilt as a full-viewport dark hero with a decorative spinning wireframe cube + perspective grid, gradient "Create Room" card, and live status line.
+
+- `apps/web/app/room/[id]/page.tsx`, `room.tsx` — Editor recomposed into docked regions instead of one bottom bar.
+
+- New chrome components: `top-bar.tsx` (wordmark, room pill, presence, Invite/Export), `tool-rail.tsx` (Select/Move real; Rotate/Scale/Orbit stubs), `object-toolbar.tsx` (contextual Align/Boolean/Duplicate/Delete real, Group stub), `shape-dock.tsx` (Box/Cylinder/Sphere real, Cone/"+more" stubs), `status-bar.tsx` (selection coords + zoom/fit pill, all stubs at this point).
+
+- `inspector.tsx` (new) — Replaces `right-panel.tsx` + `dimentions-panel.tsx` (both removed) with a single panel: header, Position grid, Dimensions grid, Material swatches, Display toggles (Snap/Wireframe real, Opacity stub).
+
+- `invite-button.tsx`, `user-avatars.tsx`, `remote-cursors.tsx`, `shortcuts-help.tsx` — Restyled to the dark panel treatment.
+
+- `apps/web/app/components/menu.tsx` — Removed; its responsibilities were redistributed across the new chrome components and inspector.
+
+- `apps/web/app/room/[id]/_client/hooks/use-room-editor.ts` — Adds `handleColorCommit` so the inspector's preset material swatches can commit a color directly (the old flow relied on the native color input's blur event).
+
+- `apps/web/package.json` — Adds `lucide-react`.
+
+---
+
+# added object rotation
+
+### commit hash: eb44b8a63630f4bcf90824eb80997db6ca11ef5f
+### date: 21.06.26
+
+### description
+
+Makes the **Rotate** tool real (it shipped as a disabled stub in the UI rework above): a selected object can be rotated on all three axes via a drei `TransformControls` rotation gizmo, with full persistence and real-time sync to collaborators — same end-to-end treatment as move/resize/color. Rotation is Euler XYZ in radians, applied about the object's geometric center (not the bottom-anchor `position` uses), defaulting to `(0,0,0)` so existing objects render unchanged.
+
+**Server**
+
+- `src/schema.ts`, `src/db.ts` — Adds nullable `rx/ry/rz` real columns to `geometryObjects`, plus an idempotent migration (`ALTER TABLE ... ADD COLUMN`) for existing dev databases.
+- `src/openapi/schemas.ts` — Adds `rotation: Vec3` to the box/cylinder/sphere/mesh wire schemas and to `UpdatePatchSchema`.
+- `src/services/roomService.ts` — Reads/writes `rx/ry/rz` on the row, including for `mesh` (rotation is allowed on every object type, unlike width/height/depth).
+- `src/realtime/eventTypes.ts` — `ObjectUpdatedPayload.patch` carries `rotation?: Vec3`.
+- Regenerated `apps/server/openapi.json` and the orval-generated web client (`src/api/generated/...`).
+
+**Web**
+
+- `_client/types.ts` — `PlacedBox/Cylinder/Sphere/Mesh` gain `rotation: {x,y,z}`; `ToolType` gains `"rotate"`.
+- `_client/queries/wire-types.ts`, `wire-converters.ts` — `rotation` round-trips through every `Wire*` shape, defaulting to `{0,0,0}` when absent.
+- `_client/queries/use-update-object-rotation.ts` (new) — Mutation mirroring `use-update-object-position.ts`.
+- `_client/realtime/use-room-socket.ts` — `object:updated` handler applies `patch.rotation` to all four object kinds.
+- `_client/room-store.ts` — `liveRotations` overlay (mirrors `livePositions`) so drag/typing feedback is immediate before the server round-trip resolves.
+- `_client/hooks/use-room-editor.ts` — Merges `liveRotations` into the placed-object lists; adds `handleObjectRotate` (gizmo drag) and `handleRotationCommit` (inspector field edits); `R` keyboard shortcut enters rotate mode when an object is selected.
+- `_client/transform-gizmo.tsx` — Supports `mode: "translate" | "rotate"`; in rotate mode the gizmo is anchored at the object's center, seeded from its current Euler rotation, and snaps to 15° increments when Snap-to-grid is on.
+- `_client/scene.tsx`, `apps/web/app/components/placed-{box,cylinder,sphere,mesh}-mesh.tsx` — Render rotation about each object's center via a nested pivot group (outer group at the position anchor, inner group at the center offset carrying the rotation).
+- `_client/tool-rail.tsx` — Rotate button enabled (active when `selectedTool === "rotate"`, disabled with nothing selected).
+- `_client/inspector.tsx` — New Rotation section (X/Y/Z, in degrees) below Position.
+- `_client/align-math.ts`, `_client/csg-utils.ts`, `apps/web/app/components/dimension-helpers.tsx` — Inline comments noting the known limitation below.
+
+**Known limitation** — Align and Boolean (CSG) still treat objects as axis-aligned and on-object dimension-helper labels assume no rotation; results/positions may be inaccurate on a rotated object. See `docs/TODO.md`.
+
+---
+
 # added clone tool
 
 ### commit hash:

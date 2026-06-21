@@ -1,13 +1,15 @@
 "use client";
 
-import { Minus, Plus, Maximize2 } from "lucide-react";
+import { Minus, Plus, Maximize2, Minimize2 } from "lucide-react";
 import { useRoomStore } from "./room-store";
 
 interface StatusBarProps {
   selectedObjectCoords: string | null;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
-export function StatusBar({ selectedObjectCoords }: StatusBarProps) {
+export function StatusBar({ selectedObjectCoords, isFullscreen, onToggleFullscreen }: StatusBarProps) {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
 
   return (
@@ -34,8 +36,15 @@ export function StatusBar({ selectedObjectCoords }: StatusBarProps) {
           <Plus size={16} strokeWidth={2} />
         </ZoomButton>
         <div className="mx-0.5 h-5 w-px bg-[var(--pp-panel-border)]" />
-        <ZoomButton label="Fit to view" onClick={() => {}}>
-          <Maximize2 size={15} strokeWidth={2} />
+        <ZoomButton
+          label={isFullscreen ? "Exit full screen" : "Full screen"}
+          onClick={onToggleFullscreen}
+        >
+          {isFullscreen ? (
+            <Minimize2 size={15} strokeWidth={2} />
+          ) : (
+            <Maximize2 size={15} strokeWidth={2} />
+          )}
         </ZoomButton>
       </div>
     </div>
