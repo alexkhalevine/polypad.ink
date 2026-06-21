@@ -2,7 +2,13 @@
 
 A collaborative 3D drawing web app. Place and share geometric primitives (boxes, cylinders, spheres) in a shared room, persisted objects.
 
+### v1
+
 <img width="2994" height="1692" alt="Screenshot 2026-05-23 at 20 42 18" src="https://github.com/user-attachments/assets/8d4b9259-7673-4ecd-91dc-8c34c2ae3b80" />
+
+### v2
+
+<img width="1434" height="807" alt="Screenshot 2026-06-21 at 21 03 32" src="https://github.com/user-attachments/assets/74a19198-6004-4536-ab84-b9e88be3f678" />
 
 
 ## Prerequisites
