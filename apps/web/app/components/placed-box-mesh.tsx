@@ -9,6 +9,7 @@ import { RemoteSelectionOutline } from "./remote-selection-outline";
 interface PlacedBoxMeshProps {
   box: PlacedBox;
   positionOverride?: { x: number; y: number; z: number };
+  rotationOverride?: { x: number; y: number; z: number };
   color?: string | null;
   isSelected?: boolean;
   isHovered?: boolean;
@@ -22,7 +23,7 @@ interface PlacedBoxMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
+export function PlacedBoxMesh({ box, positionOverride, rotationOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
   const geo = useMemo(
     () => new THREE.BoxGeometry(box.width, box.height, box.depth),
     [box.width, box.height, box.depth]
@@ -36,17 +37,31 @@ export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHove
   const hh = box.height / 2;
   const hd = box.depth / 2;
 
+  // Rotation is applied about the geometric center via the pivot group below.
+  const rot = rotationOverride ?? box.rotation;
+
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[hw, hh, hd]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
-      </mesh>
-      <lineSegments position={[hw, hh, hd]}>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      <group position={[hw, hh, hd]} rotation={[rot.x, rot.y, rot.z]}>
+        <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+          <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+        </mesh>
+        <lineSegments>
+          <edgesGeometry args={[geo]} />
+          <lineBasicMaterial color={edgeColor} />
+        </lineSegments>
+        {selectionInfo && !lockInfo && (
+          <RemoteSelectionOutline
+            geometry={geo}
+            position={[0, 0, 0]}
+            labelPosition={[0, hh + 0.5, 0]}
+            color={selectionInfo.color}
+            displayName={selectionInfo.displayName}
+          />
+        )}
+      </group>
       {lockInfo && (
         <Html position={[hw, box.height + 0.5, hd]} center pointerEvents="none">
           <div style={{
@@ -64,15 +79,6 @@ export function PlacedBoxMesh({ box, positionOverride, color, isSelected, isHove
             locked by {lockInfo.displayName}
           </div>
         </Html>
-      )}
-      {selectionInfo && !lockInfo && (
-        <RemoteSelectionOutline
-          geometry={geo}
-          position={[hw, hh, hd]}
-          labelPosition={[hw, box.height + 0.5, hd]}
-          color={selectionInfo.color}
-          displayName={selectionInfo.displayName}
-        />
       )}
     </group>
   );

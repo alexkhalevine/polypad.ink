@@ -40,6 +40,10 @@ export function findRoomById(id: string): { id: string; name: string; inviteCode
   return row ?? null;
 }
 
+function rotationOf(row: ObjectRow): { x: number; y: number; z: number } {
+  return { x: row.rx ?? 0, y: row.ry ?? 0, z: row.rz ?? 0 };
+}
+
 function rowToWire(row: ObjectRow): WireObject {
   switch (row.type) {
     case "box":
@@ -50,6 +54,7 @@ function rowToWire(row: ObjectRow): WireObject {
           cx: row.cx,
           cy: row.cy,
           cz: row.cz,
+          rotation: rotationOf(row),
           width: row.width ?? 1,
           height: row.height ?? 1,
           depth: row.depth ?? 1,
@@ -64,6 +69,7 @@ function rowToWire(row: ObjectRow): WireObject {
           cx: row.cx,
           cy: row.cy,
           cz: row.cz,
+          rotation: rotationOf(row),
           radius: row.radius ?? 0.5,
           height: row.height ?? 1,
           color: row.color ?? null,
@@ -77,6 +83,7 @@ function rowToWire(row: ObjectRow): WireObject {
           cx: row.cx,
           cy: row.cy,
           cz: row.cz,
+          rotation: rotationOf(row),
           radius: row.radius ?? 0.5,
           color: row.color ?? null,
         },
@@ -89,6 +96,7 @@ function rowToWire(row: ObjectRow): WireObject {
           cx: row.cx,
           cy: row.cy,
           cz: row.cz,
+          rotation: rotationOf(row),
           positions: row.positions ?? "",
           normals: row.normals ?? "",
           indices: row.indices ?? null,
@@ -96,6 +104,14 @@ function rowToWire(row: ObjectRow): WireObject {
         },
       };
   }
+}
+
+function rotationCols(rotation?: { x: number; y: number; z: number }): {
+  rx: number;
+  ry: number;
+  rz: number;
+} {
+  return { rx: rotation?.x ?? 0, ry: rotation?.y ?? 0, rz: rotation?.z ?? 0 };
 }
 
 function wireToInsert(roomId: string, wire: WireObject): NewObject {
@@ -109,6 +125,7 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         cx: d.cx,
         cy: d.cy,
         cz: d.cz,
+        ...rotationCols(d.rotation),
         width: d.width,
         height: d.height,
         depth: d.depth,
@@ -124,6 +141,7 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         cx: d.cx,
         cy: d.cy,
         cz: d.cz,
+        ...rotationCols(d.rotation),
         radius: d.radius,
         height: d.height,
         color: d.color ?? null,
@@ -138,6 +156,7 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         cx: d.cx,
         cy: d.cy,
         cz: d.cz,
+        ...rotationCols(d.rotation),
         radius: d.radius,
         color: d.color ?? null,
       };
@@ -151,6 +170,7 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         cx: d.cx,
         cy: d.cy,
         cz: d.cz,
+        ...rotationCols(d.rotation),
         color: d.color ?? null,
         positions: d.positions,
         normals: d.normals,
@@ -297,6 +317,7 @@ const ALLOWED_DIMENSIONS: Record<ObjectRow["type"], DimensionField[]> = {
 export interface UpdatePatch {
   color?: string;
   center?: { x: number; y: number; z: number };
+  rotation?: { x: number; y: number; z: number };
   width?: number;
   height?: number;
   depth?: number;
@@ -336,6 +357,14 @@ export async function updateObject(
     updates.cy = patch.center.y;
     updates.cz = patch.center.z;
     appliedPatch.center = patch.center;
+  }
+
+  // Rotation is valid for every object type (including non-parametric meshes).
+  if (patch.rotation !== undefined) {
+    updates.rx = patch.rotation.x;
+    updates.ry = patch.rotation.y;
+    updates.rz = patch.rotation.z;
+    appliedPatch.rotation = patch.rotation;
   }
 
   const allowed = ALLOWED_DIMENSIONS[existing.type];

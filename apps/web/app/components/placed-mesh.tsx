@@ -10,6 +10,7 @@ import { RemoteSelectionOutline } from "./remote-selection-outline";
 interface PlacedMeshProps {
   mesh: PlacedMesh;
   positionOverride?: { x: number; y: number; z: number };
+  rotationOverride?: { x: number; y: number; z: number };
   color?: string | null;
   isSelected?: boolean;
   isHovered?: boolean;
@@ -26,6 +27,7 @@ const DEFAULT_COLOR = "#2f74c0";
 export function PlacedMeshComponent({
   mesh,
   positionOverride,
+  rotationOverride,
   color,
   isSelected,
   isHovered,
@@ -42,6 +44,15 @@ export function PlacedMeshComponent({
     ? [positionOverride.x, positionOverride.y, positionOverride.z]
     : [mesh.position.x, mesh.position.y, mesh.position.z];
 
+  // Rotation pivot = geometry bounding-box center (mesh geometry is baked in world space).
+  const rot = rotationOverride ?? mesh.rotation;
+  const center = useMemo(() => {
+    geo.computeBoundingBox();
+    const c = new THREE.Vector3();
+    geo.boundingBox?.getCenter(c);
+    return c;
+  }, [geo]);
+
   const edgeColor = lockInfo ? lockInfo.color : isSelected || isHovered ? "#ffffff" : "#1a3a5c";
 
   // Label anchor: top of the bounding box (geometry already in world space).
@@ -49,18 +60,31 @@ export function PlacedMeshComponent({
 
   return (
     <group position={[x, y, z]}>
-      <mesh
-        geometry={geo}
-        onClick={onClick}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
-      </mesh>
-      <lineSegments>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      <group position={[center.x, center.y, center.z]} rotation={[rot.x, rot.y, rot.z]}>
+        <group position={[-center.x, -center.y, -center.z]}>
+          <mesh
+            geometry={geo}
+            onClick={onClick}
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
+          >
+            <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+          </mesh>
+          <lineSegments>
+            <edgesGeometry args={[geo]} />
+            <lineBasicMaterial color={edgeColor} />
+          </lineSegments>
+          {selectionInfo && !lockInfo && (
+            <RemoteSelectionOutline
+              geometry={geo}
+              position={[0, 0, 0]}
+              labelPosition={[0, labelY, 0]}
+              color={selectionInfo.color}
+              displayName={selectionInfo.displayName}
+            />
+          )}
+        </group>
+      </group>
       {lockInfo && (
         <Html position={[0, labelY, 0]} center pointerEvents="none">
           <div
@@ -80,15 +104,6 @@ export function PlacedMeshComponent({
             locked by {lockInfo.displayName}
           </div>
         </Html>
-      )}
-      {selectionInfo && !lockInfo && (
-        <RemoteSelectionOutline
-          geometry={geo}
-          position={[0, 0, 0]}
-          labelPosition={[0, labelY, 0]}
-          color={selectionInfo.color}
-          displayName={selectionInfo.displayName}
-        />
       )}
     </group>
   );

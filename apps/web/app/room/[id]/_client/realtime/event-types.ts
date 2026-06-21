@@ -56,6 +56,7 @@ export interface ObjectUpdatedPayload {
   patch: {
     color?: string;
     center?: Vec3;
+    rotation?: Vec3;
     width?: number;
     height?: number;
     depth?: number;

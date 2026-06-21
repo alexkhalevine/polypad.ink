@@ -5,12 +5,14 @@
  * REST API for the Polypad collaborative 3D room editor. Manage rooms and geometry objects. Real-time collaboration uses Socket.IO (not documented here).
  * OpenAPI spec version: 1.0.0
  */
+import type { Vec3 } from './vec3';
 
 export interface WireCylinder {
   id: string;
   cx: number;
   cy: number;
   cz: number;
+  rotation?: Vec3;
   /** @exclusiveMinimum 0 */
   radius: number;
   /** @exclusiveMinimum 0 */

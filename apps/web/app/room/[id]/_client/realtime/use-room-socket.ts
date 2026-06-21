@@ -195,10 +195,11 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
       queryClient.setQueryData<RoomObjects>(roomKeys.objects(roomId), (prev) => {
         if (!prev) return prev;
         // Wire patch still keys position as `center` for backwards compat; locally we store it as `position`.
-        const { color, center, width, height, depth, radius } = payload.patch;
+        const { color, center, rotation, width, height, depth, radius } = payload.patch;
         const patchPosition = center
           ? new THREE.Vector3(center.x, center.y, center.z)
           : undefined;
+        const rotationPatch = rotation !== undefined ? { rotation } : {};
         return {
           boxes: prev.boxes.map((b) => {
             if (b.id !== payload.objectId) return b;
@@ -206,6 +207,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...b,
               ...(color !== undefined ? { color } : {}),
               ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+              ...rotationPatch,
               ...(width !== undefined ? { width } : {}),
               ...(height !== undefined ? { height } : {}),
               ...(depth !== undefined ? { depth } : {}),
@@ -217,6 +219,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...c,
               ...(color !== undefined ? { color } : {}),
               ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+              ...rotationPatch,
               ...(radius !== undefined ? { radius } : {}),
               ...(height !== undefined ? { height } : {}),
             };
@@ -227,6 +230,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...s,
               ...(color !== undefined ? { color } : {}),
               ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+              ...rotationPatch,
               ...(radius !== undefined ? { radius } : {}),
             };
           }),
@@ -236,6 +240,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...m,
               ...(color !== undefined ? { color } : {}),
               ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+              ...rotationPatch,
             };
           }),
         };

@@ -11,6 +11,7 @@ describe("toWireBox / fromWireBox", () => {
   const box: PlacedBox = {
     id: "box-1",
     position: new THREE.Vector3(1.5, 2.5, 3.5),
+    rotation: { x: 0.1, y: 0.2, z: 0.3 },
     width: 2,
     height: 3,
     depth: 4,
@@ -46,6 +47,7 @@ describe("toWireBox / fromWireBox", () => {
     const precise: PlacedBox = {
       id: "p",
       position: new THREE.Vector3(1.001, 2.999, 3.14159),
+      rotation: { x: 0, y: 0, z: 0 },
       width: 0.5,
       height: 0.5,
       depth: 0.5,
@@ -57,12 +59,27 @@ describe("toWireBox / fromWireBox", () => {
     expect(restored.position.y).toBeCloseTo(2.999, 3);
     expect(restored.position.z).toBeCloseTo(3.14159, 3);
   });
+
+  it("round-trips rotation", () => {
+    const restored = fromWireBox(toWireBox(box));
+    expect(restored.rotation.x).toBeCloseTo(0.1);
+    expect(restored.rotation.y).toBeCloseTo(0.2);
+    expect(restored.rotation.z).toBeCloseTo(0.3);
+  });
+
+  it("defaults rotation to zero when absent on the wire", () => {
+    // Simulate a legacy object created before rotation support.
+    const legacyWire = { ...toWireBox(box), rotation: undefined };
+    const restored = fromWireBox(legacyWire);
+    expect(restored.rotation).toEqual({ x: 0, y: 0, z: 0 });
+  });
 });
 
 describe("toWireCylinder / fromWireCylinder", () => {
   const cylinder: PlacedCylinder = {
     id: "cyl-1",
     position: new THREE.Vector3(0, 1.5, 0),
+    rotation: { x: 0, y: 0, z: 0 },
     radius: 0.75,
     height: 3,
     color: "#00ff00",
@@ -95,6 +112,7 @@ describe("toWireSphere / fromWireSphere", () => {
   const sphere: PlacedSphere = {
     id: "sph-1",
     position: new THREE.Vector3(-1, -2, -3),
+    rotation: { x: 0, y: 0, z: 0 },
     radius: 1.25,
     color: "#0000ff",
   };

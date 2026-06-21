@@ -9,6 +9,7 @@ import { RemoteSelectionOutline } from "./remote-selection-outline";
 interface PlacedCylinderMeshProps {
   cylinder: PlacedCylinder;
   positionOverride?: { x: number; y: number; z: number };
+  rotationOverride?: { x: number; y: number; z: number };
   color?: string | null;
   isSelected?: boolean;
   isHovered?: boolean;
@@ -22,7 +23,7 @@ interface PlacedCylinderMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
+export function PlacedCylinderMesh({ cylinder, positionOverride, rotationOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedCylinderMeshProps) {
   const geo = useMemo(
     () => new THREE.CylinderGeometry(cylinder.radius, cylinder.radius, cylinder.height, 32),
     [cylinder.radius, cylinder.height]
@@ -34,17 +35,31 @@ export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelect
 
   const hh = cylinder.height / 2;
 
+  // Rotation is applied about the geometric center via the pivot group below.
+  const rot = rotationOverride ?? cylinder.rotation;
+
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[0, hh, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
-      </mesh>
-      <lineSegments position={[0, hh, 0]}>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      <group position={[0, hh, 0]} rotation={[rot.x, rot.y, rot.z]}>
+        <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+          <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+        </mesh>
+        <lineSegments>
+          <edgesGeometry args={[geo]} />
+          <lineBasicMaterial color={edgeColor} />
+        </lineSegments>
+        {selectionInfo && !lockInfo && (
+          <RemoteSelectionOutline
+            geometry={geo}
+            position={[0, 0, 0]}
+            labelPosition={[0, hh + 0.5, 0]}
+            color={selectionInfo.color}
+            displayName={selectionInfo.displayName}
+          />
+        )}
+      </group>
       {lockInfo && (
         <Html position={[0, cylinder.height + 0.5, 0]} center pointerEvents="none">
           <div style={{
@@ -62,15 +77,6 @@ export function PlacedCylinderMesh({ cylinder, positionOverride, color, isSelect
             locked by {lockInfo.displayName}
           </div>
         </Html>
-      )}
-      {selectionInfo && !lockInfo && (
-        <RemoteSelectionOutline
-          geometry={geo}
-          position={[0, hh, 0]}
-          labelPosition={[0, cylinder.height + 0.5, 0]}
-          color={selectionInfo.color}
-          displayName={selectionInfo.displayName}
-        />
       )}
     </group>
   );

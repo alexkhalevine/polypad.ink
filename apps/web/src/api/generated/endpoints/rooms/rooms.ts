@@ -35,6 +35,8 @@ import type {
 import { customFetch } from '../../../mutator/custom-fetch';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 export type postRoomsResponse200 = {
@@ -94,16 +96,16 @@ export const getPostRoomsQueryKey = (createRoomBody?: CreateRoomBody,) => {
     }
 
 
-export const getPostRoomsQueryOptions = <TData = Awaited<ReturnType<typeof postRooms>>, TError = ErrorResponse>(createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, }
+export const getPostRoomsQueryOptions = <TData = Awaited<ReturnType<typeof postRooms>>, TError = ErrorResponse>(createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPostRoomsQueryKey(createRoomBody);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRooms>>> = ({ signal }) => postRooms(createRoomBody, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof postRooms>>> = ({ signal }) => postRooms(createRoomBody, { signal, ...requestOptions });
 
 
 
@@ -123,7 +125,7 @@ export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TErr
           TError,
           Awaited<ReturnType<typeof postRooms>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TError = ErrorResponse>(
@@ -133,11 +135,11 @@ export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TErr
           TError,
           Awaited<ReturnType<typeof postRooms>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TError = ErrorResponse>(
- createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, }
+ createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -145,7 +147,7 @@ export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TErr
  */
 
 export function usePostRooms<TData = Awaited<ReturnType<typeof postRooms>>, TError = ErrorResponse>(
- createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, }
+ createRoomBody: CreateRoomBody, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof postRooms>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -215,15 +217,15 @@ export const getRoomsIdVerify = async (id: string,
 
 
 export const getGetRoomsIdVerifyMutationOptions = <TError = VerifyRoomResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdVerify>>, TError,{id: string;params: GetRoomsIdVerifyParams}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdVerify>>, TError,{id: string;params: GetRoomsIdVerifyParams}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdVerify>>, TError,{id: string;params: GetRoomsIdVerifyParams}, TContext> => {
 
 const mutationKey = ['getRoomsIdVerify'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
@@ -231,7 +233,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof getRoomsIdVerify>>, {id: string;params: GetRoomsIdVerifyParams}> = (props) => {
           const {id,params} = props ?? {};
 
-          return  getRoomsIdVerify(id,params,)
+          return  getRoomsIdVerify(id,params,requestOptions)
         }
 
 
@@ -249,7 +251,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Verify access to a room using an invite code
  */
 export const useGetRoomsIdVerify = <TError = VerifyRoomResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdVerify>>, TError,{id: string;params: GetRoomsIdVerifyParams}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRoomsIdVerify>>, TError,{id: string;params: GetRoomsIdVerifyParams}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof getRoomsIdVerify>>,
         TError,

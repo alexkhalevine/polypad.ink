@@ -50,9 +50,9 @@ export function ToolRail({ onSelectClick }: ToolRailProps) {
       icon: RotateCw,
       label: "Rotate",
       shortcut: "R",
-      active: false,
-      disabled: true,
-      onClick: noop,
+      active: selectedTool === "rotate",
+      disabled: !selectedObjectId,
+      onClick: () => selectedObjectId && setSelectedTool("rotate"),
     },
     {
       key: "scale",

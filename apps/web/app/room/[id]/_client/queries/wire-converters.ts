@@ -1,9 +1,14 @@
 import * as THREE from "three";
-import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
-import type { WireBox, WireCylinder, WireSphere, WireMesh } from "./wire-types";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, Rotation } from "../types";
+import type { WireBox, WireCylinder, WireSphere, WireMesh, WireRotation } from "./wire-types";
 
 // Wire fields cx/cy/cz are kept for backward compatibility with the server schema,
 // but they now carry the bottom-anchor (corner / base), not the geometric center.
+
+// Rotation is optional on the wire (older objects predate it); default to zero.
+function rotationFromWire(rotation?: WireRotation): Rotation {
+  return { x: rotation?.x ?? 0, y: rotation?.y ?? 0, z: rotation?.z ?? 0 };
+}
 
 export function toWireBox(box: PlacedBox): WireBox {
   return {
@@ -11,6 +16,7 @@ export function toWireBox(box: PlacedBox): WireBox {
     cx: box.position.x,
     cy: box.position.y,
     cz: box.position.z,
+    rotation: box.rotation,
     width: box.width,
     height: box.height,
     depth: box.depth,
@@ -22,6 +28,7 @@ export function fromWireBox(wire: WireBox): PlacedBox {
   return {
     id: wire.id,
     position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    rotation: rotationFromWire(wire.rotation),
     width: wire.width,
     height: wire.height,
     depth: wire.depth,
@@ -35,6 +42,7 @@ export function toWireCylinder(cylinder: PlacedCylinder): WireCylinder {
     cx: cylinder.position.x,
     cy: cylinder.position.y,
     cz: cylinder.position.z,
+    rotation: cylinder.rotation,
     radius: cylinder.radius,
     height: cylinder.height,
     color: cylinder.color,
@@ -45,6 +53,7 @@ export function fromWireCylinder(wire: WireCylinder): PlacedCylinder {
   return {
     id: wire.id,
     position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    rotation: rotationFromWire(wire.rotation),
     radius: wire.radius,
     height: wire.height,
     color: wire.color,
@@ -57,6 +66,7 @@ export function toWireSphere(sphere: PlacedSphere): WireSphere {
     cx: sphere.position.x,
     cy: sphere.position.y,
     cz: sphere.position.z,
+    rotation: sphere.rotation,
     radius: sphere.radius,
     color: sphere.color,
   };
@@ -66,6 +76,7 @@ export function fromWireSphere(wire: WireSphere): PlacedSphere {
   return {
     id: wire.id,
     position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    rotation: rotationFromWire(wire.rotation),
     radius: wire.radius,
     color: wire.color,
   };
@@ -120,6 +131,7 @@ export function toWireMesh(mesh: PlacedMesh): WireMesh {
     cx: mesh.position.x,
     cy: mesh.position.y,
     cz: mesh.position.z,
+    rotation: mesh.rotation,
     positions: float32ToBase64(mesh.positions),
     normals: float32ToBase64(mesh.normals),
     indices: mesh.indices ? uint32ToBase64(mesh.indices) : null,
@@ -131,6 +143,7 @@ export function fromWireMesh(wire: WireMesh): PlacedMesh {
   return {
     id: wire.id,
     position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    rotation: rotationFromWire(wire.rotation),
     positions: base64ToFloat32(wire.positions),
     normals: base64ToFloat32(wire.normals),
     indices: wire.indices ? base64ToUint32(wire.indices) : null,

@@ -9,6 +9,7 @@ import { RemoteSelectionOutline } from "./remote-selection-outline";
 interface PlacedSphereMeshProps {
   sphere: PlacedSphere;
   positionOverride?: { x: number; y: number; z: number };
+  rotationOverride?: { x: number; y: number; z: number };
   color?: string | null;
   isSelected?: boolean;
   isHovered?: boolean;
@@ -22,7 +23,7 @@ interface PlacedSphereMeshProps {
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
+export function PlacedSphereMesh({ sphere, positionOverride, rotationOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedSphereMeshProps) {
   const geo = useMemo(
     () => new THREE.SphereGeometry(sphere.radius, 32, 16),
     [sphere.radius]
@@ -32,17 +33,32 @@ export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, 
     ? [positionOverride.x, positionOverride.y, positionOverride.z]
     : [sphere.position.x, sphere.position.y, sphere.position.z];
 
+  // Rotation is applied about the geometric center via the pivot group below.
+  // (Visually a no-op for a sphere, but kept consistent for persistence/sync.)
+  const rot = rotationOverride ?? sphere.rotation;
+
   const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
 
   return (
     <group position={[x, y, z]}>
-      <mesh geometry={geo} position={[0, sphere.radius, 0]} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-        <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
-      </mesh>
-      <lineSegments position={[0, sphere.radius, 0]}>
-        <edgesGeometry args={[geo]} />
-        <lineBasicMaterial color={edgeColor} />
-      </lineSegments>
+      <group position={[0, sphere.radius, 0]} rotation={[rot.x, rot.y, rot.z]}>
+        <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+          <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
+        </mesh>
+        <lineSegments>
+          <edgesGeometry args={[geo]} />
+          <lineBasicMaterial color={edgeColor} />
+        </lineSegments>
+        {selectionInfo && !lockInfo && (
+          <RemoteSelectionOutline
+            geometry={geo}
+            position={[0, 0, 0]}
+            labelPosition={[0, sphere.radius + 0.5, 0]}
+            color={selectionInfo.color}
+            displayName={selectionInfo.displayName}
+          />
+        )}
+      </group>
       {lockInfo && (
         <Html position={[0, sphere.radius * 2 + 0.5, 0]} center pointerEvents="none">
           <div style={{
@@ -60,15 +76,6 @@ export function PlacedSphereMesh({ sphere, positionOverride, color, isSelected, 
             locked by {lockInfo.displayName}
           </div>
         </Html>
-      )}
-      {selectionInfo && !lockInfo && (
-        <RemoteSelectionOutline
-          geometry={geo}
-          position={[0, sphere.radius, 0]}
-          labelPosition={[0, sphere.radius * 2 + 0.5, 0]}
-          color={selectionInfo.color}
-          displayName={selectionInfo.displayName}
-        />
       )}
     </group>
   );

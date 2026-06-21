@@ -101,6 +101,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           onHeightPointerMove={editor.activeDraw?.handleHeightPointerMove ?? noop}
           onHeightClick={editor.activeDraw?.handleHeightClick ?? noop}
           onObjectMove={editor.handleObjectMove}
+          onObjectRotate={editor.handleObjectRotate}
           onDragStart={editor.handleDragStart}
           onDragEnd={editor.handleDragEnd}
           onDimensionCommit={editor.handleDimensionCommit}
@@ -120,6 +121,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         selectedObjectType={editor.selectedObjectType}
         currentColor={editor.selectedObject?.color ?? "#3f7fe8"}
         onPositionCommit={editor.handlePositionCommit}
+        onRotationCommit={editor.handleRotationCommit}
         onDimensionCommit={editor.handleDimensionCommit}
         onColorChange={setSelectedColor}
         onColorBlur={editor.onMouseUpColorPicked}

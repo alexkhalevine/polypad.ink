@@ -43,6 +43,9 @@ async function initDb() {
       cx         REAL NOT NULL,
       cy         REAL NOT NULL,
       cz         REAL NOT NULL,
+      rx         REAL,
+      ry         REAL,
+      rz         REAL,
       width      REAL,
       height     REAL,
       depth      REAL,
@@ -58,6 +61,7 @@ async function initDb() {
   `);
 
   migrateMeshSupport(sqlDb);
+  migrateRotationSupport(sqlDb);
 
   db = drizzle(sqlDb, { schema });
 
@@ -91,6 +95,9 @@ function migrateMeshSupport(s: SqlJsDatabase): void {
         cx         REAL NOT NULL,
         cy         REAL NOT NULL,
         cz         REAL NOT NULL,
+        rx         REAL,
+        ry         REAL,
+        rz         REAL,
         width      REAL,
         height     REAL,
         depth      REAL,
@@ -118,6 +125,27 @@ function migrateMeshSupport(s: SqlJsDatabase): void {
     s.run("DROP TABLE geometryObjects;");
     s.run("ALTER TABLE geometryObjects_new RENAME TO geometryObjects;");
     s.run("CREATE INDEX IF NOT EXISTS idx_objects_room ON geometryObjects(room_id, created_at);");
+    s.run("COMMIT;");
+    markDirty();
+  } catch (err) {
+    s.run("ROLLBACK;");
+    throw err;
+  }
+}
+
+// Adds the rx/ry/rz rotation columns to DBs created before rotation support.
+// SQLite allows ADD COLUMN in place, so no table rebuild is needed here.
+function migrateRotationSupport(s: SqlJsDatabase): void {
+  const cols = s.exec(`PRAGMA table_info('geometryObjects')`);
+  const colNames = cols[0]?.values.map((row) => row[1] as string) ?? [];
+  const missing = (["rx", "ry", "rz"] as const).filter((c) => !colNames.includes(c));
+  if (missing.length === 0) return;
+
+  s.run("BEGIN TRANSACTION;");
+  try {
+    for (const col of missing) {
+      s.run(`ALTER TABLE geometryObjects ADD COLUMN ${col} REAL;`);
+    }
     s.run("COMMIT;");
     markDirty();
   } catch (err) {

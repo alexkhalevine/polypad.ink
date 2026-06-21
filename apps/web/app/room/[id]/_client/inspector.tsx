@@ -13,6 +13,7 @@ interface InspectorProps {
   selectedObjectType: ObjType;
   currentColor: string;
   onPositionCommit: (x: number, y: number, z: number) => void;
+  onRotationCommit: (x: number, y: number, z: number) => void;
   onDimensionCommit: (field: DimField, value: number) => void;
   onColorChange: (color: string) => void;
   onColorBlur: () => void;
@@ -22,11 +23,15 @@ interface InspectorProps {
 
 const MATERIAL_SWATCHES = ["#3f7fe8", "#8b6dff", "#ff5db1", "#4fe3c1", "#ffb454"];
 
+const radToDeg = (r: number) => (r * 180) / Math.PI;
+const degToRad = (d: number) => (d * Math.PI) / 180;
+
 export function Inspector({
   selectedObject,
   selectedObjectType,
   currentColor,
   onPositionCommit,
+  onRotationCommit,
   onDimensionCommit,
   onColorChange,
   onColorBlur,
@@ -49,6 +54,7 @@ export function Inspector({
           currentColor={currentColor}
           onDeselect={resetEditorState}
           onPositionCommit={onPositionCommit}
+          onRotationCommit={onRotationCommit}
           onDimensionCommit={onDimensionCommit}
           onColorChange={onColorChange}
           onColorBlur={onColorBlur}
@@ -70,6 +76,7 @@ function SelectedState({
   currentColor,
   onDeselect,
   onPositionCommit,
+  onRotationCommit,
   onDimensionCommit,
   onColorChange,
   onColorBlur,
@@ -82,6 +89,7 @@ function SelectedState({
   currentColor: string;
   onDeselect: () => void;
   onPositionCommit: (x: number, y: number, z: number) => void;
+  onRotationCommit: (x: number, y: number, z: number) => void;
   onDimensionCommit: (field: DimField, value: number) => void;
   onColorChange: (color: string) => void;
   onColorBlur: () => void;
@@ -92,6 +100,11 @@ function SelectedState({
     x: selectedObject.position.x,
     y: selectedObject.position.y,
     z: selectedObject.position.z,
+  };
+  const rotDeg = {
+    x: radToDeg(selectedObject.rotation.x),
+    y: radToDeg(selectedObject.rotation.y),
+    z: radToDeg(selectedObject.rotation.z),
   };
   const typeName = selectedObjectType
     ? selectedObjectType[0].toUpperCase() + selectedObjectType.slice(1)
@@ -135,6 +148,26 @@ function SelectedState({
                   axis === "x" ? next : pos.x,
                   axis === "y" ? next : pos.y,
                   axis === "z" ? next : pos.z,
+                )
+              }
+            />
+          ))}
+        </div>
+      </Section>
+
+      {/* Rotation (degrees) */}
+      <Section label="Rotation°">
+        <div className="grid grid-cols-3 gap-2">
+          {(["x", "y", "z"] as const).map((axis) => (
+            <Field
+              key={axis}
+              label={axis.toUpperCase()}
+              value={rotDeg[axis]}
+              onCommit={(next) =>
+                onRotationCommit(
+                  degToRad(axis === "x" ? next : rotDeg.x),
+                  degToRad(axis === "y" ? next : rotDeg.y),
+                  degToRad(axis === "z" ? next : rotDeg.z),
                 )
               }
             />

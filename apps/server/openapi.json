@@ -46,6 +46,9 @@
           "cz": {
             "type": "number"
           },
+          "rotation": {
+            "$ref": "#/components/schemas/Vec3"
+          },
           "width": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -91,6 +94,9 @@
           "cz": {
             "type": "number"
           },
+          "rotation": {
+            "$ref": "#/components/schemas/Vec3"
+          },
           "radius": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -131,6 +137,9 @@
           "cz": {
             "type": "number"
           },
+          "rotation": {
+            "$ref": "#/components/schemas/Vec3"
+          },
           "radius": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -165,6 +174,9 @@
           },
           "cz": {
             "type": "number"
+          },
+          "rotation": {
+            "$ref": "#/components/schemas/Vec3"
           },
           "positions": {
             "type": "string",
@@ -346,6 +358,9 @@
             "pattern": "^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$"
           },
           "center": {
+            "$ref": "#/components/schemas/Vec3"
+          },
+          "rotation": {
             "$ref": "#/components/schemas/Vec3"
           },
           "width": {

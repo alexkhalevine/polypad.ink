@@ -1,10 +1,19 @@
 // Wire format types for room objects - duplicated from server for client use
 
+// Euler XYZ rotation in radians. Optional on the wire for backward compatibility
+// with objects created before rotation support (treated as zero when absent).
+export interface WireRotation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface WireBox {
   id: string;
   cx: number;
   cy: number;
   cz: number;
+  rotation?: WireRotation;
   width: number;
   height: number;
   depth: number;
@@ -16,6 +25,7 @@ export interface WireCylinder {
   cx: number;
   cy: number;
   cz: number;
+  rotation?: WireRotation;
   radius: number;
   height: number;
   color: string | null;
@@ -26,6 +36,7 @@ export interface WireSphere {
   cx: number;
   cy: number;
   cz: number;
+  rotation?: WireRotation;
   radius: number;
   color: string | null;
 }
@@ -35,6 +46,7 @@ export interface WireMesh {
   cx: number;
   cy: number;
   cz: number;
+  rotation?: WireRotation;
   positions: string;        // base64(Float32Array.buffer)
   normals: string;          // base64(Float32Array.buffer)
   indices: string | null;   // base64(Uint32Array.buffer) or null

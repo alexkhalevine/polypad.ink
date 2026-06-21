@@ -11,6 +11,7 @@ export interface UpdatePatch {
   /** @pattern ^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$ */
   color?: string;
   center?: Vec3;
+  rotation?: Vec3;
   /** @exclusiveMinimum 0 */
   width?: number;
   /** @exclusiveMinimum 0 */

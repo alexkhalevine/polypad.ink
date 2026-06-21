@@ -25,6 +25,7 @@ export const ShortcutsHelp = () => {
   const items: [string, string][] = [
     ["S", "Select"],
     ["M", "Move"],
+    ["R", "Rotate"],
     ["A", "Align"],
     ["B", "Boolean"],
     ["C", "Clone"],

@@ -1,5 +1,8 @@
 "use client";
 
+// NOTE: On-object dimension labels/lines are positioned assuming the object is
+// axis-aligned; they do not follow object rotation yet — a known follow-up for
+// the rotate feature.
 import { useState, type CSSProperties } from "react";
 import { Html, Line } from "@react-three/drei";
 import type {

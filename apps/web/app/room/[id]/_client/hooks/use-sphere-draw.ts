@@ -53,6 +53,7 @@ export function useSphereDraw(options?: UseSphereDrawOptions): UseSphereDrawRetu
       const sphere: PlacedSphere = {
         id: crypto.randomUUID(),
         position: new THREE.Vector3(prev.start.x, 0, prev.start.z),
+        rotation: { x: 0, y: 0, z: 0 },
         radius,
         color: null,
       };

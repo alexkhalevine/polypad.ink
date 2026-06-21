@@ -17,6 +17,11 @@ export const geometryObjects = sqliteTable(
     cx: real("cx").notNull(),
     cy: real("cy").notNull(),
     cz: real("cz").notNull(),
+    // Euler XYZ rotation in radians, about the object's geometric center. Nullable
+    // for rows created before rotation support; treated as 0 when absent.
+    rx: real("rx"),
+    ry: real("ry"),
+    rz: real("rz"),
     width: real("width"),
     height: real("height"),
     depth: real("depth"),

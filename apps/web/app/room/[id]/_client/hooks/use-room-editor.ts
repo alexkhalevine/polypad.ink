@@ -8,6 +8,7 @@ import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
 import { useUpdateObjectPosition } from "../queries/use-update-object-position";
+import { useUpdateObjectRotation } from "../queries/use-update-object-rotation";
 import { useUpdateObjectDimensions } from "../queries/use-update-object-dimensions";
 import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
@@ -46,6 +47,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setBooleanOperation = useRoomStore((s) => s.setBooleanOperation);
   const setClonePreviewPosition = useRoomStore((s) => s.setClonePreviewPosition);
   const setLivePosition = useRoomStore((s) => s.setLivePosition);
+  const liveRotations = useRoomStore((s) => s.liveRotations);
+  const setLiveRotation = useRoomStore((s) => s.setLiveRotation);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
   const addError = useErrorStore((s) => s.addError);
@@ -57,6 +60,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const placeObject = usePlaceObject(roomId);
   const updateObjectColor = useUpdateObjectColor(roomId);
   const updateObjectPosition = useUpdateObjectPosition(roomId);
+  const updateObjectRotation = useUpdateObjectRotation(roomId);
   const updateObjectDimensions = useUpdateObjectDimensions(roomId);
   const deleteObjectMutation = useDeleteObject(roomId);
 
@@ -115,29 +119,39 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     () =>
       [...(serverObjects?.boxes ?? []), ...boxDraw.placedBoxes].map((b) => {
         const live = liveDimensions[b.id];
-        return live ? { ...b, ...live } : b;
+        const rot = liveRotations[b.id];
+        const merged = live ? { ...b, ...live } : b;
+        return rot ? { ...merged, rotation: rot } : merged;
       }),
-    [serverObjects, boxDraw.placedBoxes, liveDimensions],
+    [serverObjects, boxDraw.placedBoxes, liveDimensions, liveRotations],
   );
   const placedCylinders = useMemo(
     () =>
       [...(serverObjects?.cylinders ?? []), ...cylinderDraw.placedCylinders].map((c) => {
         const live = liveDimensions[c.id];
-        return live ? { ...c, ...live } : c;
+        const rot = liveRotations[c.id];
+        const merged = live ? { ...c, ...live } : c;
+        return rot ? { ...merged, rotation: rot } : merged;
       }),
-    [serverObjects, cylinderDraw.placedCylinders, liveDimensions],
+    [serverObjects, cylinderDraw.placedCylinders, liveDimensions, liveRotations],
   );
   const placedSpheres = useMemo(
     () =>
       [...(serverObjects?.spheres ?? []), ...sphereDraw.placedSpheres].map((s) => {
         const live = liveDimensions[s.id];
-        return live ? { ...s, ...live } : s;
+        const rot = liveRotations[s.id];
+        const merged = live ? { ...s, ...live } : s;
+        return rot ? { ...merged, rotation: rot } : merged;
       }),
-    [serverObjects, sphereDraw.placedSpheres, liveDimensions],
+    [serverObjects, sphereDraw.placedSpheres, liveDimensions, liveRotations],
   );
   const placedMeshes = useMemo<PlacedMesh[]>(
-    () => serverObjects?.meshes ?? [],
-    [serverObjects],
+    () =>
+      (serverObjects?.meshes ?? []).map((m) => {
+        const rot = liveRotations[m.id];
+        return rot ? { ...m, rotation: rot } : m;
+      }),
+    [serverObjects, liveRotations],
   );
 
   const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | "mesh" | null>(() => {
@@ -192,6 +206,25 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setLivePosition(objectId, pos);
     },
     [updateObjectPosition, setLivePosition],
+  );
+
+  const handleObjectRotate = useCallback(
+    (objectId: string, euler: { x: number; y: number; z: number }, persist: boolean) => {
+      if (persist) {
+        updateObjectRotation.mutate({ objectId, rotation: euler });
+      }
+      setLiveRotation(objectId, euler);
+    },
+    [updateObjectRotation, setLiveRotation],
+  );
+
+  const handleRotationCommit = useCallback(
+    (x: number, y: number, z: number) => {
+      if (!selectedObjectId) return;
+      updateObjectRotation.mutate({ objectId: selectedObjectId, rotation: { x, y, z } });
+      setLiveRotation(selectedObjectId, { x, y, z });
+    },
+    [selectedObjectId, updateObjectRotation, setLiveRotation],
   );
 
   const onMouseUpColorPicked = useCallback(() => {
@@ -407,6 +440,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     const wire = toWireMesh({
       id,
       position: result.centroid,
+      rotation: { x: 0, y: 0, z: 0 },
       positions: result.positions,
       normals: result.normals,
       indices: result.indices,
@@ -466,6 +500,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
           data: toWireBox({
             id,
             position: newPos,
+            rotation: src.rotation,
             width: src.width,
             height: src.height,
             depth: src.depth,
@@ -479,6 +514,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
           data: toWireCylinder({
             id,
             position: newPos,
+            rotation: src.rotation,
             radius: src.radius,
             height: src.height,
             color: src.color,
@@ -491,6 +527,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
           data: toWireSphere({
             id,
             position: newPos,
+            rotation: src.rotation,
             radius: src.radius,
             color: src.color,
           }),
@@ -505,6 +542,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
           data: toWireMesh({
             id,
             position: newPos,
+            rotation: src.rotation,
             positions: src.positions,
             normals: src.normals,
             indices: src.indices,
@@ -546,6 +584,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
 
       if (e.key === "s" || e.key === "S") handleSelectClick();
       if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
+      if ((e.key === "r" || e.key === "R") && selectedObjectId) setSelectedTool("rotate");
       if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
       if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
       if ((e.key === "c" || e.key === "C") && selectedObjectId) setSelectedTool("clone");
@@ -628,6 +667,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleToolSelect,
     handleSelectClick,
     handleObjectMove,
+    handleObjectRotate,
+    handleRotationCommit,
     onMouseUpColorPicked,
     handleColorCommit,
     handleGroundPointerMove,

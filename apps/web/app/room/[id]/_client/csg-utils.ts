@@ -66,6 +66,9 @@ function brushFromMesh(mesh: PlacedMesh): Brush {
   return b;
 }
 
+// NOTE: Boolean/CSG treats inputs as axis-aligned and ignores object rotation.
+// Rotated source/target shapes will produce results as if unrotated — a known
+// follow-up for the rotate feature.
 export function brushFrom(shape: AnyShape, kind: ShapeKind): Brush {
   switch (kind) {
     case "box":

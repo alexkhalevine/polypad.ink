@@ -72,6 +72,7 @@ export function useBoxDraw(options?: UseBoxDrawOptions): UseBoxDrawReturn {
           0,
           Math.min(prev.start.z, prev.end.z),
         ),
+        rotation: { x: 0, y: 0, z: 0 },
         width: Math.max(0.01, Math.abs(prev.end.x - prev.start.x)),
         height,
         depth: Math.max(0.01, Math.abs(prev.end.z - prev.start.z)),

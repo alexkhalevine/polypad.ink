@@ -72,6 +72,7 @@ export function useCylinderDraw(options?: UseCylinderDrawOptions): UseCylinderDr
       const cylinder: PlacedCylinder = {
         id: crypto.randomUUID(),
         position: new THREE.Vector3(prev.start.x, 0, prev.start.z),
+        rotation: { x: 0, y: 0, z: 0 },
         radius,
         height,
         color: null,

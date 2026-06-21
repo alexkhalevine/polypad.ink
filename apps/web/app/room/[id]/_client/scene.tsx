@@ -51,6 +51,11 @@ interface SceneProps {
   onHeightPointerMove: (worldY: number) => void;
   onHeightClick: (worldY: number) => void;
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
+  onObjectRotate?: (
+    objectId: string,
+    euler: { x: number; y: number; z: number },
+    persist: boolean,
+  ) => void;
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
@@ -166,6 +171,7 @@ function SceneContent({
   onHeightPointerMove,
   onHeightClick,
   onObjectMove,
+  onObjectRotate,
   onDragStart,
   onDragEnd,
   onDimensionCommit,
@@ -258,14 +264,16 @@ function SceneContent({
 
       <primitive object={new THREE.GridHelper(20, 20, "#3a3550", "#1d1b2b")} />
 
-      {selectedTool === "move" && (
+      {(selectedTool === "move" || selectedTool === "rotate") && (
         <TransformGizmo
+          mode={selectedTool === "rotate" ? "rotate" : "translate"}
           selectedObjectId={selectedObjectId}
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
           placedMeshes={placedMeshes}
           onObjectMove={onObjectMove}
+          onObjectRotate={onObjectRotate}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />

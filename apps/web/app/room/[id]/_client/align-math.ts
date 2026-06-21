@@ -44,6 +44,9 @@ function sideValue(aabb: AABB, axis: "x" | "y" | "z", side: "min" | "center" | "
   return aabb[side][axis];
 }
 
+// NOTE: Alignment is computed from axis-aligned bounding boxes and ignores object
+// rotation. Aligning rotated objects may be inaccurate — a known follow-up for
+// the rotate feature.
 export function computeAlignedPosition(
   source: Shape,
   sourceType: ShapeType,

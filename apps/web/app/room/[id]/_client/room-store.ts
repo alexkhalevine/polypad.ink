@@ -24,6 +24,11 @@ interface RoomStore {
   setLivePosition: (objectId: string, pos: { x: number; y: number; z: number }) => void;
   clearLivePosition: (objectId: string) => void;
 
+  // Live drag rotations (overlay on server state during gizmo/inspector rotation)
+  liveRotations: Record<string, { x: number; y: number; z: number }>;
+  setLiveRotation: (objectId: string, rot: { x: number; y: number; z: number }) => void;
+  clearLiveRotation: (objectId: string) => void;
+
   // Live dimension edits (overlay on server state while typing in resize inputs)
   liveDimensions: Record<string, Partial<{ width: number; height: number; depth: number; radius: number }>>;
   setLiveDimension: (
@@ -106,6 +111,16 @@ export const useRoomStore = create<RoomStore>((set) => ({
       const next = { ...s.livePositions };
       delete next[objectId];
       return { livePositions: next };
+    }),
+
+  liveRotations: {},
+  setLiveRotation: (objectId, rot) =>
+    set((s) => ({ liveRotations: { ...s.liveRotations, [objectId]: rot } })),
+  clearLiveRotation: (objectId) =>
+    set((s) => {
+      const next = { ...s.liveRotations };
+      delete next[objectId];
+      return { liveRotations: next };
     }),
 
   liveDimensions: {},
