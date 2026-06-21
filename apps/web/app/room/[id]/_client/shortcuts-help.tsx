@@ -22,17 +22,38 @@ export const ShortcutsHelp = () => {
     listeners.forEach((cb) => cb());
   };
 
+  const items: [string, string][] = [
+    ["S", "Select"],
+    ["M", "Move"],
+    ["A", "Align"],
+    ["B", "Boolean"],
+    ["C", "Clone"],
+  ];
+
   return (
-    <div className="absolute left-3 top-40 z-10" id="shortcuts-help">
-      <div className="bg-base-200 border border-base-300 rounded-lg p-3 w-44 shadow-md">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Shortcuts</span>
-          <button onClick={dismiss} className="btn btn-xs btn-circle text-base-content/60 hover:text-base-content" aria-label="Dismiss">✕</button>
+    <div className="absolute left-[76px] top-[72px] z-20" id="shortcuts-help">
+      <div className="pp-panel w-44 rounded-[14px] p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--pp-text-meta)]">
+            Shortcuts
+          </span>
+          <button
+            onClick={dismiss}
+            className="text-[var(--pp-text-meta)] transition-colors hover:text-white"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
         </div>
-        <ul className="space-y-1 text-sm text-base-content">
-          <li className="flex items-center gap-2"><kbd className="kbd kbd-xs">S</kbd> Select</li>
-          <li className="flex items-center gap-2"><kbd className="kbd kbd-xs">M</kbd> Move</li>
-          <li className="flex items-center gap-2"><kbd className="kbd kbd-xs">A</kbd> Align</li>
+        <ul className="space-y-1.5 text-[13px] text-[var(--pp-text-secondary)]">
+          {items.map(([key, label]) => (
+            <li key={key} className="flex items-center gap-2">
+              <kbd className="flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-[var(--pp-panel-border)] bg-[rgba(255,255,255,0.05)] px-1 font-tech text-[11px] text-[var(--pp-text-primary)]">
+                {key}
+              </kbd>
+              {label}
+            </li>
+          ))}
         </ul>
       </div>
     </div>

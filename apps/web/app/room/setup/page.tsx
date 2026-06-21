@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { RoomSetupForm } from "./room-setup-form";
+import { RotatingCube } from "@/app/components/rotating-cube";
 
 async function getHcaptchaTokenFromCookies(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -18,22 +19,46 @@ export default async function RoomSetupPage() {
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-      <div className="max-w-xl w-full flex flex-col items-center text-center gap-8">
-        {/* Hero text */}
-        <div className="flex flex-col gap-4">
-          <h1 className="w-full text-gradient text-4xl sm:text-5xl font-sans font-semibold tracking-tight text-base-content">
-            polypad
-          </h1>
-        </div>
+    <main className="polypad-dark relative flex-1 flex flex-col items-center justify-center overflow-hidden px-6 py-12">
+      {/* Decorative perspective grid + slow-spinning wireframe cube */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.18] [perspective:900px]"
+      >
+        <div
+          className="absolute left-1/2 top-[44%] h-[140%] w-[200%] -translate-x-1/2 [transform:rotateX(66deg)]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(140,150,210,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(140,150,210,0.18) 1px, transparent 1px)",
+            backgroundSize: "120px 120px",
+            maskImage:
+              "radial-gradient(ellipse 50% 50% at 50% 35%, black 10%, transparent 70%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 50% 50% at 50% 35%, black 10%, transparent 70%)",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[26%] -translate-x-1/2 opacity-40"
+      >
+        <RotatingCube />
+      </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-          <div className="max-w-md w-full">
-            <h1 className="text-2xl font-sans font-semibold text-center mb-8">
-              Name your room
-            </h1>
-            <RoomSetupForm token={token} />
-          </div>
+      {/* Centered column */}
+      <div className="relative z-10 flex w-[420px] max-w-full flex-col items-center text-center">
+        <h1 className="text-gradient font-display text-[48px] font-bold leading-none tracking-[-0.04em]">
+          polypad
+        </h1>
+        <p className="mt-2 font-display text-[15px] text-[var(--pp-text-muted)]">
+          Collaborative 3D sketching, right in your browser.
+        </p>
+
+        <RoomSetupForm token={token} />
+
+        <div className="mt-6 flex items-center gap-2 font-display text-[13px] text-[var(--pp-text-meta)]">
+          <span className="pp-live-dot inline-block h-2 w-2 rounded-full bg-[var(--pp-mint)]" />
+          Spin up a room and start building live.
         </div>
       </div>
     </main>

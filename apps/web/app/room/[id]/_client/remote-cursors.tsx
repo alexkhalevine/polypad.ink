@@ -41,18 +41,19 @@ export function RemoteCursors() {
 
         return (
           <Html key={userId} position={[x, y + 0.01, z]} pointerEvents="none">
-            <div style={{ pointerEvents: "none", userSelect: "none" }}>
+            <div className="pp-cursor-float" style={{ pointerEvents: "none", userSelect: "none" }}>
               <CursorSVG color={color} />
               <div
                 style={{
                   marginTop: 2,
                   marginLeft: 4,
                   fontSize: 11,
-                  fontFamily: "sans-serif",
-                  color: "#fff",
+                  fontWeight: 600,
+                  fontFamily: "var(--font-display), sans-serif",
+                  color: "#0c0b12",
                   background: color,
-                  borderRadius: 3,
-                  padding: "1px 5px",
+                  borderRadius: 6,
+                  padding: "1px 6px",
                   whiteSpace: "nowrap",
                   lineHeight: "16px",
                 }}

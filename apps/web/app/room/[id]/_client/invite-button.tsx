@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UserPlus, Check } from "lucide-react";
 
 export function InviteButton() {
   const [copied, setCopied] = useState(false);
@@ -24,10 +25,11 @@ export function InviteButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="btn btn-sm btn-primary"
       aria-label="Copy invite link"
       title="Copy invite link to clipboard"
+      className="flex items-center gap-1.5 rounded-[11px] bg-[var(--pp-mint)] px-[15px] py-2 font-display text-[13px] font-semibold text-[#072019] transition-colors hover:bg-[#6bf0d2]"
     >
+      {copied ? <Check size={15} strokeWidth={2.5} /> : <UserPlus size={15} strokeWidth={2.2} />}
       {copied ? "Copied!" : "Invite"}
     </button>
   );

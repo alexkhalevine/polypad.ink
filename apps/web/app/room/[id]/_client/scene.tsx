@@ -256,7 +256,7 @@ function SceneContent({
       />
       <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} />
 
-      <primitive object={new THREE.GridHelper(20, 20, "#444", "#333")} />
+      <primitive object={new THREE.GridHelper(20, 20, "#3a3550", "#1d1b2b")} />
 
       {selectedTool === "move" && (
         <TransformGizmo
@@ -427,7 +427,7 @@ export function Scene(props: SceneProps) {
     <div className="w-full h-full" style={{ cursor }}>
       <Canvas
         camera={{ position: [5, 5, 8], fov: 50 }}
-        style={{ width: "100%", height: "100%", background: "#1a1a1a" }}
+        style={{ width: "100%", height: "100%", background: "transparent" }}
       >
         <SceneContent {...props} />
       </Canvas>

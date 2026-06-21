@@ -22,8 +22,8 @@ export default async function RoomPage({
   if (!res.ok) notFound();
 
   return (
-    <div className="border-2 border-cyan-700 rounded-md flex flex-col flex-1 overflow-hidden">
-      <main className="h-full flex flex-col flex-1">
+    <div className="polypad-dark font-display flex flex-1 flex-col overflow-hidden">
+      <main className="flex h-full flex-1 flex-col">
         <Room inviteCode={invite} />
       </main>
     </div>

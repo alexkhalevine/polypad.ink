@@ -28,6 +28,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const selectedColor = useRoomStore((s) => s.selectedColor);
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
+  const setSelectedColor = useRoomStore((s) => s.setSelectedColor);
   const setSelectionMode = useRoomStore((s) => s.setSelectionMode);
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const resetEditorState = useRoomStore((s) => s.resetEditorState);
@@ -198,6 +199,18 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       updateObjectColor.mutate({ objectId: selectedObjectId, color: selectedColor });
     }
   }, [selectedObjectId, selectedObject, selectedColor, updateObjectColor]);
+
+  // Commit a specific color directly (used by inspector swatch presets, which
+  // can't rely on the native color input's blur-then-commit flow).
+  const handleColorCommit = useCallback(
+    (color: string) => {
+      setSelectedColor(color);
+      if (selectedObjectId && selectedObject?.color !== color) {
+        updateObjectColor.mutate({ objectId: selectedObjectId, color });
+      }
+    },
+    [selectedObjectId, selectedObject, updateObjectColor, setSelectedColor],
+  );
 
   const handleGroundPointerMove = useCallback(
     (point: THREE.Vector3) => {
@@ -616,6 +629,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleSelectClick,
     handleObjectMove,
     onMouseUpColorPicked,
+    handleColorCommit,
     handleGroundPointerMove,
     handleGroundClick,
     handleDragStart,
