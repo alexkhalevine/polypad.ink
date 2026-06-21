@@ -159,7 +159,12 @@ export default function Home() {
     const modal = document.getElementById(
       "contact-form-modal",
     ) as HTMLDialogElement | null;
-    modal?.showModal();
+    // Plain .show() (not .showModal()) — a showModal() dialog is promoted to
+    // the browser's top layer, which paints above the hCaptcha challenge
+    // popup (a normal high-z-index DOM element appended to <body>), hiding
+    // it behind the modal. .show() keeps us in normal stacking order so the
+    // captcha popup's own z-index can win.
+    modal?.show();
   }
 
   function handleVerify(token: string) {
