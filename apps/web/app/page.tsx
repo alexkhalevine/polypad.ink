@@ -4,6 +4,8 @@ import { HcaptchaButton } from "./components/hcaptcha-button";
 import { ContactFormModal } from "./components/contact-form-modal";
 import { RotatingCube } from "./components/rotating-cube";
 import { PolypadLogo } from "./components/polypad-logo";
+import { Button } from "./components/button";
+import { Box, Code, MessageSquare } from "lucide-react";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import "./globals.css";
@@ -184,31 +186,36 @@ export default function Home() {
             <p className="text-base sm:text-lg font-sans text-purple-300 text-center mb-6 sm:mb-10">
               Create 3d scenes in real-time collaboration.
             </p>
-            <div className="flex flex-wrap gap-4 items-center justify-center">
+            <div className="flex flex-wrap gap-3 items-center justify-center">
               {!showCaptcha ? (
-                <button
+                <Button
+                  variant="primary"
+                  icon={<Box size={18} strokeWidth={1.8} />}
                   onClick={() => setShowCaptcha(true)}
-                  className="btn btn-bg-1 btn-lg font-sans font-medium px-8 text-purple-950"
                 >
                   Create Drawing Room
-                </button>
+                </Button>
               ) : (
                 <div className="flex flex-col items-center gap-4 mt-4">
                   <HcaptchaButton onVerify={handleVerify} theme="light" />
                 </div>
               )}
-              <a
+              <Button
+                variant="secondary"
+                icon={<Code size={18} strokeWidth={1.8} />}
                 href="/api-docs"
-                className="btn btn-bg-4 btn-lg font-sans font-medium px-8 text-purple-950"
               >
                 API Docs
-              </a>
-              <button
+              </Button>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <Button
+                variant="ghost"
+                icon={<MessageSquare size={17} strokeWidth={1.8} />}
                 onClick={openFeedbackModal}
-                className="btn btn-bg-3 btn-lg font-sans font-medium px-8 text-purple-950"
               >
                 Send Feedback
-              </button>
+              </Button>
             </div>
 
             {/* Scroll to MCP section */}

@@ -68,26 +68,6 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-.btn.btn-bg-1 {
-  background-image: linear-gradient(120deg, #f093fb 0%, #f5576c 100%);
-  border-color: transparent;
-}
-
-.btn.btn-bg-2 {
-  background-image: linear-gradient(to right, #74ebd5 0%, #9face6 100%);
-  border-color: transparent;
-}
-
-.btn.btn-bg-3 {
-  background-image: linear-gradient(to top, #fddb92 0%, #d1fdff 100%);
-  border-color: transparent;
-}
-
-.btn.btn-bg-4 {
-  background-image: linear-gradient(120deg, #a18cd1 0%, #fbc2eb 100%);
-  border-color: transparent;
-}
-
 /* ───────────────────────────────────────────────────────────────────────────
    Redesign system (Room Creation + 3D Editor) — README_design.md
    Scoped to `.polypad-dark` wrappers so the homepage is untouched.
