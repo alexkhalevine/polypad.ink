@@ -1,3 +1,24 @@
+# added grid opacity control + e2e test coverage
+
+### commit hash: 58eda446d9a3613aaafb189b403a39db7e2a48fd
+### date: 28.06.26
+
+### description
+
+Wires up the previously-disabled "Opacity" slider in the inspector's View settings — it now controls the visibility of the 3D ground grid (it was a styled, disabled placeholder; per-object opacity is still out of scope, so the control is scene-wide). Also adds the project's first Playwright e2e test, covering this slider end-to-end, so UI behavior like this can be re-verified on demand instead of only by hand.
+
+- `apps/web/app/room/[id]/_client/room-store.ts` — Adds `gridOpacity: number` (default `1`) and `setGridOpacity` to the Zustand store, following the same pattern as `wireframeEnabled`/`toggleWireframe`.
+
+- `apps/web/app/room/[id]/_client/inspector.tsx` — `DisplayToggles` reads/writes `gridOpacity` instead of rendering a `disabled` slider; label changed to "Grid opacity" with a live percentage readout.
+
+- `apps/web/app/room/[id]/_client/scene.tsx` — The `THREE.GridHelper` is now built via `useMemo` keyed on `gridOpacity`, with `material.transparent = true` and `material.opacity` set from the store value.
+
+- `apps/web/playwright.config.ts` (new), `apps/web/e2e/grid-opacity.spec.ts` (new) — First Playwright test in the repo. Creates a throwaway room via the server API, asserts the slider is enabled, and drives it through 100% → 0% → 50%, checking the grid-opacity label and that no console errors fire. Run with `pnpm --filter web test:e2e` (requires the server running on port 4000; auto-starts the web dev server if it isn't already up).
+
+- `apps/web/package.json` — Adds `@playwright/test` devDependency and `test:e2e` script.
+
+---
+
 # added full screen mode
 
 ### commit hash:

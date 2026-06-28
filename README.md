@@ -108,6 +108,16 @@ All Zod schemas live in `apps/server/src/openapi/schemas.ts` and are the single 
 pnpm --filter web test
 ```
 
+### End-to-end tests
+
+Browser-driven tests live in `apps/web/e2e/` and run with Playwright. They need the
+server running (`make dev` or `pnpm --filter server dev`) on port 4000; the web dev
+server is started automatically if it isn't already running.
+
+```sh
+pnpm --filter web test:e2e
+```
+
 ## Using with Claude (MCP)
 
 The `apps/mcp` package exposes the polypad room API as an [MCP](https://modelcontextprotocol.io/) server, so Claude Desktop, Claude Code, or other MCP-compatible agents can list, create, move, recolor, and delete shapes in a room.
@@ -213,3 +223,4 @@ Open `http://localhost:3000/room/demo` — the red box should appear within ~2 s
 - DaisyUI for UI components
 - Zod + `@asteasolutions/zod-to-openapi` for API schema and OpenAPI spec generation
 - orval for generating the typed TypeScript client in the web app
+- Playwright for end-to-end browser tests
