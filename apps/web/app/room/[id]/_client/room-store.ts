@@ -7,6 +7,7 @@ interface RoomStore {
   selectedColor: string;
   snapEnabled: boolean;
   wireframeEnabled: boolean;
+  gridOpacity: number;
   selectionMode: "draw" | "select";
   selectedObjectId: string | null;
   hoveredObjectId: string | null;
@@ -14,6 +15,7 @@ interface RoomStore {
   setSelectedColor: (color: string) => void;
   toggleSnap: () => void;
   toggleWireframe: () => void;
+  setGridOpacity: (opacity: number) => void;
   setSelectionMode: (mode: "draw" | "select") => void;
   setSelectedObjectId: (id: string | null) => void;
   setHoveredObjectId: (id: string | null) => void;
@@ -79,6 +81,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   selectedColor: "#000000",
   snapEnabled: false,
   wireframeEnabled: false,
+  gridOpacity: 1,
   selectionMode: "draw",
   selectedObjectId: null,
   hoveredObjectId: null,
@@ -86,6 +89,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   setSelectedColor: (color) => set({ selectedColor: color }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   toggleWireframe: () => set((s) => ({ wireframeEnabled: !s.wireframeEnabled })),
+  setGridOpacity: (opacity) => set({ gridOpacity: opacity }),
   setSelectionMode: (mode) => set({ selectionMode: mode }),
   setSelectedObjectId: (id) => set({ selectedObjectId: id }),
   setHoveredObjectId: (id) => set({ hoveredObjectId: id }),

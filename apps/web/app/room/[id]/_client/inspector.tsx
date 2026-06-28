@@ -258,25 +258,28 @@ function UnselectedState() {
 function DisplayToggles() {
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
   const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
+  const gridOpacity = useRoomStore((s) => s.gridOpacity);
   const toggleSnap = useRoomStore((s) => s.toggleSnap);
   const toggleWireframe = useRoomStore((s) => s.toggleWireframe);
+  const setGridOpacity = useRoomStore((s) => s.setGridOpacity);
 
   return (
     <div className="flex flex-col gap-3">
       <ToggleRow label="Snap to grid" checked={snapEnabled} onChange={toggleSnap} />
       <ToggleRow label="Wireframe" checked={wireframeEnabled} onChange={toggleWireframe} />
-      {/* Opacity slider — presentational (no per-object opacity in the model). */}
-      <div className="flex flex-col gap-1.5 opacity-60">
+      <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between text-[13px] text-[var(--pp-text-secondary)]">
-          <span>Opacity</span>
-          <span className="font-tech text-[12px] text-[var(--pp-text-muted)]">100%</span>
+          <span>Grid opacity</span>
+          <span className="font-tech text-[12px] text-[var(--pp-text-muted)]">
+            {Math.round(gridOpacity * 100)}%
+          </span>
         </div>
         <input
           type="range"
           min={0}
           max={100}
-          defaultValue={100}
-          disabled
+          value={Math.round(gridOpacity * 100)}
+          onChange={(e) => setGridOpacity(Number(e.target.value) / 100)}
           className="pp-range w-full"
         />
       </div>

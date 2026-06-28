@@ -179,6 +179,7 @@ function SceneContent({
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
   const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
+  const gridOpacity = useRoomStore((s) => s.gridOpacity);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const hoveredObjectId = useRoomStore((s) => s.hoveredObjectId);
   const selectionMode = useRoomStore((s) => s.selectionMode);
@@ -240,6 +241,14 @@ function SceneContent({
       ? (drawState.start.z + drawState.end.z) / 2
       : 0;
 
+  const grid = useMemo(() => {
+    const helper = new THREE.GridHelper(20, 20, "#3a3550", "#1d1b2b");
+    const material = helper.material as THREE.Material;
+    material.transparent = true;
+    material.opacity = gridOpacity;
+    return helper;
+  }, [gridOpacity]);
+
   return (
     <>
       <ContextMenuBlocker />
@@ -262,7 +271,7 @@ function SceneContent({
       />
       <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} />
 
-      <primitive object={new THREE.GridHelper(20, 20, "#3a3550", "#1d1b2b")} />
+      <primitive object={grid} />
 
       {(selectedTool === "move" || selectedTool === "rotate") && (
         <TransformGizmo
