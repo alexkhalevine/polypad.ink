@@ -1,3 +1,26 @@
+# added object scaling
+
+### commit hash:
+### date: 28.06.26
+
+### description
+
+Wires up the previously-disabled "Scale" tool-rail stub. Selecting an object and entering Scale (button or `E`) shows a drei `TransformControls` gizmo in `mode="scale"`. Objects have no generic "scale" field — only explicit dimensions (box: width/height/depth, cylinder: radius/height, sphere: radius) — so the gizmo's `scale` (which starts at `(1,1,1)` each drag) is treated as a multiplier on a snapshot of the object's dimensions taken at drag-start, mapped back onto those dimension fields, and reset to `(1,1,1)` after each commit so consecutive drags in the same session don't compound. Reuses the existing dimension-persistence path (`useUpdateObjectDimensions` + the `liveDimensions` live-overlay) that already backs the inspector's numeric fields, so no server/schema changes were needed and the inspector reflects gizmo drags live for free.
+
+- `apps/web/app/room/[id]/_client/types.ts` — Adds `"scale"` to `ToolType`.
+
+- `apps/web/app/room/[id]/_client/transform-gizmo.tsx` — `TransformGizmo` now accepts `mode: "translate" | "rotate" | "scale"` and an `onObjectScale` callback. Snapshots the selected object's dimensions on drag-start (`scaleBaseRef`), maps the gizmo's per-axis scale onto box width/height/depth, cylinder radius (averaged from the X/Z handles)/height, or sphere radius (averaged from all three handles) via `mapScale`, clamping to a `MIN_DIM = 0.01` floor matching the inspector's existing field minimum. Resets `obj.scale` to `(1,1,1)` after each persisted commit. Mesh (boolean-result) objects have no dimension fields, so the gizmo doesn't render for them in scale mode. Seeds the gizmo's `rotation` for both rotate and scale modes (so handles align to the object's local axes) and uses `space="local"` for scale.
+
+- `apps/web/app/room/[id]/_client/hooks/use-room-editor.ts` — Adds `handleObjectScale` (mirrors `handleObjectRotate`: persists via `updateObjectDimensions.mutate` on commit, always updates `liveDimensions` for the live overlay) and wires the already-documented `E` keyboard shortcut to enter Scale mode.
+
+- `apps/web/app/room/[id]/_client/tool-rail.tsx` — Scale button is no longer a disabled stub; follows the same `active`/`disabled`/`onClick` pattern as Move/Rotate.
+
+- `apps/web/app/room/[id]/_client/scene.tsx`, `apps/web/app/room/[id]/_client/room.tsx` — Thread `onObjectScale` through to `TransformGizmo`; extend the gizmo-render condition to include `selectedTool === "scale"`.
+
+Known limitation: cylinder and sphere radius scaling averages whichever axis handles are dragged (e.g. dragging only the X handle on a sphere still nudges the radius, since X/Y/Z are averaged together) — there's no way to scale just one axis of a radius-based shape, since they only have one radius field.
+
+---
+
 # added grid opacity control + e2e test coverage
 
 ### commit hash: 58eda446d9a3613aaafb189b403a39db7e2a48fd

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "rotate" | "align" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "move" | "rotate" | "scale" | "align" | "boolean" | "clone";
 
 // Euler XYZ rotation in radians, applied about the object's geometric center.
 export interface Rotation {

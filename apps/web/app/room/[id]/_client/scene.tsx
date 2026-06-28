@@ -21,6 +21,7 @@ import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
 import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
+import { DimensionPatch } from "./queries/use-update-object-dimensions";
 import { RemoteCursors } from "./remote-cursors";
 import { ExportHandler, PLACED_OBJECTS_GROUP } from "./export-handler";
 import { useErrorStore } from "@/app/error-store";
@@ -56,6 +57,7 @@ interface SceneProps {
     euler: { x: number; y: number; z: number },
     persist: boolean,
   ) => void;
+  onObjectScale?: (objectId: string, dimensions: DimensionPatch, persist: boolean) => void;
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
@@ -186,6 +188,7 @@ function SceneContent({
   onHeightClick,
   onObjectMove,
   onObjectRotate,
+  onObjectScale,
   onDragStart,
   onDragEnd,
   onDimensionCommit,
@@ -288,9 +291,15 @@ function SceneContent({
 
       <primitive object={grid} />
 
-      {(selectedTool === "move" || selectedTool === "rotate") && (
+      {(selectedTool === "move" || selectedTool === "rotate" || selectedTool === "scale") && (
         <TransformGizmo
-          mode={selectedTool === "rotate" ? "rotate" : "translate"}
+          mode={
+            selectedTool === "rotate"
+              ? "rotate"
+              : selectedTool === "scale"
+                ? "scale"
+                : "translate"
+          }
           selectedObjectId={selectedObjectId}
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
@@ -298,6 +307,7 @@ function SceneContent({
           placedMeshes={placedMeshes}
           onObjectMove={onObjectMove}
           onObjectRotate={onObjectRotate}
+          onObjectScale={onObjectScale}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />

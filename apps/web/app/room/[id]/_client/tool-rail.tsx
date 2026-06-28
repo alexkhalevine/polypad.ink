@@ -24,8 +24,6 @@ export function ToolRail({ onSelectClick }: ToolRailProps) {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
 
-  const noop = () => {};
-
   const buttons: RailButton[] = [
     {
       key: "select",
@@ -59,9 +57,9 @@ export function ToolRail({ onSelectClick }: ToolRailProps) {
       icon: Maximize,
       label: "Scale",
       shortcut: "E",
-      active: false,
-      disabled: true,
-      onClick: noop,
+      active: selectedTool === "scale",
+      disabled: !selectedObjectId,
+      onClick: () => selectedObjectId && setSelectedTool("scale"),
     },
   ];
 

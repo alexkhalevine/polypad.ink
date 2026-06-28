@@ -6,9 +6,13 @@ import { useThree } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
 import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
 import { useRoomStore } from "./room-store";
+import { DimensionPatch } from "./queries/use-update-object-dimensions";
+
+const MIN_DIM = 0.01;
+const clamp = (v: number) => Math.max(MIN_DIM, v);
 
 interface TransformGizmoProps {
-  mode: "translate" | "rotate";
+  mode: "translate" | "rotate" | "scale";
   selectedObjectId: string | null;
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
@@ -20,9 +24,16 @@ interface TransformGizmoProps {
     euler: { x: number; y: number; z: number },
     persist: boolean,
   ) => void;
+  onObjectScale?: (objectId: string, dimensions: DimensionPatch, persist: boolean) => void;
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
 }
+
+type Selected =
+  | { obj: PlacedBox; type: "box" }
+  | { obj: PlacedCylinder; type: "cylinder" }
+  | { obj: PlacedSphere; type: "sphere" }
+  | { obj: PlacedMesh; type: "mesh" };
 
 // Per-type offset from the bottom-anchor (position) to the geometric center —
 // the pivot the rotate gizmo and mesh rendering rotate about.
@@ -44,6 +55,53 @@ function centerOffset(
   return [0, 0, 0];
 }
 
+// Snapshot of the dimensions a scale drag starts from (taken at drag-start, not
+// re-derived every tick — the gizmo's own .scale is a multiplier relative to this).
+function snapshotDimensions(selected: Selected): DimensionPatch {
+  if (selected.type === "box") {
+    const b = selected.obj;
+    return { width: b.width, height: b.height, depth: b.depth };
+  }
+  if (selected.type === "cylinder") {
+    const c = selected.obj;
+    return { radius: c.radius, height: c.height };
+  }
+  if (selected.type === "sphere") {
+    return { radius: selected.obj.radius };
+  }
+  return {};
+}
+
+// Maps the gizmo's accumulated scale multiplier (relative to the drag-start
+// snapshot) onto the object's actual dimension fields.
+function mapScale(
+  type: "box" | "cylinder" | "sphere" | "mesh",
+  base: DimensionPatch,
+  scale: THREE.Vector3,
+): DimensionPatch {
+  if (type === "box") {
+    return {
+      width: clamp((base.width ?? 0) * scale.x),
+      height: clamp((base.height ?? 0) * scale.y),
+      depth: clamp((base.depth ?? 0) * scale.z),
+    };
+  }
+  if (type === "cylinder") {
+    return {
+      radius: clamp((base.radius ?? 0) * ((Math.abs(scale.x) + Math.abs(scale.z)) / 2)),
+      height: clamp((base.height ?? 0) * scale.y),
+    };
+  }
+  if (type === "sphere") {
+    return {
+      radius: clamp(
+        (base.radius ?? 0) * ((Math.abs(scale.x) + Math.abs(scale.y) + Math.abs(scale.z)) / 3),
+      ),
+    };
+  }
+  return {};
+}
+
 export function TransformGizmo({
   mode,
   selectedObjectId,
@@ -53,6 +111,7 @@ export function TransformGizmo({
   placedMeshes,
   onObjectMove,
   onObjectRotate,
+  onObjectScale,
   onDragStart,
   onDragEnd,
 }: TransformGizmoProps) {
@@ -60,23 +119,30 @@ export function TransformGizmo({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transformRef = useRef<any>(null);
   const lockedRef = useRef(false);
+  const scaleBaseRef = useRef<DimensionPatch | null>(null);
 
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
   const isRemoteLocked = selectedObjectId ? Boolean(objectLocks[selectedObjectId]) : false;
 
-  const selected = (() => {
+  const selected: Selected | null = (() => {
     if (!selectedObjectId) return null;
     const box = placedBoxes.find((o) => o.id === selectedObjectId);
-    if (box) return { obj: box, type: "box" as const };
+    if (box) return { obj: box, type: "box" };
     const cyl = placedCylinders.find((o) => o.id === selectedObjectId);
-    if (cyl) return { obj: cyl, type: "cylinder" as const };
+    if (cyl) return { obj: cyl, type: "cylinder" };
     const sph = placedSpheres.find((o) => o.id === selectedObjectId);
-    if (sph) return { obj: sph, type: "sphere" as const };
+    if (sph) return { obj: sph, type: "sphere" };
     const mesh = placedMeshes.find((o) => o.id === selectedObjectId);
-    if (mesh) return { obj: mesh, type: "mesh" as const };
+    if (mesh) return { obj: mesh, type: "mesh" };
     return null;
   })();
+
+  // Always-current snapshot for the dragging-changed handler below, which is only
+  // re-subscribed when selectedObjectId/onDragStart/onDragEnd change — not on every
+  // render — so it can't close over a stale `selected` otherwise.
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
 
   useEffect(() => {
     const controls = transformRef.current;
@@ -84,6 +150,9 @@ export function TransformGizmo({
     const handleDraggingChanged = async ({ value }: { value: boolean }) => {
       if (value) {
         lockedRef.current = onDragStart ? (await onDragStart(selectedObjectId)).ok : true;
+        if (mode === "scale" && selectedRef.current) {
+          scaleBaseRef.current = snapshotDimensions(selectedRef.current);
+        }
       } else {
         onDragEnd?.(selectedObjectId);
         lockedRef.current = false;
@@ -91,7 +160,7 @@ export function TransformGizmo({
     };
     controls.addEventListener("dragging-changed", handleDraggingChanged);
     return () => controls.removeEventListener("dragging-changed", handleDraggingChanged);
-  }, [selectedObjectId, onDragStart, onDragEnd]);
+  }, [selectedObjectId, mode, onDragStart, onDragEnd]);
 
   const handleChange = () => {
     if (!lockedRef.current) return;
@@ -102,10 +171,14 @@ export function TransformGizmo({
       const pos = obj.position.clone();
       pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos, false);
-    } else {
+    } else if (mode === "rotate") {
       if (!onObjectRotate) return;
       const r = obj.rotation as THREE.Euler;
       onObjectRotate(selectedObjectId, { x: r.x, y: r.y, z: r.z }, false);
+    } else {
+      if (!onObjectScale || !selected || !scaleBaseRef.current) return;
+      const dims = mapScale(selected.type, scaleBaseRef.current, obj.scale as THREE.Vector3);
+      onObjectScale(selectedObjectId, dims, false);
     }
   };
 
@@ -118,18 +191,28 @@ export function TransformGizmo({
       const pos = obj.position.clone();
       pos.y = Math.max(0, pos.y);
       onObjectMove(selectedObjectId, pos, true);
-    } else {
+    } else if (mode === "rotate") {
       if (!onObjectRotate) return;
       const r = obj.rotation as THREE.Euler;
       onObjectRotate(selectedObjectId, { x: r.x, y: r.y, z: r.z }, true);
+    } else {
+      if (!onObjectScale || !selected || !scaleBaseRef.current) return;
+      const dims = mapScale(selected.type, scaleBaseRef.current, obj.scale as THREE.Vector3);
+      onObjectScale(selectedObjectId, dims, true);
+      // Reset so a second drag in the same session starts from a clean multiplier
+      // instead of compounding onto the scale left over from the previous drag.
+      obj.scale.set(1, 1, 1);
+      scaleBaseRef.current = null;
     }
   };
 
   if (!selected || isRemoteLocked) return null;
+  if (mode === "scale" && selected.type === "mesh") return null;
 
   const { position } = selected.obj;
   const offset = centerOffset(selected.obj, selected.type);
-  // Translate grabs the bottom-anchor; rotate sits at the geometric center.
+  // Translate and scale grab the bottom-anchor (the pivot dimension growth happens
+  // from); rotate sits at the geometric center.
   const gizmoPosition: [number, number, number] =
     mode === "rotate"
       ? [position.x + offset[0], position.y + offset[1], position.z + offset[2]]
@@ -145,7 +228,8 @@ export function TransformGizmo({
       domElement={gl.domElement}
       mode={mode}
       position={gizmoPosition}
-      rotation={mode === "rotate" ? [rot.x, rot.y, rot.z] : undefined}
+      rotation={mode !== "translate" ? [rot.x, rot.y, rot.z] : undefined}
+      space={mode === "scale" ? "local" : undefined}
       rotationSnap={mode === "rotate" && snapEnabled ? Math.PI / 12 : null}
       onChange={handleChange}
       onMouseUp={handleMouseUp}

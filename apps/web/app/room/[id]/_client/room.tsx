@@ -106,6 +106,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           onHeightClick={editor.activeDraw?.handleHeightClick ?? noop}
           onObjectMove={editor.handleObjectMove}
           onObjectRotate={editor.handleObjectRotate}
+          onObjectScale={editor.handleObjectScale}
           onDragStart={editor.handleDragStart}
           onDragEnd={editor.handleDragEnd}
           onDimensionCommit={editor.handleDimensionCommit}

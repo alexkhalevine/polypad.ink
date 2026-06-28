@@ -9,7 +9,7 @@ import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
 import { useUpdateObjectPosition } from "../queries/use-update-object-position";
 import { useUpdateObjectRotation } from "../queries/use-update-object-rotation";
-import { useUpdateObjectDimensions } from "../queries/use-update-object-dimensions";
+import { useUpdateObjectDimensions, DimensionPatch } from "../queries/use-update-object-dimensions";
 import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
@@ -216,6 +216,18 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setLiveRotation(objectId, euler);
     },
     [updateObjectRotation, setLiveRotation],
+  );
+
+  const handleObjectScale = useCallback(
+    (objectId: string, dimensions: DimensionPatch, persist: boolean) => {
+      if (persist) {
+        updateObjectDimensions.mutate({ objectId, dimensions });
+      }
+      for (const [field, value] of Object.entries(dimensions)) {
+        setLiveDimension(objectId, field as "width" | "height" | "depth" | "radius", value as number);
+      }
+    },
+    [updateObjectDimensions, setLiveDimension],
   );
 
   const handleRotationCommit = useCallback(
@@ -585,6 +597,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if (e.key === "s" || e.key === "S") handleSelectClick();
       if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
       if ((e.key === "r" || e.key === "R") && selectedObjectId) setSelectedTool("rotate");
+      if ((e.key === "e" || e.key === "E") && selectedObjectId) setSelectedTool("scale");
       if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
       if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
       if ((e.key === "c" || e.key === "C") && selectedObjectId) setSelectedTool("clone");
@@ -668,6 +681,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handleSelectClick,
     handleObjectMove,
     handleObjectRotate,
+    handleObjectScale,
     handleRotationCommit,
     onMouseUpColorPicked,
     handleColorCommit,

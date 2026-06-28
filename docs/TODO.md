@@ -10,9 +10,7 @@ follow-ups from object rotation (see CHANGELOG "added object rotation"):
 
 placeholder UI controls still needing real implementations (see CHANGELOG "reworked app UI"):
 
-5. Scale tool (tool rail) — currently a disabled stub; no scale/resize-via-gizmo exists yet (dimensions can only be edited via the inspector's numeric fields).
-6. Orbit-camera tool-rail button — orbiting already works by dragging in the viewport (drei OrbitControls); the dedicated button itself is a no-op and should either be wired to something meaningful or removed.
-7. Group (contextual object toolbar) — disabled stub; no multi-select/grouping model exists.
-8. Cone + "+ more" (shape dock) — disabled stubs; no cone primitive on the server/client yet.
-9. Opacity slider (inspector Display section) — disabled stub; `PlacedBox/Cylinder/Sphere/Mesh` have no opacity field.
-10. Zoom in / zoom out (status bar) — presentational no-ops; real zoom currently only happens via scroll/pinch on OrbitControls. Consider wiring these to the camera, or removing them.
+5. Orbit-camera tool-rail button — orbiting already works by dragging in the viewport (drei OrbitControls); the dedicated button itself is a no-op and should either be wired to something meaningful or removed.
+6. Group (contextual object toolbar) — disabled stub; no multi-select/grouping model exists.
+7. Cone + "+ more" (shape dock) — disabled stubs; no cone primitive on the server/client yet.
+8. Opacity slider (inspector Display section) — disabled stub; `PlacedBox/Cylinder/Sphere/Mesh` have no opacity field.
