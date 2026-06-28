@@ -11,6 +11,9 @@ interface StatusBarProps {
 
 export function StatusBar({ selectedObjectCoords, isFullscreen, onToggleFullscreen }: StatusBarProps) {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
+  const zoomLevel = useRoomStore((s) => s.zoomLevel);
+  const zoomIn = useRoomStore((s) => s.zoomIn);
+  const zoomOut = useRoomStore((s) => s.zoomOut);
 
   return (
     <div className="absolute bottom-[22px] left-4 z-20 flex items-center gap-2.5">
@@ -23,16 +26,14 @@ export function StatusBar({ selectedObjectCoords, isFullscreen, onToggleFullscre
         </div>
       )}
 
-      {/* Zoom controls — presentational. The viewport itself zooms via
-          scroll / pinch through drei's OrbitControls. */}
       <div className="pp-panel flex items-center gap-1 rounded-[12px] p-1">
-        <ZoomButton label="Zoom out" onClick={() => {}}>
+        <ZoomButton label="Zoom out" onClick={zoomOut}>
           <Minus size={16} strokeWidth={2} />
         </ZoomButton>
         <span className="px-1 font-tech text-[12px] text-[var(--pp-text-secondary)]">
-          100%
+          {zoomLevel}%
         </span>
-        <ZoomButton label="Zoom in" onClick={() => {}}>
+        <ZoomButton label="Zoom in" onClick={zoomIn}>
           <Plus size={16} strokeWidth={2} />
         </ZoomButton>
         <div className="mx-0.5 h-5 w-px bg-[var(--pp-panel-border)]" />

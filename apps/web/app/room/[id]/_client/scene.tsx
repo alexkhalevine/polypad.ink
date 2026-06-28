@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
@@ -154,6 +154,20 @@ function BooleanSection({
   );
 }
 
+// ─── Zoom sync (camera.zoom driven by the status bar +/- buttons) ─────────────
+
+function ZoomController() {
+  const zoomLevel = useRoomStore((s) => s.zoomLevel);
+  const camera = useThree((s) => s.camera);
+
+  useEffect(() => {
+    camera.zoom = zoomLevel / 100;
+    camera.updateProjectionMatrix();
+  }, [camera, zoomLevel]);
+
+  return null;
+}
+
 // ─── Scene root ───────────────────────────────────────────────────────────────
 
 function SceneContent({
@@ -252,6 +266,7 @@ function SceneContent({
   return (
     <>
       <ContextMenuBlocker />
+      <ZoomController />
       <OrbitControls
         makeDefault
         enableDamping

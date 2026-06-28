@@ -8,6 +8,7 @@ interface RoomStore {
   snapEnabled: boolean;
   wireframeEnabled: boolean;
   gridOpacity: number;
+  zoomLevel: number;
   selectionMode: "draw" | "select";
   selectedObjectId: string | null;
   hoveredObjectId: string | null;
@@ -16,6 +17,8 @@ interface RoomStore {
   toggleSnap: () => void;
   toggleWireframe: () => void;
   setGridOpacity: (opacity: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
   setSelectionMode: (mode: "draw" | "select") => void;
   setSelectedObjectId: (id: string | null) => void;
   setHoveredObjectId: (id: string | null) => void;
@@ -76,12 +79,17 @@ interface RoomStore {
   applyRemoteMove: (objectId: string, pos: { x: number; y: number; z: number }) => void;
 }
 
+const ZOOM_STEP = 5;
+const ZOOM_MIN = 25;
+const ZOOM_MAX = 300;
+
 export const useRoomStore = create<RoomStore>((set) => ({
   selectedTool: null,
   selectedColor: "#000000",
   snapEnabled: false,
   wireframeEnabled: false,
   gridOpacity: 1,
+  zoomLevel: 100,
   selectionMode: "draw",
   selectedObjectId: null,
   hoveredObjectId: null,
@@ -90,6 +98,10 @@ export const useRoomStore = create<RoomStore>((set) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   toggleWireframe: () => set((s) => ({ wireframeEnabled: !s.wireframeEnabled })),
   setGridOpacity: (opacity) => set({ gridOpacity: opacity }),
+  zoomIn: () =>
+    set((s) => ({ zoomLevel: Math.min(ZOOM_MAX, s.zoomLevel + ZOOM_STEP) })),
+  zoomOut: () =>
+    set((s) => ({ zoomLevel: Math.max(ZOOM_MIN, s.zoomLevel - ZOOM_STEP) })),
   setSelectionMode: (mode) => set({ selectionMode: mode }),
   setSelectedObjectId: (id) => set({ selectedObjectId: id }),
   setHoveredObjectId: (id) => set({ hoveredObjectId: id }),
