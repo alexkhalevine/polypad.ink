@@ -160,6 +160,49 @@
           "color"
         ]
       },
+      "WireCone": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "cz": {
+            "type": "number"
+          },
+          "rotation": {
+            "$ref": "#/components/schemas/Vec3"
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "cx",
+          "cy",
+          "cz",
+          "radius",
+          "height",
+          "color"
+        ]
+      },
       "WireMesh": {
         "type": "object",
         "properties": {
@@ -273,6 +316,24 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "cone"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/WireCone"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "mesh"
                 ]
               },
@@ -308,6 +369,12 @@
               "$ref": "#/components/schemas/WireSphere"
             }
           },
+          "cones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WireCone"
+            }
+          },
           "meshes": {
             "type": "array",
             "items": {
@@ -319,6 +386,7 @@
           "boxes",
           "cylinders",
           "spheres",
+          "cones",
           "meshes"
         ]
       },

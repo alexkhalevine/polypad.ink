@@ -8,10 +8,10 @@ import {
   DIFFERENCE,
   INTERSECTION,
 } from "three-bvh-csg";
-import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, BooleanOperation } from "./types";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, BooleanOperation } from "./types";
 
-export type AnyShape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
-export type ShapeKind = "box" | "cylinder" | "sphere" | "mesh";
+export type AnyShape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh;
+export type ShapeKind = "box" | "cylinder" | "sphere" | "cone" | "mesh";
 
 const OP_MAP: Record<BooleanOperation, ReturnType<typeof Number>> = {
   ADDITION: ADDITION as unknown as number,
@@ -47,6 +47,14 @@ function brushFromCylinder(cyl: PlacedCylinder): Brush {
   return b;
 }
 
+function brushFromCone(cone: PlacedCone): Brush {
+  const geo = new THREE.ConeGeometry(cone.radius, cone.height, 32);
+  const b = new Brush(geo);
+  b.position.set(cone.position.x, cone.position.y + cone.height / 2, cone.position.z);
+  b.updateMatrixWorld();
+  return b;
+}
+
 function brushFromSphere(sph: PlacedSphere): Brush {
   const geo = new THREE.SphereGeometry(sph.radius, 32, 16);
   const b = new Brush(geo);
@@ -77,6 +85,8 @@ export function brushFrom(shape: AnyShape, kind: ShapeKind): Brush {
       return brushFromCylinder(shape as PlacedCylinder);
     case "sphere":
       return brushFromSphere(shape as PlacedSphere);
+    case "cone":
+      return brushFromCone(shape as PlacedCone);
     case "mesh":
       return brushFromMesh(shape as PlacedMesh);
   }

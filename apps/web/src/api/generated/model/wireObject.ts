@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { WireBox } from './wireBox';
+import type { WireCone } from './wireCone';
 import type { WireCylinder } from './wireCylinder';
 import type { WireMesh } from './wireMesh';
 import type { WireSphere } from './wireSphere';
@@ -19,6 +20,9 @@ export type WireObject = {
 } | {
   type: 'sphere';
   data: WireSphere;
+} | {
+  type: 'cone';
+  data: WireCone;
 } | {
   type: 'mesh';
   data: WireMesh;

@@ -1,7 +1,7 @@
-import { PlacedBox, PlacedCylinder, PlacedSphere, AxisSide } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, AxisSide } from "./types";
 
-type Shape = PlacedBox | PlacedCylinder | PlacedSphere;
-type ShapeType = "box" | "cylinder" | "sphere";
+type Shape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
+type ShapeType = "box" | "cylinder" | "sphere" | "cone";
 
 interface AABB {
   min: { x: number; y: number; z: number };
@@ -23,8 +23,8 @@ export function aabbOf(shape: Shape, type: ShapeType): AABB {
     };
   }
 
-  if (type === "cylinder") {
-    const c = shape as PlacedCylinder;
+  if (type === "cylinder" || type === "cone") {
+    const c = shape as PlacedCylinder | PlacedCone;
     return {
       min: { x: p.x - c.radius, y: p.y, z: p.z - c.radius },
       max: { x: p.x + c.radius, y: p.y + c.height, z: p.z + c.radius },

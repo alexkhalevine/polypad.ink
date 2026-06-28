@@ -21,6 +21,7 @@ export * from './updatePatch';
 export * from './vec3';
 export * from './verifyRoomResponse';
 export * from './wireBox';
+export * from './wireCone';
 export * from './wireCylinder';
 export * from './wireMesh';
 export * from './wireObject';

@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh, Rotation } from "../types";
-import type { WireBox, WireCylinder, WireSphere, WireMesh, WireRotation } from "./wire-types";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, Rotation } from "../types";
+import type { WireBox, WireCylinder, WireSphere, WireCone, WireMesh, WireRotation } from "./wire-types";
 
 // Wire fields cx/cy/cz are kept for backward compatibility with the server schema,
 // but they now carry the bottom-anchor (corner / base), not the geometric center.
@@ -78,6 +78,30 @@ export function fromWireSphere(wire: WireSphere): PlacedSphere {
     position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
     rotation: rotationFromWire(wire.rotation),
     radius: wire.radius,
+    color: wire.color,
+  };
+}
+
+export function toWireCone(cone: PlacedCone): WireCone {
+  return {
+    id: cone.id,
+    cx: cone.position.x,
+    cy: cone.position.y,
+    cz: cone.position.z,
+    rotation: cone.rotation,
+    radius: cone.radius,
+    height: cone.height,
+    color: cone.color,
+  };
+}
+
+export function fromWireCone(wire: WireCone): PlacedCone {
+  return {
+    id: wire.id,
+    position: new THREE.Vector3(wire.cx, wire.cy, wire.cz),
+    rotation: rotationFromWire(wire.rotation),
+    radius: wire.radius,
+    height: wire.height,
     color: wire.color,
   };
 }

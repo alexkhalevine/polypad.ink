@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { roomKeys } from "./query-keys";
-import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireMesh } from "./wire-converters";
-import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
+import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireCone, fromWireMesh } from "./wire-converters";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "../types";
 import { getRoomsIdObjects } from "@/src/api/generated/endpoints/objects/objects";
 
 interface RoomObjects {
   boxes: PlacedBox[];
   cylinders: PlacedCylinder[];
   spheres: PlacedSphere[];
+  cones: PlacedCone[];
   meshes: PlacedMesh[];
 }
 
@@ -21,6 +22,7 @@ export function useRoomObjects(id: string) {
         boxes: data.boxes.map(fromWireBox),
         cylinders: data.cylinders.map(fromWireCylinder),
         spheres: data.spheres.map(fromWireSphere),
+        cones: (data.cones ?? []).map(fromWireCone),
         meshes: (data.meshes ?? []).map(fromWireMesh),
       };
     },

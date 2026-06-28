@@ -13,7 +13,7 @@ export const geometryObjects = sqliteTable(
   {
     id: text("id").primaryKey(),
     roomId: text("room_id").notNull().references(() => rooms.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["box", "cylinder", "sphere", "mesh"] }).notNull(),
+    type: text("type", { enum: ["box", "cylinder", "sphere", "cone", "mesh"] }).notNull(),
     cx: real("cx").notNull(),
     cy: real("cy").notNull(),
     cz: real("cz").notNull(),

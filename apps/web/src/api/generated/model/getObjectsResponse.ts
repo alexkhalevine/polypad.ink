@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { WireBox } from './wireBox';
+import type { WireCone } from './wireCone';
 import type { WireCylinder } from './wireCylinder';
 import type { WireMesh } from './wireMesh';
 import type { WireSphere } from './wireSphere';
@@ -14,5 +15,6 @@ export interface GetObjectsResponse {
   boxes: WireBox[];
   cylinders: WireCylinder[];
   spheres: WireSphere[];
+  cones: WireCone[];
   meshes: WireMesh[];
 }

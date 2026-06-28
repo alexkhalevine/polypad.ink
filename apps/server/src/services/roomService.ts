@@ -88,6 +88,20 @@ function rowToWire(row: ObjectRow): WireObject {
           color: row.color ?? null,
         },
       };
+    case "cone":
+      return {
+        type: "cone",
+        data: {
+          id: row.id,
+          cx: row.cx,
+          cy: row.cy,
+          cz: row.cz,
+          rotation: rotationOf(row),
+          radius: row.radius ?? 0.5,
+          height: row.height ?? 1,
+          color: row.color ?? null,
+        },
+      };
     case "mesh":
       return {
         type: "mesh",
@@ -161,6 +175,21 @@ function wireToInsert(roomId: string, wire: WireObject): NewObject {
         color: d.color ?? null,
       };
     }
+    case "cone": {
+      const d = wire.data;
+      return {
+        id: d.id,
+        roomId,
+        type: "cone",
+        cx: d.cx,
+        cy: d.cy,
+        cz: d.cz,
+        ...rotationCols(d.rotation),
+        radius: d.radius,
+        height: d.height,
+        color: d.color ?? null,
+      };
+    }
     case "mesh": {
       const d = wire.data;
       return {
@@ -190,6 +219,8 @@ function withServerId(wire: WireObject, id: string): WireObject {
       return { type: "cylinder", data: { ...wire.data, id } };
     case "sphere":
       return { type: "sphere", data: { ...wire.data, id } };
+    case "cone":
+      return { type: "cone", data: { ...wire.data, id } };
     case "mesh":
       return { type: "mesh", data: { ...wire.data, id } };
   }
@@ -207,6 +238,7 @@ export async function listObjects(roomId: string): Promise<GetObjectsResponse> {
     boxes: [],
     cylinders: [],
     spheres: [],
+    cones: [],
     meshes: [],
   };
 
@@ -221,6 +253,9 @@ export async function listObjects(roomId: string): Promise<GetObjectsResponse> {
         break;
       case "sphere":
         response.spheres.push(wire.data);
+        break;
+      case "cone":
+        response.cones.push(wire.data);
         break;
       case "mesh":
         response.meshes.push(wire.data);
@@ -310,6 +345,7 @@ const ALLOWED_DIMENSIONS: Record<ObjectRow["type"], DimensionField[]> = {
   box: ["width", "height", "depth"],
   cylinder: ["radius", "height"],
   sphere: ["radius"],
+  cone: ["radius", "height"],
   // Boolean-result meshes are non-parametric; only color/center can be patched.
   mesh: [],
 };

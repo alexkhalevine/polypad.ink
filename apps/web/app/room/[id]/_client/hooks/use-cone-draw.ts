@@ -1,0 +1,105 @@
+import { useState, useCallback, useRef, useEffect } from "react";
+import * as THREE from "three";
+import { DrawState, PlacedCone, HeightState } from "../types";
+
+function xzDist(a: THREE.Vector3, b: THREE.Vector3): number {
+  return Math.max(0.01, Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2));
+}
+
+export interface UseConeDrawReturn {
+  drawState: DrawState;
+  placedCones: PlacedCone[];
+  handleGroundStartDraw: (point: THREE.Vector3) => void;
+  handleGroundPointerMove: (point: THREE.Vector3) => void;
+  handleGroundClick: (point: THREE.Vector3) => void;
+  handleHeightPointerMove: (worldY: number) => void;
+  handleHeightClick: (worldY: number) => void;
+  cancelDraw: () => void;
+  rollback: (id: string) => void;
+}
+
+interface UseConeDrawOptions {
+  onPlace?: (cone: PlacedCone) => void;
+}
+
+export function useConeDraw(options?: UseConeDrawOptions): UseConeDrawReturn {
+  const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" });
+  const [placedCones, setPlacedCones] = useState<PlacedCone[]>([]);
+  const onPlaceRef = useRef(options?.onPlace);
+  useEffect(() => {
+    onPlaceRef.current = options?.onPlace;
+  }, [options?.onPlace]);
+
+  const handleGroundStartDraw = useCallback((point: THREE.Vector3) => {
+    setDrawState({
+      phase: "footprint",
+      start: point.clone(),
+      end: point.clone(),
+    });
+  }, []);
+
+  const handleGroundPointerMove = useCallback((point: THREE.Vector3) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "footprint") return prev;
+      return { ...prev, end: point.clone() };
+    });
+  }, []);
+
+  const handleGroundClick = useCallback((point: THREE.Vector3) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "footprint") return prev;
+      return {
+        phase: "height",
+        start: prev.start,
+        end: point.clone(),
+        currentHeight: 0.01,
+      } satisfies HeightState;
+    });
+  }, []);
+
+  const handleHeightPointerMove = useCallback((worldY: number) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "height") return prev;
+      return { ...prev, currentHeight: Math.max(0.01, worldY) };
+    });
+  }, []);
+
+  const handleHeightClick = useCallback((worldY: number) => {
+    setDrawState((prev) => {
+      if (prev.phase !== "height") return prev;
+      const height = Math.max(0.01, worldY);
+      const radius = xzDist(prev.start, prev.end);
+      const cone: PlacedCone = {
+        id: crypto.randomUUID(),
+        position: new THREE.Vector3(prev.start.x, 0, prev.start.z),
+        rotation: { x: 0, y: 0, z: 0 },
+        radius,
+        height,
+        color: null,
+      };
+      setPlacedCones((cs) => [...cs, cone]);
+      onPlaceRef.current?.(cone);
+      return { phase: "idle" };
+    });
+  }, []);
+
+  const rollback = useCallback((id: string) => {
+    setPlacedCones((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  const cancelDraw = useCallback(() => {
+    setDrawState({ phase: "idle" });
+  }, []);
+
+  return {
+    drawState,
+    placedCones,
+    handleGroundStartDraw,
+    handleGroundPointerMove,
+    handleGroundClick,
+    handleHeightPointerMove,
+    handleHeightClick,
+    cancelDraw,
+    rollback,
+  };
+}

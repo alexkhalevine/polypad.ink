@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
-import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
+import { useConeDraw } from "./use-cone-draw";
+import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "../types";
 import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
@@ -11,7 +12,7 @@ import { useUpdateObjectPosition } from "../queries/use-update-object-position";
 import { useUpdateObjectRotation } from "../queries/use-update-object-rotation";
 import { useUpdateObjectDimensions, DimensionPatch } from "../queries/use-update-object-dimensions";
 import { useDeleteObject } from "../queries/use-delete-object";
-import { toWireBox, toWireCylinder, toWireSphere } from "../queries/wire-converters";
+import { toWireBox, toWireCylinder, toWireSphere, toWireCone } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
 import { computeAlignedPosition } from "../align-math";
 import { brushFrom, evaluateBooleanCentered } from "../csg-utils";
@@ -68,6 +69,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const boxDrawRef = useRef<ReturnType<typeof useBoxDraw> | null>(null);
   const cylinderDrawRef = useRef<ReturnType<typeof useCylinderDraw> | null>(null);
   const sphereDrawRef = useRef<ReturnType<typeof useSphereDraw> | null>(null);
+  const coneDrawRef = useRef<ReturnType<typeof useConeDraw> | null>(null);
 
   const handleBoxPlace = useCallback((box: PlacedBox) => {
     placeObject.mutate(
@@ -90,30 +92,41 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     );
   }, [placeObject]);
 
+  const handleConePlace = useCallback((cone: PlacedCone) => {
+    placeObject.mutate(
+      { type: "cone", data: toWireCone(cone) },
+      { onSettled: () => coneDrawRef.current?.rollback(cone.id) },
+    );
+  }, [placeObject]);
+
   const boxDraw = useBoxDraw({ onPlace: handleBoxPlace });
   const cylinderDraw = useCylinderDraw({ onPlace: handleCylinderPlace });
   const sphereDraw = useSphereDraw({ onPlace: handleSpherePlace });
+  const coneDraw = useConeDraw({ onPlace: handleConePlace });
 
   boxDrawRef.current = boxDraw;
   cylinderDrawRef.current = cylinderDraw;
   sphereDrawRef.current = sphereDraw;
+  coneDrawRef.current = coneDraw;
 
   const { cancelDraw: cancelBoxDraw } = boxDraw;
   const { cancelDraw: cancelCylinderDraw } = cylinderDraw;
   const { cancelDraw: cancelSphereDraw } = sphereDraw;
+  const { cancelDraw: cancelConeDraw } = coneDraw;
 
   const cancelAll = useCallback(() => {
     cancelBoxDraw();
     cancelCylinderDraw();
     cancelSphereDraw();
-  }, [cancelBoxDraw, cancelCylinderDraw, cancelSphereDraw]);
+    cancelConeDraw();
+  }, [cancelBoxDraw, cancelCylinderDraw, cancelSphereDraw, cancelConeDraw]);
 
   const activeDraw = useMemo(() => {
-    const map = { box: boxDraw, cylinder: cylinderDraw, sphere: sphereDraw } as const;
+    const map = { box: boxDraw, cylinder: cylinderDraw, sphere: sphereDraw, cone: coneDraw } as const;
     return selectedTool && selectedTool in map
       ? map[selectedTool as keyof typeof map]
       : null;
-  }, [selectedTool, boxDraw, cylinderDraw, sphereDraw]);
+  }, [selectedTool, boxDraw, cylinderDraw, sphereDraw, coneDraw]);
 
   const placedBoxes = useMemo(
     () =>
@@ -145,6 +158,16 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       }),
     [serverObjects, sphereDraw.placedSpheres, liveDimensions, liveRotations],
   );
+  const placedCones = useMemo(
+    () =>
+      [...(serverObjects?.cones ?? []), ...coneDraw.placedCones].map((c) => {
+        const live = liveDimensions[c.id];
+        const rot = liveRotations[c.id];
+        const merged = live ? { ...c, ...live } : c;
+        return rot ? { ...merged, rotation: rot } : merged;
+      }),
+    [serverObjects, coneDraw.placedCones, liveDimensions, liveRotations],
+  );
   const placedMeshes = useMemo<PlacedMesh[]>(
     () =>
       (serverObjects?.meshes ?? []).map((m) => {
@@ -154,23 +177,24 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     [serverObjects, liveRotations],
   );
 
-  const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | "mesh" | null>(() => {
+  const selectedObjectType = useMemo<"box" | "cylinder" | "sphere" | "cone" | "mesh" | null>(() => {
     if (!selectedObjectId) return null;
     if (placedBoxes.some((b) => b.id === selectedObjectId)) return "box";
     if (placedCylinders.some((c) => c.id === selectedObjectId)) return "cylinder";
     if (placedSpheres.some((s) => s.id === selectedObjectId)) return "sphere";
+    if (placedCones.some((c) => c.id === selectedObjectId)) return "cone";
     if (placedMeshes.some((m) => m.id === selectedObjectId)) return "mesh";
     return null;
-  }, [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
+  }, [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedCones, placedMeshes]);
 
-  const selectedObject = useMemo<PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | undefined>(
+  const selectedObject = useMemo<PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh | undefined>(
     () =>
       selectedObjectId
-        ? [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedMeshes].find(
+        ? [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones, ...placedMeshes].find(
             (o) => o.id === selectedObjectId,
           )
         : undefined,
-    [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedMeshes],
+    [selectedObjectId, placedBoxes, placedCylinders, placedSpheres, placedCones, placedMeshes],
   );
 
   const selectedObjectCoords = selectedObject
@@ -330,21 +354,23 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       return;
     }
 
-    const parametric = [...placedBoxes, ...placedCylinders, ...placedSpheres];
+    const parametric = [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones];
     const targetObject = parametric.find((o) => o.id === alignTargetId);
     if (!targetObject) {
       setAlignTargetId(null);
       return;
     }
 
-    const targetType: "box" | "cylinder" | "sphere" = placedBoxes.some((b) => b.id === alignTargetId)
+    const targetType: "box" | "cylinder" | "sphere" | "cone" = placedBoxes.some((b) => b.id === alignTargetId)
       ? "box"
       : placedCylinders.some((c) => c.id === alignTargetId)
         ? "cylinder"
-        : "sphere";
+        : placedCones.some((c) => c.id === alignTargetId)
+          ? "cone"
+          : "sphere";
 
     const newPos = computeAlignedPosition(
-      selectedObject as PlacedBox | PlacedCylinder | PlacedSphere,
+      selectedObject as PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone,
       selectedObjectType,
       targetObject,
       targetType,
@@ -370,6 +396,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     placedBoxes,
     placedCylinders,
     placedSpheres,
+    placedCones,
     updateObjectPosition,
     setLivePosition,
     setAlignTargetId,
@@ -396,13 +423,13 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const handleBooleanApply = useCallback(async () => {
     if (!selectedObjectId || !booleanTargetId || !selectedObject || !selectedObjectType) return;
 
-    const allObjects = [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedMeshes];
+    const allObjects = [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones, ...placedMeshes];
     const targetObject = allObjects.find((o) => o.id === booleanTargetId);
     if (!targetObject) {
       setBooleanTargetId(null);
       return;
     }
-    const targetType: "box" | "cylinder" | "sphere" | "mesh" = placedBoxes.some(
+    const targetType: "box" | "cylinder" | "sphere" | "cone" | "mesh" = placedBoxes.some(
       (b) => b.id === booleanTargetId,
     )
       ? "box"
@@ -410,7 +437,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         ? "cylinder"
         : placedSpheres.some((s) => s.id === booleanTargetId)
           ? "sphere"
-          : "mesh";
+          : placedCones.some((c) => c.id === booleanTargetId)
+            ? "cone"
+            : "mesh";
 
     // Acquire locks on both inputs. If either fails, release whatever we got
     // and abort — the user can retry once the lock holder moves on.
@@ -488,6 +517,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     placedBoxes,
     placedCylinders,
     placedSpheres,
+    placedCones,
     placedMeshes,
     requestLock,
     releaseLock,
@@ -541,6 +571,19 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
             position: newPos,
             rotation: src.rotation,
             radius: src.radius,
+            color: src.color,
+          }),
+        });
+      } else if (selectedObjectType === "cone") {
+        const src = selectedObject as PlacedCone;
+        placeObject.mutate({
+          type: "cone",
+          data: toWireCone({
+            id,
+            position: newPos,
+            rotation: src.rotation,
+            radius: src.radius,
+            height: src.height,
             color: src.color,
           }),
         });
@@ -669,6 +712,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     placedBoxes,
     placedCylinders,
     placedSpheres,
+    placedCones,
     placedMeshes,
     selectedObject,
     selectedObjectType,

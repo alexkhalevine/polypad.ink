@@ -32,13 +32,25 @@ export interface WireSphere {
   color: string | null;
 }
 
+export interface WireCone {
+  id: string;
+  cx: number;
+  cy: number;
+  cz: number;
+  radius: number;
+  height: number;
+  color: string | null;
+}
+
 export type WireObject =
   | { type: "box"; data: WireBox }
   | { type: "cylinder"; data: WireCylinder }
-  | { type: "sphere"; data: WireSphere };
+  | { type: "sphere"; data: WireSphere }
+  | { type: "cone"; data: WireCone };
 
 export interface GetObjectsResponse {
   boxes: WireBox[];
   cylinders: WireCylinder[];
   spheres: WireSphere[];
+  cones: WireCone[];
 }

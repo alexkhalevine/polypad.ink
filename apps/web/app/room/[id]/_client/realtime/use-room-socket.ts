@@ -4,8 +4,8 @@ import * as THREE from "three";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoomStore } from "../room-store";
 import { roomKeys } from "../queries/query-keys";
-import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireMesh } from "../queries/wire-converters";
-import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "../types";
+import { fromWireBox, fromWireCylinder, fromWireSphere, fromWireCone, fromWireMesh } from "../queries/wire-converters";
+import type { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "../types";
 import { useErrorStore } from "@/app/error-store";
 import {
   createRoomSocket,
@@ -31,6 +31,7 @@ interface RoomObjects {
   boxes: PlacedBox[];
   cylinders: PlacedCylinder[];
   spheres: PlacedSphere[];
+  cones: PlacedCone[];
   meshes: PlacedMesh[];
 }
 
@@ -125,6 +126,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
         boxes: payload.objects.boxes.map(fromWireBox),
         cylinders: payload.objects.cylinders.map(fromWireCylinder),
         spheres: payload.objects.spheres.map(fromWireSphere),
+        cones: (payload.objects.cones ?? []).map(fromWireCone),
         meshes: (payload.objects.meshes ?? []).map(fromWireMesh),
       });
     });
@@ -183,6 +185,10 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
           if (prev.spheres.some((s) => s.id === obj.data.id)) return prev;
           return { ...prev, spheres: [...prev.spheres, fromWireSphere(obj.data)] };
         }
+        if (obj.type === "cone") {
+          if (prev.cones.some((c) => c.id === obj.data.id)) return prev;
+          return { ...prev, cones: [...prev.cones, fromWireCone(obj.data)] };
+        }
         if (obj.type === "mesh") {
           if (prev.meshes.some((m) => m.id === obj.data.id)) return prev;
           return { ...prev, meshes: [...prev.meshes, fromWireMesh(obj.data)] };
@@ -234,6 +240,17 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
               ...(radius !== undefined ? { radius } : {}),
             };
           }),
+          cones: prev.cones.map((c) => {
+            if (c.id !== payload.objectId) return c;
+            return {
+              ...c,
+              ...(color !== undefined ? { color } : {}),
+              ...(patchPosition !== undefined ? { position: patchPosition } : {}),
+              ...rotationPatch,
+              ...(radius !== undefined ? { radius } : {}),
+              ...(height !== undefined ? { height } : {}),
+            };
+          }),
           meshes: prev.meshes.map((m) => {
             if (m.id !== payload.objectId) return m;
             return {
@@ -258,6 +275,7 @@ export function useRoomSocket(roomId: string, inviteCode: string): UseRoomSocket
           boxes: prev.boxes.filter((b) => b.id !== payload.objectId),
           cylinders: prev.cylinders.filter((c) => c.id !== payload.objectId),
           spheres: prev.spheres.filter((s) => s.id !== payload.objectId),
+          cones: prev.cones.filter((c) => c.id !== payload.objectId),
           meshes: prev.meshes.filter((m) => m.id !== payload.objectId),
         };
       });

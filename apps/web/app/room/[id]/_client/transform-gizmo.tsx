@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { useRef, useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
-import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "./types";
 import { useRoomStore } from "./room-store";
 import { DimensionPatch } from "./queries/use-update-object-dimensions";
 
@@ -17,6 +17,7 @@ interface TransformGizmoProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  placedCones: PlacedCone[];
   placedMeshes: PlacedMesh[];
   onObjectMove?: (objectId: string, newPosition: THREE.Vector3, persist: boolean) => void;
   onObjectRotate?: (
@@ -33,13 +34,14 @@ type Selected =
   | { obj: PlacedBox; type: "box" }
   | { obj: PlacedCylinder; type: "cylinder" }
   | { obj: PlacedSphere; type: "sphere" }
+  | { obj: PlacedCone; type: "cone" }
   | { obj: PlacedMesh; type: "mesh" };
 
 // Per-type offset from the bottom-anchor (position) to the geometric center —
 // the pivot the rotate gizmo and mesh rendering rotate about.
 function centerOffset(
-  obj: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh,
-  type: "box" | "cylinder" | "sphere" | "mesh",
+  obj: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh,
+  type: "box" | "cylinder" | "sphere" | "cone" | "mesh",
 ): [number, number, number] {
   if (type === "box") {
     const b = obj as PlacedBox;
@@ -47,6 +49,10 @@ function centerOffset(
   }
   if (type === "cylinder") {
     const c = obj as PlacedCylinder;
+    return [0, c.height / 2, 0];
+  }
+  if (type === "cone") {
+    const c = obj as PlacedCone;
     return [0, c.height / 2, 0];
   }
   if (type === "sphere") {
@@ -66,6 +72,10 @@ function snapshotDimensions(selected: Selected): DimensionPatch {
     const c = selected.obj;
     return { radius: c.radius, height: c.height };
   }
+  if (selected.type === "cone") {
+    const c = selected.obj;
+    return { radius: c.radius, height: c.height };
+  }
   if (selected.type === "sphere") {
     return { radius: selected.obj.radius };
   }
@@ -75,7 +85,7 @@ function snapshotDimensions(selected: Selected): DimensionPatch {
 // Maps the gizmo's accumulated scale multiplier (relative to the drag-start
 // snapshot) onto the object's actual dimension fields.
 function mapScale(
-  type: "box" | "cylinder" | "sphere" | "mesh",
+  type: "box" | "cylinder" | "sphere" | "cone" | "mesh",
   base: DimensionPatch,
   scale: THREE.Vector3,
 ): DimensionPatch {
@@ -86,7 +96,7 @@ function mapScale(
       depth: clamp((base.depth ?? 0) * scale.z),
     };
   }
-  if (type === "cylinder") {
+  if (type === "cylinder" || type === "cone") {
     return {
       radius: clamp((base.radius ?? 0) * ((Math.abs(scale.x) + Math.abs(scale.z)) / 2)),
       height: clamp((base.height ?? 0) * scale.y),
@@ -108,6 +118,7 @@ export function TransformGizmo({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedCones,
   placedMeshes,
   onObjectMove,
   onObjectRotate,
@@ -133,6 +144,8 @@ export function TransformGizmo({
     if (cyl) return { obj: cyl, type: "cylinder" };
     const sph = placedSpheres.find((o) => o.id === selectedObjectId);
     if (sph) return { obj: sph, type: "sphere" };
+    const cone = placedCones.find((o) => o.id === selectedObjectId);
+    if (cone) return { obj: cone, type: "cone" };
     const mesh = placedMeshes.find((o) => o.id === selectedObjectId);
     if (mesh) return { obj: mesh, type: "mesh" };
     return null;

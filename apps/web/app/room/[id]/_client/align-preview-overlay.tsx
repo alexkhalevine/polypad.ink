@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Line } from "@react-three/drei";
-import { PlacedBox, PlacedCylinder, PlacedSphere, AxisSide } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, AxisSide } from "./types";
 import { useRoomStore } from "./room-store";
 import { aabbOf, computeAlignedPosition } from "./align-math";
 
-type Shape = PlacedBox | PlacedCylinder | PlacedSphere;
-type ShapeType = "box" | "cylinder" | "sphere";
+type Shape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
+type ShapeType = "box" | "cylinder" | "sphere" | "cone";
 
 const SRC_COLOR = "#facc15";
 const TGT_COLOR = "#fb923c";
@@ -135,6 +135,10 @@ function GhostMesh({
       const c = shape as PlacedCylinder;
       return new THREE.CylinderGeometry(c.radius, c.radius, c.height, 32);
     }
+    if (type === "cone") {
+      const c = shape as PlacedCone;
+      return new THREE.ConeGeometry(c.radius, c.height, 32);
+    }
     const s = shape as PlacedSphere;
     return new THREE.SphereGeometry(s.radius, 32, 16);
   }, [shape, type]);
@@ -146,6 +150,10 @@ function GhostMesh({
     }
     if (type === "cylinder") {
       const c = shape as PlacedCylinder;
+      return [0, c.height / 2, 0] as [number, number, number];
+    }
+    if (type === "cone") {
+      const c = shape as PlacedCone;
       return [0, c.height / 2, 0] as [number, number, number];
     }
     const s = shape as PlacedSphere;

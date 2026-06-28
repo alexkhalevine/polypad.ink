@@ -41,6 +41,17 @@ export interface WireSphere {
   color: string | null;
 }
 
+export interface WireCone {
+  id: string;
+  cx: number;
+  cy: number;
+  cz: number;
+  rotation?: WireRotation;
+  radius: number;
+  height: number;
+  color: string | null;
+}
+
 export interface WireMesh {
   id: string;
   cx: number;
@@ -57,11 +68,13 @@ export type WireObject =
   | { type: "box"; data: WireBox }
   | { type: "cylinder"; data: WireCylinder }
   | { type: "sphere"; data: WireSphere }
+  | { type: "cone"; data: WireCone }
   | { type: "mesh"; data: WireMesh };
 
 export interface GetObjectsResponse {
   boxes: WireBox[];
   cylinders: WireCylinder[];
   spheres: WireSphere[];
+  cones: WireCone[];
   meshes: WireMesh[];
 }

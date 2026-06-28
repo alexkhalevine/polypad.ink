@@ -39,7 +39,7 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS geometryObjects (
       id         TEXT PRIMARY KEY,
       room_id    TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere','mesh')),
+      type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere','cone','mesh')),
       cx         REAL NOT NULL,
       cy         REAL NOT NULL,
       cz         REAL NOT NULL,
@@ -62,6 +62,7 @@ async function initDb() {
 
   migrateMeshSupport(sqlDb);
   migrateRotationSupport(sqlDb);
+  migrateConeSupport(sqlDb);
 
   db = drizzle(sqlDb, { schema });
 
@@ -119,6 +120,60 @@ function migrateMeshSupport(s: SqlJsDatabase): void {
         (id, room_id, type, cx, cy, cz, width, height, depth, radius, color, positions, normals, indices, created_at)
       SELECT id, room_id, type, cx, cy, cz, width, height, depth, radius, color,
              ${carryPositions}, ${carryNormals}, ${carryIndices}, created_at
+      FROM geometryObjects;
+    `);
+
+    s.run("DROP TABLE geometryObjects;");
+    s.run("ALTER TABLE geometryObjects_new RENAME TO geometryObjects;");
+    s.run("CREATE INDEX IF NOT EXISTS idx_objects_room ON geometryObjects(room_id, created_at);");
+    s.run("COMMIT;");
+    markDirty();
+  } catch (err) {
+    s.run("ROLLBACK;");
+    throw err;
+  }
+}
+
+// Older DBs were created with a CHECK constraint that didn't include 'cone'.
+// SQLite can't alter a CHECK in place, so when we detect its absence we rebuild
+// the table preserving existing rows. Runs after the mesh and rotation migrations,
+// so every column (positions/normals/indices, rx/ry/rz) is guaranteed present.
+function migrateConeSupport(s: SqlJsDatabase): void {
+  const ddlRow = s.exec(
+    `SELECT sql FROM sqlite_master WHERE type='table' AND name='geometryObjects'`,
+  );
+  const ddl = (ddlRow[0]?.values?.[0]?.[0] as string | undefined) ?? "";
+  if (ddl.includes("'cone'")) return;
+
+  s.run("BEGIN TRANSACTION;");
+  try {
+    s.run(`
+      CREATE TABLE geometryObjects_new (
+        id         TEXT PRIMARY KEY,
+        room_id    TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        type       TEXT NOT NULL CHECK (type IN ('box','cylinder','sphere','cone','mesh')),
+        cx         REAL NOT NULL,
+        cy         REAL NOT NULL,
+        cz         REAL NOT NULL,
+        rx         REAL,
+        ry         REAL,
+        rz         REAL,
+        width      REAL,
+        height     REAL,
+        depth      REAL,
+        radius     REAL,
+        color      TEXT,
+        positions  TEXT,
+        normals    TEXT,
+        indices    TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
+    s.run(`
+      INSERT INTO geometryObjects_new
+        (id, room_id, type, cx, cy, cz, rx, ry, rz, width, height, depth, radius, color, positions, normals, indices, created_at)
+      SELECT id, room_id, type, cx, cy, cz, rx, ry, rz, width, height, depth, radius, color, positions, normals, indices, created_at
       FROM geometryObjects;
     `);
 

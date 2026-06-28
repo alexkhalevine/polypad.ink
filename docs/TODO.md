@@ -12,5 +12,5 @@ placeholder UI controls still needing real implementations (see CHANGELOG "rewor
 
 5. Orbit-camera tool-rail button — orbiting already works by dragging in the viewport (drei OrbitControls); the dedicated button itself is a no-op and should either be wired to something meaningful or removed.
 6. Group (contextual object toolbar) — disabled stub; no multi-select/grouping model exists.
-7. Cone + "+ more" (shape dock) — disabled stubs; no cone primitive on the server/client yet.
+7. "+ more" (shape dock) — disabled stub for additional shapes beyond box/cylinder/sphere/cone.
 8. Opacity slider (inspector Display section) — disabled stub; `PlacedBox/Cylinder/Sphere/Mesh` have no opacity field.

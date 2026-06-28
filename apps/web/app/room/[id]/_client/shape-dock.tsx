@@ -13,6 +13,7 @@ const shapes: { name: ToolType; label: string; icon: LucideIcon }[] = [
   { name: "box", label: "Box", icon: Box },
   { name: "cylinder", label: "Cylinder", icon: Cylinder },
   { name: "sphere", label: "Sphere", icon: Circle },
+  { name: "cone", label: "Cone", icon: Cone },
 ];
 
 export function ShapeDock({ onToolSelect }: ShapeDockProps) {
@@ -35,7 +36,6 @@ export function ShapeDock({ onToolSelect }: ShapeDockProps) {
           onClick={() => onToolSelect(s.name)}
         />
       ))}
-      <DockButton icon={Cone} label="Cone" disabled onClick={() => {}} />
       <div className="mx-1 h-8 w-px bg-[var(--pp-panel-border)]" />
       <button
         type="button"

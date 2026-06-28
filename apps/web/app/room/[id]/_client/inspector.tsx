@@ -2,14 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import { Box as BoxIcon, Plus } from "lucide-react";
-import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "./types";
 import { useRoomStore } from "./room-store";
 
-type ObjType = "box" | "cylinder" | "sphere" | "mesh" | null;
+type ObjType = "box" | "cylinder" | "sphere" | "cone" | "mesh" | null;
 type DimField = "width" | "height" | "depth" | "radius";
 
 interface InspectorProps {
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh | null;
   selectedObjectType: ObjType;
   currentColor: string;
   onPositionCommit: (x: number, y: number, z: number) => void;
@@ -83,7 +83,7 @@ function SelectedState({
   onSwatchCommit,
   children,
 }: {
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh;
   selectedObjectType: ObjType;
   livePosition?: { x: number; y: number; z: number };
   currentColor: string;
@@ -292,7 +292,7 @@ function Dimensions({
   selectedObjectType,
   onDimensionCommit,
 }: {
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh;
   selectedObjectType: Exclude<ObjType, "mesh" | null>;
   onDimensionCommit: (field: DimField, value: number) => void;
 }) {
@@ -306,8 +306,8 @@ function Dimensions({
       </div>
     );
   }
-  if (selectedObjectType === "cylinder") {
-    const c = selectedObject as PlacedCylinder;
+  if (selectedObjectType === "cylinder" || selectedObjectType === "cone") {
+    const c = selectedObject as PlacedCylinder | PlacedCone;
     return (
       <div className="grid grid-cols-2 gap-2">
         <Field label="R" value={c.radius} mint min={0.01} onCommit={(v) => onDimensionCommit("radius", v)} />

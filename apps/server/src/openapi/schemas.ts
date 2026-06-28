@@ -55,6 +55,20 @@ export const WireSphereSchema = registry.register(
   }),
 );
 
+export const WireConeSchema = registry.register(
+  "WireCone",
+  z.object({
+    id: z.string(),
+    cx: z.number(),
+    cy: z.number(),
+    cz: z.number(),
+    rotation: Vec3Schema.optional(),
+    radius: z.number().positive(),
+    height: z.number().positive(),
+    color: z.string().nullable(),
+  }),
+);
+
 export const WireMeshSchema = registry.register(
   "WireMesh",
   z.object({
@@ -79,6 +93,7 @@ export const WireObjectSchema = registry.register(
     z.object({ type: z.literal("box"), data: WireBoxSchema }),
     z.object({ type: z.literal("cylinder"), data: WireCylinderSchema }),
     z.object({ type: z.literal("sphere"), data: WireSphereSchema }),
+    z.object({ type: z.literal("cone"), data: WireConeSchema }),
     z.object({ type: z.literal("mesh"), data: WireMeshSchema }),
   ]),
 );
@@ -91,6 +106,7 @@ export const GetObjectsResponseSchema = registry.register(
     boxes: z.array(WireBoxSchema),
     cylinders: z.array(WireCylinderSchema),
     spheres: z.array(WireSphereSchema),
+    cones: z.array(WireConeSchema),
     meshes: z.array(WireMeshSchema),
   }),
 );

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "move" | "rotate" | "scale" | "align" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "cone" | "move" | "rotate" | "scale" | "align" | "boolean" | "clone";
 
 // Euler XYZ rotation in radians, applied about the object's geometric center.
 export interface Rotation {
@@ -51,6 +51,16 @@ export interface PlacedBox {
 export interface PlacedCylinder {
   id: string;
   // Base of the cylinder (axis point at ground level): (centerX, 0, centerZ)
+  position: THREE.Vector3;
+  rotation: Rotation;
+  radius: number;
+  height: number;
+  color: string | null;
+}
+
+export interface PlacedCone {
+  id: string;
+  // Base of the cone (axis point at ground level): (centerX, 0, centerZ)
   position: THREE.Vector3;
   rotation: Rotation;
   radius: number;

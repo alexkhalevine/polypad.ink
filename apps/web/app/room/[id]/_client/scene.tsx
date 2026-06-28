@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
 import { AlignPreviewOverlay } from "./align-preview-overlay";
@@ -15,9 +15,11 @@ import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
 import { PreviewCylinder } from "@/app/components/preview-cylinder";
 import { PreviewSphere } from "@/app/components/preview-sphere";
+import { PreviewCone } from "@/app/components/preview-cone";
 import { PlacedBoxMesh } from "@/app/components/placed-box-mesh";
 import { PlacedCylinderMesh } from "@/app/components/placed-cylinder-mesh";
 import { PlacedSphereMesh } from "@/app/components/placed-sphere-mesh";
+import { PlacedConeMesh } from "@/app/components/placed-cone-mesh";
 import { PlacedMeshComponent } from "@/app/components/placed-mesh";
 import { DimensionHelpers } from "@/app/components/dimension-helpers";
 import { useRoomStore } from "./room-store";
@@ -43,9 +45,10 @@ interface SceneProps {
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  placedCones: PlacedCone[];
   placedMeshes: PlacedMesh[];
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh | null;
-  selectedObjectType: "box" | "cylinder" | "sphere" | "mesh" | null;
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh | null;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "cone" | "mesh" | null;
   onGroundStartDraw: (point: THREE.Vector3) => void;
   onGroundPointerMove: (point: THREE.Vector3) => void;
   onGroundClick: (point: THREE.Vector3) => void;
@@ -71,30 +74,33 @@ function AlignSection({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedCones,
   alignTargetId,
 }: {
-  source: PlacedBox | PlacedCylinder | PlacedSphere;
-  sourceType: "box" | "cylinder" | "sphere";
+  source: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
+  sourceType: "box" | "cylinder" | "sphere" | "cone";
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  placedCones: PlacedCone[];
   alignTargetId: string | null;
 }) {
   const allObjects = useMemo(
-    () => [...placedBoxes, ...placedCylinders, ...placedSpheres],
-    [placedBoxes, placedCylinders, placedSpheres],
+    () => [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones],
+    [placedBoxes, placedCylinders, placedSpheres, placedCones],
   );
   const target = useMemo(
     () => (alignTargetId ? allObjects.find((o) => o.id === alignTargetId) ?? null : null),
     [alignTargetId, allObjects],
   );
-  const targetType = useMemo<"box" | "cylinder" | "sphere" | null>(() => {
+  const targetType = useMemo<"box" | "cylinder" | "sphere" | "cone" | null>(() => {
     if (!alignTargetId) return null;
     if (placedBoxes.some((b) => b.id === alignTargetId)) return "box";
     if (placedCylinders.some((c) => c.id === alignTargetId)) return "cylinder";
     if (placedSpheres.some((s) => s.id === alignTargetId)) return "sphere";
+    if (placedCones.some((c) => c.id === alignTargetId)) return "cone";
     return null;
-  }, [alignTargetId, placedBoxes, placedCylinders, placedSpheres]);
+  }, [alignTargetId, placedBoxes, placedCylinders, placedSpheres, placedCones]);
 
   return (
     <AlignPreviewOverlay
@@ -114,14 +120,16 @@ function BooleanSection({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedCones,
   placedMeshes,
   booleanTargetId,
 }: {
-  source: PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
-  sourceType: "box" | "cylinder" | "sphere" | "mesh";
+  source: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh;
+  sourceType: "box" | "cylinder" | "sphere" | "cone" | "mesh";
   placedBoxes: PlacedBox[];
   placedCylinders: PlacedCylinder[];
   placedSpheres: PlacedSphere[];
+  placedCones: PlacedCone[];
   placedMeshes: PlacedMesh[];
   booleanTargetId: string | null;
 }) {
@@ -131,19 +139,21 @@ function BooleanSection({
       placedBoxes.find((b) => b.id === booleanTargetId) ??
       placedCylinders.find((c) => c.id === booleanTargetId) ??
       placedSpheres.find((s) => s.id === booleanTargetId) ??
+      placedCones.find((c) => c.id === booleanTargetId) ??
       placedMeshes.find((m) => m.id === booleanTargetId) ??
       null
     );
-  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
+  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedCones, placedMeshes]);
 
-  const targetType = useMemo<"box" | "cylinder" | "sphere" | "mesh" | null>(() => {
+  const targetType = useMemo<"box" | "cylinder" | "sphere" | "cone" | "mesh" | null>(() => {
     if (!booleanTargetId) return null;
     if (placedBoxes.some((b) => b.id === booleanTargetId)) return "box";
     if (placedCylinders.some((c) => c.id === booleanTargetId)) return "cylinder";
     if (placedSpheres.some((s) => s.id === booleanTargetId)) return "sphere";
+    if (placedCones.some((c) => c.id === booleanTargetId)) return "cone";
     if (placedMeshes.some((m) => m.id === booleanTargetId)) return "mesh";
     return null;
-  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedMeshes]);
+  }, [booleanTargetId, placedBoxes, placedCylinders, placedSpheres, placedCones, placedMeshes]);
 
   if (!target || !targetType) return null;
   return (
@@ -178,6 +188,7 @@ function SceneContent({
   placedBoxes,
   placedCylinders,
   placedSpheres,
+  placedCones,
   placedMeshes,
   selectedObject,
   selectedObjectType,
@@ -304,6 +315,7 @@ function SceneContent({
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
+          placedCones={placedCones}
           placedMeshes={placedMeshes}
           onObjectMove={onObjectMove}
           onObjectRotate={onObjectRotate}
@@ -318,11 +330,12 @@ function SceneContent({
         selectedObjectType &&
         selectedObjectType !== "mesh" && (
           <AlignSection
-            source={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere}
-            sourceType={selectedObjectType as "box" | "cylinder" | "sphere"}
+            source={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone}
+            sourceType={selectedObjectType as "box" | "cylinder" | "sphere" | "cone"}
             placedBoxes={placedBoxes}
             placedCylinders={placedCylinders}
             placedSpheres={placedSpheres}
+            placedCones={placedCones}
             alignTargetId={alignTargetId}
           />
         )}
@@ -334,6 +347,7 @@ function SceneContent({
           placedBoxes={placedBoxes}
           placedCylinders={placedCylinders}
           placedSpheres={placedSpheres}
+          placedCones={placedCones}
           placedMeshes={placedMeshes}
           booleanTargetId={booleanTargetId}
         />
@@ -352,8 +366,8 @@ function SceneContent({
         selectedObjectType &&
         selectedObjectType !== "mesh" && (
           <DimensionHelpers
-            selectedObject={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere}
-            selectedObjectType={selectedObjectType as "box" | "cylinder" | "sphere"}
+            selectedObject={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone}
+            selectedObjectType={selectedObjectType as "box" | "cylinder" | "sphere" | "cone"}
             positionOverride={livePositions[selectedObject.id]}
             onDimensionCommit={onDimensionCommit}
           />
@@ -379,6 +393,7 @@ function SceneContent({
       {selectedTool === "box" && <PreviewBox drawState={drawState} />}
       {selectedTool === "cylinder" && <PreviewCylinder drawState={drawState} />}
       {selectedTool === "sphere" && <PreviewSphere drawState={drawState} />}
+      {selectedTool === "cone" && <PreviewCone drawState={drawState} />}
 
       <group name={PLACED_OBJECTS_GROUP}>
         {placedBoxes.map((box) => (
@@ -426,6 +441,22 @@ function SceneContent({
             selectionInfo={getSelectionInfo(sphere.id)}
             onClick={() => tryLocalSelect(sphere.id)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(sphere.id); }}
+            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+          />
+        ))}
+        {placedCones.map((cone) => (
+          <PlacedConeMesh
+            key={cone.id}
+            cone={cone}
+            positionOverride={livePositions[cone.id]}
+            color={cone.color}
+            isSelected={cone.id === selectedObjectId}
+            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && cone.id === hoveredObjectId}
+            wireframe={wireframeEnabled}
+            lockInfo={getLockInfo(cone.id)}
+            selectionInfo={getSelectionInfo(cone.id)}
+            onClick={() => tryLocalSelect(cone.id)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cone.id); }}
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
         ))}

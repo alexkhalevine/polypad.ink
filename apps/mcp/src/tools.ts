@@ -70,10 +70,19 @@ const SphereBody = z.object({
   color: ColorSchema,
 });
 
+const ConeBody = z.object({
+  room_id: z.string().optional(),
+  center: VectorSchema,
+  radius: z.number().positive(),
+  height: z.number().positive(),
+  color: ColorSchema,
+});
+
 const BatchObjectSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("box"), data: BoxBody.omit({ room_id: true }) }),
   z.object({ type: z.literal("cylinder"), data: CylinderBody.omit({ room_id: true }) }),
   z.object({ type: z.literal("sphere"), data: SphereBody.omit({ room_id: true }) }),
+  z.object({ type: z.literal("cone"), data: ConeBody.omit({ room_id: true }) }),
 ]);
 
 type BatchInput = z.infer<typeof BatchObjectSchema>;
@@ -112,6 +121,21 @@ function toWireFromBatch(input: BatchInput): WireObject {
       },
     };
   }
+  if (input.type === "cone") {
+    const d = input.data;
+    return {
+      type: "cone",
+      data: {
+        id,
+        cx: d.center.x,
+        cy: d.center.y,
+        cz: d.center.z,
+        radius: d.radius,
+        height: d.height,
+        color: d.color?.toLowerCase() ?? null,
+      },
+    };
+  }
   const d = input.data;
   return {
     type: "sphere",
@@ -129,7 +153,7 @@ function toWireFromBatch(input: BatchInput): WireObject {
 export function registerTools(server: McpServer): void {
   server.tool(
     "list_objects",
-    "List every shape currently placed in a polypad room. Returns boxes, cylinders, and spheres with ids, centers, dimensions, and colors.",
+    "List every shape currently placed in a polypad room. Returns boxes, cylinders, spheres, and cones with ids, centers, dimensions, and colors.",
     { room_id: z.string().optional() },
     async ({ room_id }) => {
       try {
@@ -224,8 +248,35 @@ export function registerTools(server: McpServer): void {
   );
 
   server.tool(
+    "create_cone",
+    "Place an upright cone (Y-axis, apex up) in the room. Center is the cone's base midpoint. Returns the new object id.",
+    ConeBody.shape,
+    async (args) => {
+      try {
+        const roomId = resolveRoomId(args.room_id);
+        const wire: WireObject = {
+          type: "cone",
+          data: {
+            id: "",
+            cx: args.center.x,
+            cy: args.center.y,
+            cz: args.center.z,
+            radius: args.radius,
+            height: args.height,
+            color: args.color?.toLowerCase() ?? null,
+          },
+        };
+        const { id } = await createObject(roomId, wire);
+        return ok(JSON.stringify({ ok: true, id, type: "cone", room_id: roomId }));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
     "create_objects",
-    "Place many shapes in a single request. Use this for scenes or loops to avoid per-shape latency. Each entry is { type: 'box'|'cylinder'|'sphere', data: { ...shape fields } }.",
+    "Place many shapes in a single request. Use this for scenes or loops to avoid per-shape latency. Each entry is { type: 'box'|'cylinder'|'sphere'|'cone', data: { ...shape fields } }.",
     {
       room_id: z.string().optional(),
       objects: z.array(BatchObjectSchema).min(1),

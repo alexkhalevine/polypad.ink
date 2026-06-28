@@ -3,6 +3,7 @@ import type {
   WireBoxSchema,
   WireCylinderSchema,
   WireSphereSchema,
+  WireConeSchema,
   WireMeshSchema,
   WireObjectSchema,
   GetObjectsResponseSchema,
@@ -13,6 +14,7 @@ export type Vec3 = z.infer<typeof Vec3Schema>;
 export type WireBox = z.infer<typeof WireBoxSchema>;
 export type WireCylinder = z.infer<typeof WireCylinderSchema>;
 export type WireSphere = z.infer<typeof WireSphereSchema>;
+export type WireCone = z.infer<typeof WireConeSchema>;
 export type WireMesh = z.infer<typeof WireMeshSchema>;
 export type WireObject = z.infer<typeof WireObjectSchema>;
 export type GetObjectsResponse = z.infer<typeof GetObjectsResponseSchema>;

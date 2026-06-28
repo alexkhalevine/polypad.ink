@@ -9,13 +9,14 @@ import type {
   PlacedBox,
   PlacedCylinder,
   PlacedSphere,
+  PlacedCone,
 } from "@/app/room/[id]/_client/types";
 
 type DimensionField = "width" | "height" | "depth" | "radius";
 
 interface DimensionHelpersProps {
-  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere;
-  selectedObjectType: "box" | "cylinder" | "sphere";
+  selectedObject: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
+  selectedObjectType: "box" | "cylinder" | "sphere" | "cone";
   positionOverride?: { x: number; y: number; z: number };
   onDimensionCommit: (field: DimensionField, value: number) => void;
 }
@@ -95,6 +96,33 @@ export function DimensionHelpers({
           tickAxis="x"
           label="H"
           value={cyl.height}
+          onCommit={(v) => onDimensionCommit("height", v)}
+        />
+      </group>
+    );
+  }
+
+  if (selectedObjectType === "cone") {
+    const cone = selectedObject as PlacedCone;
+    const hh = cone.height / 2;
+    return (
+      <group position={[px, py + hh, pz]}>
+        <DimensionBracket
+          axis="x"
+          length={cone.radius * 2}
+          anchor={[0, -hh, cone.radius + OFFSET]}
+          tickAxis="y"
+          label="⌀"
+          value={cone.radius * 2}
+          onCommit={(v) => onDimensionCommit("radius", v / 2)}
+        />
+        <DimensionBracket
+          axis="y"
+          length={cone.height}
+          anchor={[cone.radius + OFFSET, 0, 0]}
+          tickAxis="x"
+          label="H"
+          value={cone.height}
           onCommit={(v) => onDimensionCommit("height", v)}
         />
       </group>

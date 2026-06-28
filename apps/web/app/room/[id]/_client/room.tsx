@@ -40,6 +40,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
     editor.placedBoxes.length +
       editor.placedCylinders.length +
       editor.placedSpheres.length +
+      editor.placedCones.length +
       editor.placedMeshes.length >
     0;
 
@@ -66,6 +67,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         ...editor.placedBoxes,
         ...editor.placedCylinders,
         ...editor.placedSpheres,
+        ...editor.placedCones,
         ...editor.placedMeshes,
       ].find((o) => o.id === editor.booleanTargetId) ?? null
     : null;
@@ -76,9 +78,11 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         ? "cylinder"
         : editor.placedSpheres.some((s) => s.id === editor.booleanTargetId)
           ? "sphere"
-          : editor.placedMeshes.some((m) => m.id === editor.booleanTargetId)
-            ? "mesh"
-            : null
+          : editor.placedCones.some((c) => c.id === editor.booleanTargetId)
+            ? "cone"
+            : editor.placedMeshes.some((m) => m.id === editor.booleanTargetId)
+              ? "mesh"
+              : null
     : null;
 
   return (
@@ -96,6 +100,7 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           placedBoxes={editor.placedBoxes}
           placedCylinders={editor.placedCylinders}
           placedSpheres={editor.placedSpheres}
+          placedCones={editor.placedCones}
           placedMeshes={editor.placedMeshes}
           selectedObject={editor.selectedObject ?? null}
           selectedObjectType={editor.selectedObjectType}

@@ -2,10 +2,10 @@
 
 import { useMemo, useEffect } from "react";
 import * as THREE from "three";
-import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedMesh } from "./types";
+import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "./types";
 
-type Source = PlacedBox | PlacedCylinder | PlacedSphere | PlacedMesh;
-type SourceType = "box" | "cylinder" | "sphere" | "mesh";
+type Source = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone | PlacedMesh;
+type SourceType = "box" | "cylinder" | "sphere" | "cone" | "mesh";
 
 const FALLBACK_COLOR = "#ffffff";
 
@@ -28,6 +28,10 @@ export function ClonePreviewOverlay({ source, sourceType, position }: Props) {
     if (sourceType === "sphere") {
       const s = source as PlacedSphere;
       return new THREE.SphereGeometry(s.radius, 32, 16);
+    }
+    if (sourceType === "cone") {
+      const c = source as PlacedCone;
+      return new THREE.ConeGeometry(c.radius, c.height, 32);
     }
     const m = source as PlacedMesh;
     const g = new THREE.BufferGeometry();
@@ -55,6 +59,10 @@ export function ClonePreviewOverlay({ source, sourceType, position }: Props) {
     if (sourceType === "sphere") {
       const s = source as PlacedSphere;
       return [0, s.radius, 0];
+    }
+    if (sourceType === "cone") {
+      const c = source as PlacedCone;
+      return [0, c.height / 2, 0];
     }
     return [0, 0, 0];
   }, [source, sourceType]);

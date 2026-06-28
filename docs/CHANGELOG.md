@@ -1,3 +1,24 @@
+# added cone primitive
+
+### commit hash:
+### date: 28.06.26
+
+### description
+
+Implements the Cone shape, replacing the previously-disabled "Cone" stub in the shape dock. Geometrically a cone is a cylinder with a zero top radius (`THREE.ConeGeometry(radius, height, 32)`), so Cone reuses the Cylinder primitive's entire code path — the same two dimensions (`radius` + `height`), the same footprint→height draw flow, the same ground-anchored base / `[0, height/2, 0]` inner pivot, and the same treatment by Move/Rotate/Scale, Align, Boolean, Clone, the inspector, and the on-canvas dimension brackets. The discriminator string is `"cone"` throughout. No new mechanisms were invented; cone slots into every existing per-type switch/union as a sibling of cylinder. Full parity was added across all three apps (web client, Express server + SQLite, and the MCP agent server's `create_cone` tool).
+
+- `apps/server/src/schema.ts`, `apps/server/src/db.ts` — Adds `"cone"` to the Drizzle `type` enum and the SQLite CHECK constraint. Adds `migrateConeSupport`, which rebuilds the `geometryObjects` table (SQLite can't alter a CHECK in place) to accept `'cone'` on dev DBs created before this change; runs after the mesh and rotation migrations so every column is already present and can be carried over.
+
+- `apps/server/src/openapi/schemas.ts`, `apps/server/src/types.ts`, `apps/server/src/services/roomService.ts` — Adds `WireConeSchema` (clone of `WireCylinderSchema`), the `cone` arm of the `WireObject` discriminated union, `cones` in `GetObjectsResponse`, `cone: ["radius","height"]` in `ALLOWED_DIMENSIONS`, and `cone` cases in `rowToWire`/`wireToInsert`/`withServerId`/`listObjects`. The shared dimension-patch path already allowed `radius`+`height`. `apps/server/openapi.json` was regenerated.
+
+- `apps/web` — New `PlacedCone` type, `use-cone-draw` hook, `placed-cone-mesh`, and `preview-cone` (each cloned from the cylinder equivalent with `ConeGeometry`). Cone is threaded through `wire-types`/`wire-converters`, `use-room-objects`, `use-room-socket`, `use-room-editor`, `scene.tsx`, `room.tsx`, the `shape-dock` (now an active button), `inspector` (R + H fields), `dimension-helpers` (⌀ + H brackets), `transform-gizmo` (scale snapshot/map), `csg-utils` (`brushFromCone`), `align-math` (AABB identical to cylinder), and the clone/align preview overlays. The orval-generated API client was regenerated to pick up `cones`.
+
+- `apps/mcp/src/wire-types.ts`, `apps/mcp/src/tools.ts` — Adds `WireCone`, a `create_cone` tool (mirrors `create_sphere`, with `radius`+`height`), the `cone` arm of the batch schema + `toWireFromBatch`, and updates the `list_objects`/`create_objects` descriptions.
+
+- `apps/web/e2e/cone-tool.spec.ts` (new) — Draws a cone via the click/click/height flow, selects it, asserts the inspector's R + H dimension fields appear, and checks for no console errors.
+
+---
+
 # added object scaling
 
 ### commit hash:
