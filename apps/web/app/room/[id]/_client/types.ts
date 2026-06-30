@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "cone" | "move" | "rotate" | "scale" | "align" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "cone" | "move" | "rotate" | "scale" | "mate" | "boolean" | "clone";
 
 // Euler XYZ rotation in radians, applied about the object's geometric center.
 export interface Rotation {
@@ -9,6 +9,16 @@ export interface Rotation {
   z: number;
 }
 export type AxisSide = "min" | "center" | "max" | null;
+
+// Signed world-space axis a box face points along. Axis-aligned shapes only (v1).
+export type FaceKey = "+x" | "-x" | "+y" | "-y" | "+z" | "-z";
+
+export interface FaceRef {
+  objectId: string;
+  faceKey: FaceKey;
+}
+
+export type MateMode = "flush" | "center" | "gap";
 
 export type BooleanOperation =
   | "ADDITION"

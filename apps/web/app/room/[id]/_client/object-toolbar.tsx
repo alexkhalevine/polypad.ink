@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlignVerticalSpaceAround,
   Combine,
   Copy,
   Group,
@@ -26,12 +25,6 @@ export function ObjectToolbar({ onDelete }: ObjectToolbarProps) {
       className="pp-panel absolute left-1/2 top-[18%] z-30 flex -translate-x-1/2 items-center gap-1 rounded-[14px] p-1.5"
       style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}
     >
-      <Chip
-        icon={AlignVerticalSpaceAround}
-        label="Align (A)"
-        active={selectedTool === "align"}
-        onClick={() => setSelectedTool("align")}
-      />
       <Chip
         icon={Combine}
         label="Boolean (B)"

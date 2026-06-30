@@ -1,8 +1,9 @@
 "use client";
 
 import * as THREE from "three";
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { Html } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
 import { PlacedBox } from "@/app/room/[id]/_client/types";
 import { RemoteSelectionOutline } from "./remote-selection-outline";
 
@@ -12,18 +13,37 @@ interface PlacedBoxMeshProps {
   rotationOverride?: { x: number; y: number; z: number };
   color?: string | null;
   isSelected?: boolean;
+  isAnchor?: boolean;
+  isMultiSelected?: boolean;
   isHovered?: boolean;
   wireframe?: boolean;
   lockInfo?: { color: string; displayName: string };
   selectionInfo?: { color: string; displayName: string };
-  onClick?: () => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void;
 }
 
 const DEFAULT_COLOR = "#2f74c0";
 
-export function PlacedBoxMesh({ box, positionOverride, rotationOverride, color, isSelected, isHovered, wireframe, lockInfo, selectionInfo, onClick, onPointerEnter, onPointerLeave }: PlacedBoxMeshProps) {
+export function PlacedBoxMesh({
+  box,
+  positionOverride,
+  rotationOverride,
+  color,
+  isSelected,
+  isAnchor,
+  isMultiSelected,
+  isHovered,
+  wireframe,
+  lockInfo,
+  selectionInfo,
+  onClick,
+  onPointerEnter,
+  onPointerLeave,
+  onPointerMove,
+}: PlacedBoxMeshProps) {
   const geo = useMemo(
     () => new THREE.BoxGeometry(box.width, box.height, box.depth),
     [box.width, box.height, box.depth]
@@ -40,12 +60,26 @@ export function PlacedBoxMesh({ box, positionOverride, rotationOverride, color, 
   // Rotation is applied about the geometric center via the pivot group below.
   const rot = rotationOverride ?? box.rotation;
 
-  const edgeColor = lockInfo ? lockInfo.color : (isSelected || isHovered ? "#ffffff" : "#1a3a5c");
+  const edgeColor = lockInfo
+    ? lockInfo.color
+    : isAnchor
+      ? "#8b6dff"
+      : isMultiSelected
+        ? "#4fe3c1"
+        : isSelected || isHovered
+          ? "#ffffff"
+          : "#1a3a5c";
 
   return (
     <group position={[x, y, z]}>
       <group position={[hw, hh, hd]} rotation={[rot.x, rot.y, rot.z]}>
-        <mesh geometry={geo} onClick={onClick} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+        <mesh
+          geometry={geo}
+          onClick={onClick}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onPointerMove={onPointerMove}
+        >
           <meshStandardMaterial color={color ?? DEFAULT_COLOR} wireframe={wireframe} />
         </mesh>
         <lineSegments>
@@ -62,6 +96,11 @@ export function PlacedBoxMesh({ box, positionOverride, rotationOverride, color, 
           />
         )}
       </group>
+      {isAnchor && !lockInfo && (
+        <Html position={[hw, box.height + 0.5, hd]} center pointerEvents="none">
+          <div style={anchorBadgeStyle}>★ Anchor</div>
+        </Html>
+      )}
       {lockInfo && (
         <Html position={[hw, box.height + 0.5, hd]} center pointerEvents="none">
           <div style={{
@@ -83,3 +122,16 @@ export function PlacedBoxMesh({ box, positionOverride, rotationOverride, color, 
     </group>
   );
 }
+
+const anchorBadgeStyle: CSSProperties = {
+  pointerEvents: "none",
+  userSelect: "none",
+  fontSize: 11,
+  fontWeight: 600,
+  fontFamily: "sans-serif",
+  color: "#ffffff",
+  background: "#8b6dff",
+  borderRadius: 6,
+  padding: "2px 8px",
+  whiteSpace: "nowrap",
+};

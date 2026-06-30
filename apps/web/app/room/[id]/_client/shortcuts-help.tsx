@@ -26,7 +26,7 @@ export const ShortcutsHelp = () => {
     ["S", "Select"],
     ["M", "Move"],
     ["R", "Rotate"],
-    ["A", "Align"],
+    ["⇧ Click", "Multi-select"],
     ["B", "Boolean"],
     ["C", "Clone"],
     ["F", "Full screen"],

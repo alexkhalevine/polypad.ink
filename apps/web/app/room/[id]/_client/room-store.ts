@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence, AxisSide, BooleanOperation } from "./types";
+import { ToolType, RemoteUserPresence, BooleanOperation, FaceRef, MateMode } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -10,7 +10,13 @@ interface RoomStore {
   gridOpacity: number;
   zoomLevel: number;
   selectionMode: "draw" | "select";
+  // Ordered multi-select: the last entry is the anchor. `selectedObjectId` and
+  // `anchorId` are derived convenience fields kept in sync by every selection
+  // action below, so single-object consumers (gizmo, inspector, collab presence)
+  // keep working unchanged.
+  selectedObjectIds: string[];
   selectedObjectId: string | null;
+  anchorId: string | null;
   hoveredObjectId: string | null;
   setSelectedTool: (tool: ToolType | null) => void;
   setSelectedColor: (color: string) => void;
@@ -20,7 +26,9 @@ interface RoomStore {
   zoomIn: () => void;
   zoomOut: () => void;
   setSelectionMode: (mode: "draw" | "select") => void;
+  selectObject: (id: string, opts?: { additive?: boolean }) => void;
   setSelectedObjectId: (id: string | null) => void;
+  clearSelection: () => void;
   setHoveredObjectId: (id: string | null) => void;
   resetEditorState: () => void;
 
@@ -43,15 +51,18 @@ interface RoomStore {
   ) => void;
   clearLiveDimensions: (objectId: string) => void;
 
-  // Align tool state
-  alignTargetId: string | null;
-  setAlignTargetId: (id: string | null) => void;
-  alignXSide: AxisSide;
-  alignYSide: AxisSide;
-  alignZSide: AxisSide;
-  setAlignXSide: (side: AxisSide) => void;
-  setAlignYSide: (side: AxisSide) => void;
-  setAlignZSide: (side: AxisSide) => void;
+  // Face Mate tool state
+  mateSource: FaceRef | null;
+  mateTarget: FaceRef | null;
+  mateMode: MateMode;
+  mateOffset: number;
+  hoveredFace: FaceRef | null;
+  setMateSource: (face: FaceRef | null) => void;
+  setMateTarget: (face: FaceRef | null) => void;
+  setMateMode: (mode: MateMode) => void;
+  setMateOffset: (offset: number) => void;
+  setHoveredFace: (face: FaceRef | null) => void;
+  resetMate: () => void;
 
   // Boolean-operation tool state
   booleanTargetId: string | null;
@@ -91,7 +102,9 @@ export const useRoomStore = create<RoomStore>((set) => ({
   gridOpacity: 1,
   zoomLevel: 100,
   selectionMode: "draw",
+  selectedObjectIds: [],
   selectedObjectId: null,
+  anchorId: null,
   hoveredObjectId: null,
   setSelectedTool: (tool) => set({ selectedTool: tool }),
   setSelectedColor: (color) => set({ selectedColor: color }),
@@ -103,20 +116,37 @@ export const useRoomStore = create<RoomStore>((set) => ({
   zoomOut: () =>
     set((s) => ({ zoomLevel: Math.max(ZOOM_MIN, s.zoomLevel - ZOOM_STEP) })),
   setSelectionMode: (mode) => set({ selectionMode: mode }),
-  setSelectedObjectId: (id) => set({ selectedObjectId: id }),
+  selectObject: (id, opts) =>
+    set((s) => {
+      const additive = opts?.additive ?? false;
+      const ids = additive
+        ? [...s.selectedObjectIds.filter((existing) => existing !== id), id]
+        : [id];
+      return {
+        selectedObjectIds: ids,
+        selectedObjectId: ids.length === 1 ? ids[0] : null,
+        anchorId: ids.length >= 2 ? ids[ids.length - 1] : null,
+      };
+    }),
+  setSelectedObjectId: (id) =>
+    set(id === null ? { selectedObjectIds: [], selectedObjectId: null, anchorId: null } : { selectedObjectIds: [id], selectedObjectId: id, anchorId: null }),
+  clearSelection: () => set({ selectedObjectIds: [], selectedObjectId: null, anchorId: null }),
   setHoveredObjectId: (id) => set({ hoveredObjectId: id }),
   resetEditorState: () =>
     set({
       selectedTool: null,
+      selectedObjectIds: [],
       selectedObjectId: null,
+      anchorId: null,
       selectionMode: "draw",
-      alignTargetId: null,
-      alignXSide: "center",
-      alignYSide: null,
-      alignZSide: "center",
       booleanTargetId: null,
       booleanOperation: "ADDITION",
       clonePreviewPosition: null,
+      mateSource: null,
+      mateTarget: null,
+      mateMode: "flush",
+      mateOffset: 0,
+      hoveredFace: null,
     }),
 
   livePositions: {},
@@ -154,14 +184,17 @@ export const useRoomStore = create<RoomStore>((set) => ({
       return { liveDimensions: next };
     }),
 
-  alignTargetId: null,
-  setAlignTargetId: (id) => set({ alignTargetId: id }),
-  alignXSide: "center",
-  alignYSide: null,
-  alignZSide: "center",
-  setAlignXSide: (side) => set({ alignXSide: side }),
-  setAlignYSide: (side) => set({ alignYSide: side }),
-  setAlignZSide: (side) => set({ alignZSide: side }),
+  mateSource: null,
+  mateTarget: null,
+  mateMode: "flush",
+  mateOffset: 0,
+  hoveredFace: null,
+  setMateSource: (face) => set({ mateSource: face }),
+  setMateTarget: (face) => set({ mateTarget: face }),
+  setMateMode: (mode) => set({ mateMode: mode }),
+  setMateOffset: (offset) => set({ mateOffset: offset }),
+  setHoveredFace: (face) => set({ hoveredFace: face }),
+  resetMate: () => set({ mateSource: null, mateTarget: null, mateMode: "flush", mateOffset: 0, hoveredFace: null }),
 
   booleanTargetId: null,
   booleanOperation: "ADDITION",
