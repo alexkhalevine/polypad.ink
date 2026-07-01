@@ -9,13 +9,14 @@ import { useRoomEditor } from "./hooks/use-room-editor";
 import { useFullscreen } from "./hooks/use-fullscreen";
 import { ContextMenu } from "./context-menu";
 import { ExportModal } from "./export-modal";
-import { AlignPanel } from "./align-panel";
 import { BooleanPanel } from "./boolean-panel";
 import { Inspector } from "./inspector";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { TopBar } from "./top-bar";
 import { ToolRail } from "./tool-rail";
 import { ObjectToolbar } from "./object-toolbar";
+import { AlignBar } from "./align-bar";
+import { MatePopover } from "./mate-popover";
 import { ShapeDock } from "./shape-dock";
 import { StatusBar } from "./status-bar";
 import { useRoomStore } from "./room-store";
@@ -52,11 +53,13 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
   const helpText =
-    editor.selectedTool || editor.showSelectHelp || editor.showObjectSelected
+    editor.selectedTool || editor.showSelectHelp || editor.showObjectSelected || editor.showMultiSelected
       ? getHelpText({
           phase: editor.activeDraw?.drawState.phase,
           showSelectHelp: editor.showSelectHelp,
           showObjectSelected: editor.showObjectSelected,
+          showMultiSelected: editor.showMultiSelected,
+          selectedCount: editor.selectedObjectIds.length,
           selectedObjectCoords: editor.selectedObjectCoords,
           selectedTool: editor.selectedTool,
         })
@@ -120,11 +123,12 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
 
       {/* Docked chrome */}
       <TopBar roomName={id} onExport={() => exportModalRef.current?.showModal()} />
-      <ToolRail onSelectClick={editor.handleSelectClick} />
+      <ToolRail onSelectClick={editor.handleSelectClick} onMateClick={() => editor.handleToolSelect("mate")} />
       <ObjectToolbar onDelete={editor.handleDeleteObject} />
       <ShapeDock onToolSelect={editor.handleToolSelect} />
       <StatusBar
         selectedObjectCoords={editor.selectedObjectCoords}
+        selectedCount={editor.selectedObjectIds.length}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
       />
@@ -141,11 +145,6 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
         onColorBlur={editor.onMouseUpColorPicked}
         onSwatchCommit={editor.handleColorCommit}
       >
-        {editor.selectedTool === "align" && (
-          <div className="mt-5 border-t border-[var(--pp-panel-border)] pt-5">
-            <AlignPanel onApply={editor.handleAlignApply} onCancel={editor.handleAlignCancel} />
-          </div>
-        )}
         {editor.selectedTool === "boolean" &&
           editor.selectedObject &&
           editor.selectedObjectType && (
@@ -161,6 +160,25 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
             </div>
           )}
       </Inspector>
+
+      {editor.selectedObjectIds.length >= 2 && (
+        <AlignBar
+          distributeEnabled={editor.selectedObjectIds.length >= 3}
+          onAlignAxis={editor.handleAlignAxis}
+          onDistribute={() => editor.handleDistribute()}
+        />
+      )}
+
+      {editor.mateSource && editor.mateTarget && (
+        <MatePopover
+          mode={editor.mateMode}
+          offset={editor.mateOffset}
+          onModeChange={editor.setMateMode}
+          onOffsetChange={editor.setMateOffset}
+          onConfirm={editor.handleMateConfirm}
+          onCancel={editor.handleMateCancel}
+        />
+      )}
 
       {/* Contextual hint for active draw / tool flows */}
       {helpText && (

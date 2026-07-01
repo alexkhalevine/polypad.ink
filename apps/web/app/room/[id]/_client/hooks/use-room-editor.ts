@@ -4,7 +4,7 @@ import { useBoxDraw } from "./use-box-draw";
 import { useCylinderDraw } from "./use-cylinder-draw";
 import { useSphereDraw } from "./use-sphere-draw";
 import { useConeDraw } from "./use-cone-draw";
-import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "../types";
+import { ToolType, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, AxisSide } from "../types";
 import { useRoomObjects } from "../queries/use-room-objects";
 import { usePlaceObject } from "../queries/use-place-object";
 import { useUpdateObjectColor } from "../queries/use-update-object-color";
@@ -14,7 +14,8 @@ import { useUpdateObjectDimensions, DimensionPatch } from "../queries/use-update
 import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere, toWireCone } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
-import { computeAlignedPosition } from "../align-math";
+import { computeAlignedPosition, computeDistributed, DistributeItem } from "../align-math";
+import { computeMatePosition } from "../mate-math";
 import { brushFrom, evaluateBooleanCentered } from "../csg-utils";
 import { toWireMesh } from "../queries/wire-converters";
 import { useErrorStore } from "@/app/error-store";
@@ -28,20 +29,14 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
+  const selectedObjectIds = useRoomStore((s) => s.selectedObjectIds);
+  const anchorId = useRoomStore((s) => s.anchorId);
   const selectedColor = useRoomStore((s) => s.selectedColor);
   const setSelectedTool = useRoomStore((s) => s.setSelectedTool);
   const setSelectedColor = useRoomStore((s) => s.setSelectedColor);
   const setSelectionMode = useRoomStore((s) => s.setSelectionMode);
   const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
   const resetEditorState = useRoomStore((s) => s.resetEditorState);
-  const alignTargetId = useRoomStore((s) => s.alignTargetId);
-  const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
-  const alignXSide = useRoomStore((s) => s.alignXSide);
-  const alignYSide = useRoomStore((s) => s.alignYSide);
-  const alignZSide = useRoomStore((s) => s.alignZSide);
-  const setAlignXSide = useRoomStore((s) => s.setAlignXSide);
-  const setAlignYSide = useRoomStore((s) => s.setAlignYSide);
-  const setAlignZSide = useRoomStore((s) => s.setAlignZSide);
   const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
   const booleanOperation = useRoomStore((s) => s.booleanOperation);
   const setBooleanTargetId = useRoomStore((s) => s.setBooleanTargetId);
@@ -52,6 +47,13 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setLiveRotation = useRoomStore((s) => s.setLiveRotation);
   const liveDimensions = useRoomStore((s) => s.liveDimensions);
   const setLiveDimension = useRoomStore((s) => s.setLiveDimension);
+  const mateSource = useRoomStore((s) => s.mateSource);
+  const mateTarget = useRoomStore((s) => s.mateTarget);
+  const mateMode = useRoomStore((s) => s.mateMode);
+  const mateOffset = useRoomStore((s) => s.mateOffset);
+  const setMateMode = useRoomStore((s) => s.setMateMode);
+  const setMateOffset = useRoomStore((s) => s.setMateOffset);
+  const resetMate = useRoomStore((s) => s.resetMate);
   const addError = useErrorStore((s) => s.addError);
 
   const objectLocks = useRoomStore((s) => s.objectLocks);
@@ -201,8 +203,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     ? `X: ${selectedObject.position.x.toFixed(2)}, Y: ${selectedObject.position.y.toFixed(2)}, Z: ${selectedObject.position.z.toFixed(2)}`
     : null;
 
-  const showSelectHelp = selectionMode === "select" && !selectedObjectId;
+  const showSelectHelp = selectionMode === "select" && selectedObjectIds.length === 0;
   const showObjectSelected = selectionMode === "select" && !!selectedObjectId;
+  const showMultiSelected = selectionMode === "select" && selectedObjectIds.length >= 2;
 
   const handleToolSelect = useCallback(
     (tool: ToolType) => {
@@ -210,8 +213,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setSelectedTool(tool);
       setSelectionMode("draw");
       setSelectedObjectId(null);
+      resetMate();
     },
-    [cancelAll, setSelectedTool, setSelectionMode, setSelectedObjectId],
+    [cancelAll, setSelectedTool, setSelectionMode, setSelectedObjectId, resetMate],
   );
 
   const handleSelectClick = useCallback(() => {
@@ -219,7 +223,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setSelectedObjectId(null);
     setSelectedTool(null);
     cancelAll();
-  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll]);
+    resetMate();
+  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll, resetMate]);
 
   const handleObjectMove = useCallback(
     (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
@@ -341,76 +346,74 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     });
   }, [selectedObjectId, objectLocks, localUserId, deleteObjectMutation, resetEditorState, addError]);
 
-  const handleAlignApply = useCallback(() => {
-    if (!selectedObjectId || !alignTargetId || !selectedObject || !selectedObjectType) return;
-    // Align math only knows parametric primitives — mesh source/target is not supported.
-    if (selectedObjectType === "mesh") return;
+  // Align math only knows parametric primitives — meshes are skipped.
+  const findShapeAndType = useCallback(
+    (
+      id: string,
+    ): { shape: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone; type: "box" | "cylinder" | "sphere" | "cone" } | null => {
+      const box = placedBoxes.find((b) => b.id === id);
+      if (box) return { shape: box, type: "box" };
+      const cyl = placedCylinders.find((c) => c.id === id);
+      if (cyl) return { shape: cyl, type: "cylinder" };
+      const sph = placedSpheres.find((s) => s.id === id);
+      if (sph) return { shape: sph, type: "sphere" };
+      const cone = placedCones.find((c) => c.id === id);
+      if (cone) return { shape: cone, type: "cone" };
+      return null;
+    },
+    [placedBoxes, placedCylinders, placedSpheres, placedCones],
+  );
 
-    const lockHolder = objectLocks[selectedObjectId];
-    if (lockHolder && lockHolder !== localUserId) {
-      addError("Cannot align: object is locked by another user.");
-      setAlignTargetId(null);
-      setSelectedTool(null);
-      return;
-    }
+  // Moves every non-anchor selected object to the anchor on one axis. Fires
+  // immediately per click — there's no pending "apply" step.
+  const handleAlignAxis = useCallback(
+    (axis: "x" | "y" | "z", side: AxisSide) => {
+      if (!anchorId || selectedObjectIds.length < 2) return;
+      const anchorEntry = findShapeAndType(anchorId);
+      if (!anchorEntry) return;
 
-    const parametric = [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones];
-    const targetObject = parametric.find((o) => o.id === alignTargetId);
-    if (!targetObject) {
-      setAlignTargetId(null);
-      return;
-    }
+      for (const id of selectedObjectIds) {
+        if (id === anchorId) continue;
+        const lockHolder = objectLocks[id];
+        if (lockHolder && lockHolder !== localUserId) continue;
+        const entry = findShapeAndType(id);
+        if (!entry) continue;
 
-    const targetType: "box" | "cylinder" | "sphere" | "cone" = placedBoxes.some((b) => b.id === alignTargetId)
-      ? "box"
-      : placedCylinders.some((c) => c.id === alignTargetId)
-        ? "cylinder"
-        : placedCones.some((c) => c.id === alignTargetId)
-          ? "cone"
-          : "sphere";
+        const newPos = computeAlignedPosition(
+          entry.shape,
+          entry.type,
+          anchorEntry.shape,
+          anchorEntry.type,
+          axis === "x" ? side : null,
+          axis === "y" ? side : null,
+          axis === "z" ? side : null,
+        );
+        updateObjectPosition.mutate({ objectId: id, position: newPos });
+        setLivePosition(id, newPos);
+      }
+    },
+    [anchorId, selectedObjectIds, findShapeAndType, objectLocks, localUserId, updateObjectPosition, setLivePosition],
+  );
 
-    const newPos = computeAlignedPosition(
-      selectedObject as PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone,
-      selectedObjectType,
-      targetObject,
-      targetType,
-      alignXSide,
-      alignYSide,
-      alignZSide,
-    );
-
-    updateObjectPosition.mutate({ objectId: selectedObjectId, position: newPos });
-    setLivePosition(selectedObjectId, newPos);
-    setAlignTargetId(null);
-    setSelectedTool(null);
-  }, [
-    selectedObjectId,
-    alignTargetId,
-    alignXSide,
-    alignYSide,
-    alignZSide,
-    selectedObject,
-    selectedObjectType,
-    objectLocks,
-    localUserId,
-    placedBoxes,
-    placedCylinders,
-    placedSpheres,
-    placedCones,
-    updateObjectPosition,
-    setLivePosition,
-    setAlignTargetId,
-    setSelectedTool,
-    addError,
-  ]);
-
-  const handleAlignCancel = useCallback(() => {
-    setAlignTargetId(null);
-    setSelectedTool(null);
-    setAlignXSide("center");
-    setAlignYSide(null);
-    setAlignZSide("center");
-  }, [setAlignTargetId, setSelectedTool, setAlignXSide, setAlignYSide, setAlignZSide]);
+  const handleDistribute = useCallback(
+    (axis?: "x" | "y" | "z") => {
+      if (selectedObjectIds.length < 3) return;
+      const items: DistributeItem[] = [];
+      for (const id of selectedObjectIds) {
+        const lockHolder = objectLocks[id];
+        if (lockHolder && lockHolder !== localUserId) continue;
+        const entry = findShapeAndType(id);
+        if (!entry) continue;
+        items.push({ id, shape: entry.shape, type: entry.type });
+      }
+      const moved = computeDistributed(items, axis);
+      for (const [id, pos] of Object.entries(moved)) {
+        updateObjectPosition.mutate({ objectId: id, position: pos });
+        setLivePosition(id, pos);
+      }
+    },
+    [selectedObjectIds, objectLocks, localUserId, findShapeAndType, updateObjectPosition, setLivePosition],
+  );
 
   const handleBooleanCancel = useCallback(() => {
     if (selectedObjectId) releaseLock(selectedObjectId);
@@ -612,15 +615,71 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     [selectedObject, selectedObjectType, placeObject, setClonePreviewPosition, setSelectedTool],
   );
 
+  const handleMateConfirm = useCallback(() => {
+    if (!mateSource || !mateTarget) return;
+    const sourceEntry = findShapeAndType(mateSource.objectId);
+    const targetEntry = findShapeAndType(mateTarget.objectId);
+    if (!sourceEntry || !targetEntry) {
+      resetMate();
+      return;
+    }
+
+    const lockHolder = objectLocks[mateSource.objectId];
+    if (lockHolder && lockHolder !== localUserId) {
+      addError("Cannot mate: source object is locked by another user.");
+      resetMate();
+      setSelectedTool(null);
+      return;
+    }
+
+    const newPos = computeMatePosition(
+      sourceEntry.shape,
+      sourceEntry.type,
+      mateSource.faceKey,
+      targetEntry.shape,
+      targetEntry.type,
+      mateTarget.faceKey,
+      mateMode,
+      mateOffset,
+    );
+
+    updateObjectPosition.mutate({ objectId: mateSource.objectId, position: newPos });
+    setLivePosition(mateSource.objectId, newPos);
+    resetMate();
+    setSelectedTool(null);
+  }, [
+    mateSource,
+    mateTarget,
+    mateMode,
+    mateOffset,
+    findShapeAndType,
+    objectLocks,
+    localUserId,
+    updateObjectPosition,
+    setLivePosition,
+    resetMate,
+    setSelectedTool,
+    addError,
+  ]);
+
+  const handleMateCancel = useCallback(() => {
+    resetMate();
+    setSelectedTool(null);
+  }, [resetMate, setSelectedTool]);
+
   const handleGroundClick = useCallback(
     (point: THREE.Vector3) => {
       if (selectedTool === "clone") {
         handleCloneApply(point);
         return;
       }
+      if (selectedTool === "mate") {
+        if (mateSource && mateTarget) handleMateConfirm();
+        return;
+      }
       activeDraw?.handleGroundClick(point);
     },
-    [selectedTool, handleCloneApply, activeDraw],
+    [selectedTool, handleCloneApply, activeDraw, mateSource, mateTarget, handleMateConfirm],
   );
 
   useEffect(() => {
@@ -641,19 +700,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       if ((e.key === "m" || e.key === "M") && selectedObjectId) setSelectedTool("move");
       if ((e.key === "r" || e.key === "R") && selectedObjectId) setSelectedTool("rotate");
       if ((e.key === "e" || e.key === "E") && selectedObjectId) setSelectedTool("scale");
-      if ((e.key === "a" || e.key === "A") && selectedObjectId) setSelectedTool("align");
       if ((e.key === "b" || e.key === "B") && selectedObjectId) setSelectedTool("boolean");
       if ((e.key === "c" || e.key === "C") && selectedObjectId) setSelectedTool("clone");
-
-      if (selectedTool === "align") {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          handleAlignApply();
-        }
-        if (e.key === "x") setAlignXSide(useRoomStore.getState().alignXSide === null ? "center" : null);
-        if (e.key === "y") setAlignYSide(useRoomStore.getState().alignYSide === null ? "center" : null);
-        if (e.key === "z") setAlignZSide(useRoomStore.getState().alignZSide === null ? "center" : null);
-      }
 
       if (selectedTool === "boolean") {
         if (e.key === "Enter") {
@@ -666,10 +714,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         if (e.key === "4") setBooleanOperation("DIFFERENCE");
         if (e.key === "5") setBooleanOperation("INTERSECTION");
       }
+
+      if (selectedTool === "mate" && e.key === "Enter") {
+        e.preventDefault();
+        handleMateConfirm();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleAlignApply, setAlignXSide, setAlignYSide, setAlignZSide, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation, handleMateConfirm]);
 
   useEffect(() => {
     if (isObjectsError) {
@@ -719,6 +772,7 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     selectedTool,
     showSelectHelp,
     showObjectSelected,
+    showMultiSelected,
     selectedObjectCoords,
     isPending: updateObjectColor.isPending || placeObject.isPending,
     handleToolSelect,
@@ -736,11 +790,20 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     handlePositionCommit,
     handleDimensionCommit,
     handleDeleteObject,
-    alignTargetId,
-    handleAlignApply,
-    handleAlignCancel,
+    selectedObjectIds,
+    anchorId,
+    handleAlignAxis,
+    handleDistribute,
     booleanTargetId,
     handleBooleanApply,
     handleBooleanCancel,
+    mateSource,
+    mateTarget,
+    mateMode,
+    mateOffset,
+    setMateMode,
+    setMateOffset,
+    handleMateConfirm,
+    handleMateCancel,
   };
 };

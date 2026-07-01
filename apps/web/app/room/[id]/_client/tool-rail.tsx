@@ -1,11 +1,12 @@
 "use client";
 
-import { MousePointer2, Move, RotateCw, Maximize, Orbit } from "lucide-react";
+import { MousePointer2, Move, RotateCw, Maximize, Magnet, Orbit } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRoomStore } from "./room-store";
 
 interface ToolRailProps {
   onSelectClick: () => void;
+  onMateClick: () => void;
 }
 
 type RailButton = {
@@ -16,9 +17,10 @@ type RailButton = {
   active: boolean;
   disabled: boolean;
   onClick: () => void;
+  title?: string;
 };
 
-export function ToolRail({ onSelectClick }: ToolRailProps) {
+export function ToolRail({ onSelectClick, onMateClick }: ToolRailProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
@@ -61,6 +63,16 @@ export function ToolRail({ onSelectClick }: ToolRailProps) {
       disabled: !selectedObjectId,
       onClick: () => selectedObjectId && setSelectedTool("scale"),
     },
+    {
+      key: "mate",
+      icon: Magnet,
+      label: "Mate",
+      shortcut: "",
+      active: selectedTool === "mate",
+      disabled: false,
+      onClick: onMateClick,
+      title: "Face Mate — pick a source face, then a target face",
+    },
   ];
 
   return (
@@ -90,7 +102,7 @@ function RailIconButton({
   disabled,
   onClick,
   title,
-}: Omit<RailButton, "key"> & { title?: string }) {
+}: Omit<RailButton, "key">) {
   return (
     <button
       type="button"

@@ -1,7 +1,7 @@
 import { PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, AxisSide } from "./types";
 
-type Shape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
-type ShapeType = "box" | "cylinder" | "sphere" | "cone";
+export type Shape = PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
+export type ShapeType = "box" | "cylinder" | "sphere" | "cone";
 
 interface AABB {
   min: { x: number; y: number; z: number };
@@ -77,5 +77,58 @@ export function computeAlignedPosition(
     result[axis] = source.position[axis] + delta;
   }
 
+  return result;
+}
+
+export interface DistributeItem {
+  id: string;
+  shape: Shape;
+  type: ShapeType;
+}
+
+// Spaces 3+ shapes evenly along one axis: the two extreme shapes (by AABB
+// center) stay fixed, interior shapes get equalized gaps between them. Returns
+// only the moved (interior) ids — extremes are intentionally omitted.
+export function computeDistributed(
+  items: DistributeItem[],
+  axis?: "x" | "y" | "z",
+): Record<string, { x: number; y: number; z: number }> {
+  if (items.length < 3) return {};
+
+  const centers = items.map((item) => {
+    const aabb = aabbOf(item.shape, item.type);
+    return {
+      x: (aabb.min.x + aabb.max.x) / 2,
+      y: (aabb.min.y + aabb.max.y) / 2,
+      z: (aabb.min.z + aabb.max.z) / 2,
+    };
+  });
+
+  const spreadOf = (a: "x" | "y" | "z") =>
+    Math.max(...centers.map((c) => c[a])) - Math.min(...centers.map((c) => c[a]));
+
+  const spreadAxis: "x" | "y" | "z" =
+    axis ?? (["x", "y", "z"] as const).reduce((best, a) => (spreadOf(a) > spreadOf(best) ? a : best), "x");
+
+  const ordered = items
+    .map((item, i) => ({ id: item.id, position: item.shape.position, center: centers[i][spreadAxis] }))
+    .sort((a, b) => a.center - b.center);
+
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  const span = last.center - first.center;
+  const gap = span / (ordered.length - 1);
+
+  const result: Record<string, { x: number; y: number; z: number }> = {};
+  for (let i = 1; i < ordered.length - 1; i++) {
+    const entry = ordered[i];
+    const target = first.center + gap * i;
+    const delta = target - entry.center;
+    result[entry.id] = {
+      x: entry.position.x + (spreadAxis === "x" ? delta : 0),
+      y: entry.position.y + (spreadAxis === "y" ? delta : 0),
+      z: entry.position.z + (spreadAxis === "z" ? delta : 0),
+    };
+  }
   return result;
 }

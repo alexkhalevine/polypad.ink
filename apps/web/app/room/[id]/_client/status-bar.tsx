@@ -5,11 +5,12 @@ import { useRoomStore } from "./room-store";
 
 interface StatusBarProps {
   selectedObjectCoords: string | null;
+  selectedCount?: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
 }
 
-export function StatusBar({ selectedObjectCoords, isFullscreen, onToggleFullscreen }: StatusBarProps) {
+export function StatusBar({ selectedObjectCoords, selectedCount = 0, isFullscreen, onToggleFullscreen }: StatusBarProps) {
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
   const zoomLevel = useRoomStore((s) => s.zoomLevel);
   const zoomIn = useRoomStore((s) => s.zoomIn);
@@ -23,6 +24,12 @@ export function StatusBar({ selectedObjectCoords, isFullscreen, onToggleFullscre
           <span>1 selected</span>
           <span className="text-[var(--pp-text-meta)]">|</span>
           <span>{selectedObjectCoords}</span>
+        </div>
+      )}
+      {selectedCount >= 2 && (
+        <div className="pp-panel flex items-center gap-2 rounded-[12px] px-3 py-2 font-tech text-[12px] text-[var(--pp-text-muted)]">
+          <span className="text-[var(--pp-violet-text)]">●</span>
+          <span>{selectedCount} selected</span>
         </div>
       )}
 

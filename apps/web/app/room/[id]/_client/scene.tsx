@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh } from "./types";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, FaceKey, MateMode } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
-import { AlignPreviewOverlay } from "./align-preview-overlay";
 import { BooleanPreviewOverlay } from "./boolean-preview-overlay";
 import { ClonePreviewOverlay } from "./clone-preview-overlay";
+import { FaceOverlay } from "./face-overlay";
+import { MatePreviewOverlay } from "./mate-preview-overlay";
+import { aabbOf, Shape, ShapeType } from "./align-math";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
 import { PreviewBox } from "@/app/components/preview-box";
@@ -35,6 +37,23 @@ const CURSOR_COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#34d399", "#f472b6", "#
 export function snapPoint(p: THREE.Vector3, enabled: boolean): THREE.Vector3 {
   if (!enabled) return p;
   return new THREE.Vector3(Math.round(p.x), p.y, Math.round(p.z));
+}
+
+// ─── Face-pick utility ──────────────────────────────────────────────────────
+// Given a world-space point on (or near) a parametric shape, finds the AABB
+// face it's closest to. Used by Face Mate's click/hover handling — geometry
+// stays axis-aligned in v1, same limitation align-math already documents.
+
+function nearestFaceKey(point: THREE.Vector3, aabb: ReturnType<typeof aabbOf>): FaceKey {
+  const candidates: [FaceKey, number][] = [
+    ["-x", Math.abs(point.x - aabb.min.x)],
+    ["+x", Math.abs(point.x - aabb.max.x)],
+    ["-y", Math.abs(point.y - aabb.min.y)],
+    ["+y", Math.abs(point.y - aabb.max.y)],
+    ["-z", Math.abs(point.z - aabb.min.z)],
+    ["+z", Math.abs(point.z - aabb.max.z)],
+  ];
+  return candidates.reduce((best, cur) => (cur[1] < best[1] ? cur : best))[0];
 }
 
 // ─── Scene props ──────────────────────────────────────────────────────────────
@@ -64,52 +83,6 @@ interface SceneProps {
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
-}
-
-// ─── Align helper (groups arrow + preview so target lookup stays local) ────────
-
-function AlignSection({
-  source,
-  sourceType,
-  placedBoxes,
-  placedCylinders,
-  placedSpheres,
-  placedCones,
-  alignTargetId,
-}: {
-  source: PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone;
-  sourceType: "box" | "cylinder" | "sphere" | "cone";
-  placedBoxes: PlacedBox[];
-  placedCylinders: PlacedCylinder[];
-  placedSpheres: PlacedSphere[];
-  placedCones: PlacedCone[];
-  alignTargetId: string | null;
-}) {
-  const allObjects = useMemo(
-    () => [...placedBoxes, ...placedCylinders, ...placedSpheres, ...placedCones],
-    [placedBoxes, placedCylinders, placedSpheres, placedCones],
-  );
-  const target = useMemo(
-    () => (alignTargetId ? allObjects.find((o) => o.id === alignTargetId) ?? null : null),
-    [alignTargetId, allObjects],
-  );
-  const targetType = useMemo<"box" | "cylinder" | "sphere" | "cone" | null>(() => {
-    if (!alignTargetId) return null;
-    if (placedBoxes.some((b) => b.id === alignTargetId)) return "box";
-    if (placedCylinders.some((c) => c.id === alignTargetId)) return "cylinder";
-    if (placedSpheres.some((s) => s.id === alignTargetId)) return "sphere";
-    if (placedCones.some((c) => c.id === alignTargetId)) return "cone";
-    return null;
-  }, [alignTargetId, placedBoxes, placedCylinders, placedSpheres, placedCones]);
-
-  return (
-    <AlignPreviewOverlay
-      source={source}
-      sourceType={sourceType}
-      target={target}
-      targetType={targetType}
-    />
-  );
 }
 
 // ─── Boolean helper (groups source/target lookup for the live preview) ────────
@@ -166,6 +139,91 @@ function BooleanSection({
   );
 }
 
+// ─── Face Mate helper (hover/source/target highlights + ghost preview) ───────
+
+function MateSection({
+  placedBoxes,
+  placedCylinders,
+  placedSpheres,
+  placedCones,
+  mateSource,
+  mateTarget,
+  hoveredFace,
+  mateMode,
+  mateOffset,
+}: {
+  placedBoxes: PlacedBox[];
+  placedCylinders: PlacedCylinder[];
+  placedSpheres: PlacedSphere[];
+  placedCones: PlacedCone[];
+  mateSource: { objectId: string; faceKey: FaceKey } | null;
+  mateTarget: { objectId: string; faceKey: FaceKey } | null;
+  hoveredFace: { objectId: string; faceKey: FaceKey } | null;
+  mateMode: MateMode;
+  mateOffset: number;
+}) {
+  const findShapeAndType = (id: string): { shape: Shape; type: ShapeType } | null => {
+    const box = placedBoxes.find((b) => b.id === id);
+    if (box) return { shape: box, type: "box" };
+    const cyl = placedCylinders.find((c) => c.id === id);
+    if (cyl) return { shape: cyl, type: "cylinder" };
+    const sph = placedSpheres.find((s) => s.id === id);
+    if (sph) return { shape: sph, type: "sphere" };
+    const cone = placedCones.find((c) => c.id === id);
+    if (cone) return { shape: cone, type: "cone" };
+    return null;
+  };
+
+  const sourceEntry = mateSource ? findShapeAndType(mateSource.objectId) : null;
+  const targetEntry = mateTarget ? findShapeAndType(mateTarget.objectId) : null;
+
+  const hoverIsSource = !!(mateSource && hoveredFace && hoveredFace.objectId === mateSource.objectId && hoveredFace.faceKey === mateSource.faceKey);
+  const hoverIsTarget = !!(mateTarget && hoveredFace && hoveredFace.objectId === mateTarget.objectId && hoveredFace.faceKey === mateTarget.faceKey);
+  const hoverEntry = hoveredFace && !hoverIsSource && !hoverIsTarget ? findShapeAndType(hoveredFace.objectId) : null;
+
+  return (
+    <>
+      {hoverEntry && hoveredFace && (
+        <FaceOverlay shape={hoverEntry.shape} type={hoverEntry.type} faceKey={hoveredFace.faceKey} color="#ffffff" fillOpacity={0.12} />
+      )}
+      {sourceEntry && mateSource && (
+        <FaceOverlay
+          shape={sourceEntry.shape}
+          type={sourceEntry.type}
+          faceKey={mateSource.faceKey}
+          color="#4fe3c1"
+          fillOpacity={0.3}
+          label="Source face"
+          labelTextColor="#072019"
+        />
+      )}
+      {targetEntry && mateTarget && (
+        <FaceOverlay
+          shape={targetEntry.shape}
+          type={targetEntry.type}
+          faceKey={mateTarget.faceKey}
+          color="#8b6dff"
+          fillOpacity={0.3}
+          label="Target face"
+          labelTextColor="#ffffff"
+        />
+      )}
+      {sourceEntry && targetEntry && mateSource && mateTarget && (
+        <MatePreviewOverlay
+          source={sourceEntry.shape}
+          sourceType={sourceEntry.type}
+          sourceFaceKey={mateSource.faceKey}
+          target={targetEntry.shape}
+          targetType={targetEntry.type}
+          targetFaceKey={mateTarget.faceKey}
+          mode={mateMode}
+          offset={mateOffset}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── Zoom sync (camera.zoom driven by the status bar +/- buttons) ─────────────
 
 function ZoomController() {
@@ -209,19 +267,29 @@ function SceneContent({
   const wireframeEnabled = useRoomStore((s) => s.wireframeEnabled);
   const gridOpacity = useRoomStore((s) => s.gridOpacity);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
+  const selectedObjectIds = useRoomStore((s) => s.selectedObjectIds);
+  const anchorId = useRoomStore((s) => s.anchorId);
   const hoveredObjectId = useRoomStore((s) => s.hoveredObjectId);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const livePositions = useRoomStore((s) => s.livePositions);
-  const setSelectedObjectId = useRoomStore((s) => s.setSelectedObjectId);
+  const selectObject = useRoomStore((s) => s.selectObject);
   const setHoveredObjectId = useRoomStore((s) => s.setHoveredObjectId);
-  const setAlignTargetId = useRoomStore((s) => s.setAlignTargetId);
   const setBooleanTargetId = useRoomStore((s) => s.setBooleanTargetId);
   const objectLocks = useRoomStore((s) => s.objectLocks);
   const remoteUsers = useRoomStore((s) => s.remoteUsers);
   const localUserId = useRoomStore((s) => s.localUserId);
-  const alignTargetId = useRoomStore((s) => s.alignTargetId);
   const booleanTargetId = useRoomStore((s) => s.booleanTargetId);
   const clonePreviewPosition = useRoomStore((s) => s.clonePreviewPosition);
+  const mateSource = useRoomStore((s) => s.mateSource);
+  const mateTarget = useRoomStore((s) => s.mateTarget);
+  const hoveredFace = useRoomStore((s) => s.hoveredFace);
+  const mateMode = useRoomStore((s) => s.mateMode);
+  const mateOffset = useRoomStore((s) => s.mateOffset);
+  const setMateSource = useRoomStore((s) => s.setMateSource);
+  const setMateTarget = useRoomStore((s) => s.setMateTarget);
+  const setHoveredFace = useRoomStore((s) => s.setHoveredFace);
+
+  const isMultiSelectActive = selectedObjectIds.length >= 2;
 
   const remoteUserEntries = Object.entries(remoteUsers);
   function getLockInfo(objectId: string) {
@@ -242,9 +310,41 @@ function SceneContent({
     return { color: CURSOR_COLORS[idx % CURSOR_COLORS.length], displayName: presence.displayName };
   }
 
-  function tryLocalSelect(objectId: string) {
-    if (selectedTool === "align") {
-      if (objectId !== selectedObjectId) setAlignTargetId(objectId);
+  // Align math (and Face Mate) only know parametric primitives — meshes aren't supported.
+  function findShapeAndType(id: string): { shape: Shape; type: ShapeType } | null {
+    const box = placedBoxes.find((b) => b.id === id);
+    if (box) return { shape: box, type: "box" };
+    const cyl = placedCylinders.find((c) => c.id === id);
+    if (cyl) return { shape: cyl, type: "cylinder" };
+    const sph = placedSpheres.find((s) => s.id === id);
+    if (sph) return { shape: sph, type: "sphere" };
+    const cone = placedCones.find((c) => c.id === id);
+    if (cone) return { shape: cone, type: "cone" };
+    return null;
+  }
+
+  function tryFacePick(objectId: string, point: THREE.Vector3) {
+    const entry = findShapeAndType(objectId);
+    if (!entry) return;
+    const faceKey = nearestFaceKey(point, aabbOf(entry.shape, entry.type));
+    if (!mateSource || objectId === mateSource.objectId) {
+      setMateSource({ objectId, faceKey });
+      setMateTarget(null);
+      return;
+    }
+    setMateTarget({ objectId, faceKey });
+  }
+
+  function handleFaceHover(objectId: string, point: THREE.Vector3) {
+    const entry = findShapeAndType(objectId);
+    if (!entry) return;
+    const faceKey = nearestFaceKey(point, aabbOf(entry.shape, entry.type));
+    setHoveredFace({ objectId, faceKey });
+  }
+
+  function tryLocalSelect(objectId: string, e: ThreeEvent<MouseEvent>) {
+    if (selectedTool === "mate") {
+      tryFacePick(objectId, e.point);
       return;
     }
     if (selectedTool === "boolean") {
@@ -257,7 +357,7 @@ function SceneContent({
       useErrorStore.getState().addError(`Selected by ${remote.displayName}.`);
       return;
     }
-    setSelectedObjectId(objectId);
+    selectObject(objectId, { additive: e.shiftKey });
   }
 
   const heightAnchorX =
@@ -287,7 +387,7 @@ function SceneContent({
         dampingFactor={0.08}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 2}
-        enabled={selectedTool !== "align" && selectedTool !== "boolean"}
+        enabled={selectedTool !== "boolean" && selectedTool !== "mate"}
       />
 
       <ambientLight intensity={Math.PI / 2} />
@@ -325,21 +425,6 @@ function SceneContent({
         />
       )}
 
-      {selectedTool === "align" &&
-        selectedObject &&
-        selectedObjectType &&
-        selectedObjectType !== "mesh" && (
-          <AlignSection
-            source={selectedObject as PlacedBox | PlacedCylinder | PlacedSphere | PlacedCone}
-            sourceType={selectedObjectType as "box" | "cylinder" | "sphere" | "cone"}
-            placedBoxes={placedBoxes}
-            placedCylinders={placedCylinders}
-            placedSpheres={placedSpheres}
-            placedCones={placedCones}
-            alignTargetId={alignTargetId}
-          />
-        )}
-
       {selectedTool === "boolean" && selectedObject && selectedObjectType && (
         <BooleanSection
           source={selectedObject}
@@ -350,6 +435,20 @@ function SceneContent({
           placedCones={placedCones}
           placedMeshes={placedMeshes}
           booleanTargetId={booleanTargetId}
+        />
+      )}
+
+      {selectedTool === "mate" && (
+        <MateSection
+          placedBoxes={placedBoxes}
+          placedCylinders={placedCylinders}
+          placedSpheres={placedSpheres}
+          placedCones={placedCones}
+          mateSource={mateSource}
+          mateTarget={mateTarget}
+          hoveredFace={hoveredFace}
+          mateMode={mateMode}
+          mateOffset={mateOffset}
         />
       )}
 
@@ -403,13 +502,19 @@ function SceneContent({
             positionOverride={livePositions[box.id]}
             color={box.color}
             isSelected={box.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && box.id === hoveredObjectId}
+            isAnchor={box.id === anchorId}
+            isMultiSelected={isMultiSelectActive && selectedObjectIds.includes(box.id) && box.id !== anchorId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean") && box.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(box.id)}
             selectionInfo={getSelectionInfo(box.id)}
-            onClick={() => tryLocalSelect(box.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onClick={(e) => tryLocalSelect(box.id, e)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
+            onPointerLeave={() => {
+              if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null);
+              if (selectedTool === "mate" && hoveredFace?.objectId === box.id) setHoveredFace(null);
+            }}
+            onPointerMove={(e) => { if (selectedTool === "mate") handleFaceHover(box.id, e.point); }}
           />
         ))}
         {placedCylinders.map((cylinder) => (
@@ -419,13 +524,19 @@ function SceneContent({
             positionOverride={livePositions[cylinder.id]}
             color={cylinder.color}
             isSelected={cylinder.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && cylinder.id === hoveredObjectId}
+            isAnchor={cylinder.id === anchorId}
+            isMultiSelected={isMultiSelectActive && selectedObjectIds.includes(cylinder.id) && cylinder.id !== anchorId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean") && cylinder.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(cylinder.id)}
             selectionInfo={getSelectionInfo(cylinder.id)}
-            onClick={() => tryLocalSelect(cylinder.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cylinder.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onClick={(e) => tryLocalSelect(cylinder.id, e)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(cylinder.id); }}
+            onPointerLeave={() => {
+              if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null);
+              if (selectedTool === "mate" && hoveredFace?.objectId === cylinder.id) setHoveredFace(null);
+            }}
+            onPointerMove={(e) => { if (selectedTool === "mate") handleFaceHover(cylinder.id, e.point); }}
           />
         ))}
         {placedSpheres.map((sphere) => (
@@ -435,13 +546,19 @@ function SceneContent({
             positionOverride={livePositions[sphere.id]}
             color={sphere.color}
             isSelected={sphere.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && sphere.id === hoveredObjectId}
+            isAnchor={sphere.id === anchorId}
+            isMultiSelected={isMultiSelectActive && selectedObjectIds.includes(sphere.id) && sphere.id !== anchorId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean") && sphere.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(sphere.id)}
             selectionInfo={getSelectionInfo(sphere.id)}
-            onClick={() => tryLocalSelect(sphere.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(sphere.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onClick={(e) => tryLocalSelect(sphere.id, e)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(sphere.id); }}
+            onPointerLeave={() => {
+              if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null);
+              if (selectedTool === "mate" && hoveredFace?.objectId === sphere.id) setHoveredFace(null);
+            }}
+            onPointerMove={(e) => { if (selectedTool === "mate") handleFaceHover(sphere.id, e.point); }}
           />
         ))}
         {placedCones.map((cone) => (
@@ -451,13 +568,19 @@ function SceneContent({
             positionOverride={livePositions[cone.id]}
             color={cone.color}
             isSelected={cone.id === selectedObjectId}
-            isHovered={(selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") && cone.id === hoveredObjectId}
+            isAnchor={cone.id === anchorId}
+            isMultiSelected={isMultiSelectActive && selectedObjectIds.includes(cone.id) && cone.id !== anchorId}
+            isHovered={(selectionMode === "select" || selectedTool === "boolean") && cone.id === hoveredObjectId}
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(cone.id)}
             selectionInfo={getSelectionInfo(cone.id)}
-            onClick={() => tryLocalSelect(cone.id)}
-            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(cone.id); }}
-            onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "align" || selectedTool === "boolean") setHoveredObjectId(null); }}
+            onClick={(e) => tryLocalSelect(cone.id, e)}
+            onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(cone.id); }}
+            onPointerLeave={() => {
+              if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null);
+              if (selectedTool === "mate" && hoveredFace?.objectId === cone.id) setHoveredFace(null);
+            }}
+            onPointerMove={(e) => { if (selectedTool === "mate") handleFaceHover(cone.id, e.point); }}
           />
         ))}
         {placedMeshes.map((mesh) => (
@@ -471,7 +594,7 @@ function SceneContent({
             wireframe={wireframeEnabled}
             lockInfo={getLockInfo(mesh.id)}
             selectionInfo={getSelectionInfo(mesh.id)}
-            onClick={() => tryLocalSelect(mesh.id)}
+            onClick={(e) => tryLocalSelect(mesh.id, e)}
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(mesh.id); }}
             onPointerLeave={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null); }}
           />
@@ -490,7 +613,7 @@ export function Scene(props: SceneProps) {
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const cursor =
-    selectedTool === "align" || selectedTool === "boolean"
+    selectedTool === "boolean" || selectedTool === "mate"
       ? "pointer"
       : selectedTool === "clone" || props.drawState.phase !== "idle" || selectionMode === "select"
       ? "crosshair"
