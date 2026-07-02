@@ -4,7 +4,7 @@ import type { PresenceManager } from "./presence.js";
 import type { LockManager } from "./locks.js";
 import type { SelectionRegistry } from "./selections.js";
 import { SocketRateLimiter } from "./socketRateLimit.js";
-import { findRoomById, listObjects } from "../services/roomService.js";
+import { findRoomById, listObjects, touchLastVisited } from "../services/roomService.js";
 import { safeEqualCode } from "../services/inviteCode.js";
 import { MAX_USERS_PER_ROOM, WS_CURSOR_PER_SEC, WS_MUTATION_PER_SEC } from "../constants.js";
 import { recordJoinTiming } from "./metrics.js";
@@ -54,6 +54,7 @@ export function registerHandlers(
         socket.join(roomId);
         presence.join(roomId, socket.id, { userId, displayName });
         socket.to(roomId).emit("presence:joined", { userId, displayName });
+        touchLastVisited(roomId);
         const tJoined = performance.now();
 
         const objects = await listObjects(roomId);

@@ -1,4 +1,4 @@
-import { eq, and, asc, count } from "drizzle-orm";
+import { eq, and, asc, desc, like, count, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, markDirty } from "../db.js";
 import { geometryObjects, rooms } from "../schema.js";
@@ -38,6 +38,54 @@ export function findRoomById(id: string): { id: string; name: string; inviteCode
     .where(eq(rooms.id, id))
     .get();
   return row ?? null;
+}
+
+// Bumped whenever a socket successfully joins the room (see realtime/handlers.ts) so
+// the admin panel can show real usage, not just creation date.
+export function touchLastVisited(roomId: string): void {
+  db.update(rooms).set({ lastVisitedAt: sql`(datetime('now'))` }).where(eq(rooms.id, roomId)).run();
+  markDirty();
+}
+
+export interface AdminRoomRow {
+  id: string;
+  name: string;
+  inviteCode: string;
+  createdAt: string;
+  lastVisitedAt: string | null;
+  objectCount: number;
+}
+
+export async function listRoomsForAdmin(opts: {
+  page: number;
+  pageSize: number;
+  search?: string;
+}): Promise<{ rows: AdminRoomRow[]; total: number }> {
+  const { page, pageSize, search } = opts;
+  const offset = (page - 1) * pageSize;
+  const where = search ? like(rooms.name, `%${search}%`) : undefined;
+
+  const rows = await db
+    .select({
+      id: rooms.id,
+      name: rooms.name,
+      inviteCode: rooms.inviteCode,
+      createdAt: rooms.createdAt,
+      lastVisitedAt: rooms.lastVisitedAt,
+      objectCount: count(geometryObjects.id),
+    })
+    .from(rooms)
+    .leftJoin(geometryObjects, eq(geometryObjects.roomId, rooms.id))
+    .where(where)
+    .groupBy(rooms.id)
+    .orderBy(desc(rooms.createdAt))
+    .limit(pageSize)
+    .offset(offset)
+    .all();
+
+  const totalRow = await db.select({ total: count() }).from(rooms).where(where).get();
+
+  return { rows, total: totalRow?.total ?? 0 };
 }
 
 function rotationOf(row: ObjectRow): { x: number; y: number; z: number } {
