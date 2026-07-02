@@ -6,7 +6,9 @@ import swaggerUi from "swagger-ui-express";
 import { initDb, saveDbSync } from "./db.js"; // initialize db on startup
 import roomsRouter from "./routes/rooms.js";
 import geometryObjectsRouter from "./routes/geometryObjects.js";
+import adminRouter from "./routes/admin.js";
 import { markMcpRequest, rateLimitMiddleware } from "./middleware/rateLimit.js";
+import { requireAdminAuth } from "./middleware/adminAuth.js";
 import { initRealtime } from "./realtime/index.js";
 import { getJoinMetrics } from "./realtime/metrics.js";
 import { sdk } from "./tracing.js";
@@ -28,6 +30,10 @@ app.use(rateLimitMiddleware);
 
 app.use("/rooms", roomsRouter);
 app.use("/rooms", geometryObjectsRouter);
+
+// Private admin surface for the polypad-admin panel — not part of the public
+// OpenAPI spec, gated by its own bearer token (ADMIN_API_TOKEN).
+app.use("/admin", requireAdminAuth, adminRouter);
 
 // OpenAPI docs — allow * origin so the spec is accessible from any client or tool
 app.get("/openapi.json", cors(), (_req, res) => res.json(openApiSpec));

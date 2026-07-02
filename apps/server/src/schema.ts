@@ -6,6 +6,9 @@ export const rooms = sqliteTable("rooms", {
   name: text("name").notNull(),
   inviteCode: text("invite_code").notNull(),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  // Set the first time someone actually joins the room over socket.io (see
+  // touchLastVisited in roomService.ts). Null until then.
+  lastVisitedAt: text("last_visited_at"),
 });
 
 export const geometryObjects = sqliteTable(

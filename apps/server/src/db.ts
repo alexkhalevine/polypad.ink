@@ -30,10 +30,11 @@ async function initDb() {
 
   sqlDb.run(`
     CREATE TABLE IF NOT EXISTS rooms (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      invite_code TEXT NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id               TEXT PRIMARY KEY,
+      name             TEXT NOT NULL,
+      invite_code      TEXT NOT NULL,
+      created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+      last_visited_at  TEXT
     );
 
     CREATE TABLE IF NOT EXISTS geometryObjects (
@@ -63,6 +64,7 @@ async function initDb() {
   migrateMeshSupport(sqlDb);
   migrateRotationSupport(sqlDb);
   migrateConeSupport(sqlDb);
+  migrateLastVisitedSupport(sqlDb);
 
   db = drizzle(sqlDb, { schema });
 
@@ -201,6 +203,24 @@ function migrateRotationSupport(s: SqlJsDatabase): void {
     for (const col of missing) {
       s.run(`ALTER TABLE geometryObjects ADD COLUMN ${col} REAL;`);
     }
+    s.run("COMMIT;");
+    markDirty();
+  } catch (err) {
+    s.run("ROLLBACK;");
+    throw err;
+  }
+}
+
+// Adds the last_visited_at column to DBs created before admin-panel support.
+// SQLite allows ADD COLUMN in place, so no table rebuild is needed here.
+function migrateLastVisitedSupport(s: SqlJsDatabase): void {
+  const cols = s.exec(`PRAGMA table_info('rooms')`);
+  const colNames = cols[0]?.values.map((row) => row[1] as string) ?? [];
+  if (colNames.includes("last_visited_at")) return;
+
+  s.run("BEGIN TRANSACTION;");
+  try {
+    s.run(`ALTER TABLE rooms ADD COLUMN last_visited_at TEXT;`);
     s.run("COMMIT;");
     markDirty();
   } catch (err) {
