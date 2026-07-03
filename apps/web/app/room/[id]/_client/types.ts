@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type ToolType = "box" | "cylinder" | "sphere" | "cone" | "move" | "rotate" | "scale" | "mate" | "boolean" | "clone";
+export type ToolType = "box" | "cylinder" | "sphere" | "cone" | "move" | "rotate" | "scale" | "mate" | "boolean" | "clone" | "extrude";
 
 // Euler XYZ rotation in radians, applied about the object's geometric center.
 export interface Rotation {
@@ -19,6 +19,20 @@ export interface FaceRef {
 }
 
 export type MateMode = "flush" | "center" | "gap";
+
+// Push/pull (extrude) tool: sketch a rect on a box face, then drag along the
+// face normal. Positive depth bulges outward (CSG union), negative cuts a
+// pocket inward (CSG subtraction).
+export type ExtrudePhase = "idle" | "rect" | "depth";
+
+export interface ExtrudeState {
+  phase: ExtrudePhase;
+  face: FaceRef | null;
+  // World-space rect corners, clamped onto the picked face's plane.
+  rectStart: { x: number; y: number; z: number } | null;
+  rectEnd: { x: number; y: number; z: number } | null;
+  depth: number;
+}
 
 export type BooleanOperation =
   | "ADDITION"
