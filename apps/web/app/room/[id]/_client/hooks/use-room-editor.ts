@@ -14,8 +14,9 @@ import { useUpdateObjectDimensions, DimensionPatch } from "../queries/use-update
 import { useDeleteObject } from "../queries/use-delete-object";
 import { toWireBox, toWireCylinder, toWireSphere, toWireCone } from "../queries/wire-converters";
 import { useRoomStore } from "../room-store";
-import { computeAlignedPosition, computeDistributed, DistributeItem } from "../align-math";
+import { computeAlignedPosition, computeDistributed, DistributeItem, aabbOf } from "../align-math";
 import { computeMatePosition } from "../mate-math";
+import { computeExtrusionBox } from "../extrude-math";
 import { brushFrom, evaluateBooleanCentered } from "../csg-utils";
 import { toWireMesh } from "../queries/wire-converters";
 import { useErrorStore } from "@/app/error-store";
@@ -54,6 +55,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
   const setMateMode = useRoomStore((s) => s.setMateMode);
   const setMateOffset = useRoomStore((s) => s.setMateOffset);
   const resetMate = useRoomStore((s) => s.resetMate);
+  const extrude = useRoomStore((s) => s.extrude);
+  const setExtrudeDepth = useRoomStore((s) => s.setExtrudeDepth);
+  const resetExtrude = useRoomStore((s) => s.resetExtrude);
   const addError = useErrorStore((s) => s.addError);
 
   const objectLocks = useRoomStore((s) => s.objectLocks);
@@ -214,8 +218,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
       setSelectionMode("draw");
       setSelectedObjectId(null);
       resetMate();
+      resetExtrude();
     },
-    [cancelAll, setSelectedTool, setSelectionMode, setSelectedObjectId, resetMate],
+    [cancelAll, setSelectedTool, setSelectionMode, setSelectedObjectId, resetMate, resetExtrude],
   );
 
   const handleSelectClick = useCallback(() => {
@@ -224,7 +229,8 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setSelectedTool(null);
     cancelAll();
     resetMate();
-  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll, resetMate]);
+    resetExtrude();
+  }, [selectionMode, setSelectionMode, setSelectedObjectId, setSelectedTool, cancelAll, resetMate, resetExtrude]);
 
   const handleObjectMove = useCallback(
     (objectId: string, newPosition: THREE.Vector3, persist: boolean) => {
@@ -667,6 +673,104 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setSelectedTool(null);
   }, [resetMate, setSelectedTool]);
 
+  // Commits the sketched rect + depth as a CSG op on the base box: depth > 0
+  // unions an outward bump, depth < 0 subtracts an inward pocket. Same
+  // place-mesh-then-delete-original flow as handleBooleanApply. Reads the
+  // extrude state fresh from the store because the depth-capture click sets
+  // the final depth and commits within the same event tick.
+  const handleExtrudeCommit = useCallback(async () => {
+    const ex = useRoomStore.getState().extrude;
+    if (ex.phase !== "depth" || !ex.face || !ex.rectStart || !ex.rectEnd) return;
+
+    const baseBox = placedBoxes.find((b) => b.id === ex.face!.objectId);
+    if (!baseBox) {
+      resetExtrude();
+      setSelectedTool(null);
+      return;
+    }
+
+    const tool = computeExtrusionBox(aabbOf(baseBox, "box"), ex.face.faceKey, ex.rectStart, ex.rectEnd, ex.depth);
+    if (!tool) {
+      addError("Extrusion is too small — drag further before confirming.");
+      return;
+    }
+
+    const lock = await requestLock(baseBox.id);
+    if (!lock.ok) {
+      addError("Object is locked by another user — try again.");
+      return;
+    }
+
+    let result;
+    try {
+      const toolBox: PlacedBox = {
+        id: "extrude-tool",
+        position: new THREE.Vector3(tool.position.x, tool.position.y, tool.position.z),
+        rotation: { x: 0, y: 0, z: 0 },
+        width: tool.width,
+        height: tool.height,
+        depth: tool.depth,
+        color: null,
+      };
+      const base = brushFrom(baseBox, "box");
+      const cutter = brushFrom(toolBox, "box");
+      result = evaluateBooleanCentered(base, cutter, ex.depth > 0 ? "ADDITION" : "SUBTRACTION");
+    } catch (err) {
+      console.error("[handleExtrudeCommit] CSG failed:", err);
+      releaseLock(baseBox.id);
+      addError("Extrude failed. Try a different rectangle or depth.");
+      return;
+    }
+
+    if (result.positions.length === 0) {
+      releaseLock(baseBox.id);
+      addError("Extrude produced an empty result.");
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const wire = toWireMesh({
+      id,
+      position: result.centroid,
+      rotation: { x: 0, y: 0, z: 0 },
+      positions: result.positions,
+      normals: result.normals,
+      indices: result.indices,
+      color: baseBox.color ?? null,
+    });
+
+    placeObject.mutate(
+      { type: "mesh", data: wire },
+      {
+        onSuccess: () => {
+          deleteObjectMutation.mutate(baseBox.id);
+          releaseLock(baseBox.id);
+          setSelectedObjectId(null);
+          resetExtrude();
+          setSelectedTool(null);
+        },
+        onError: () => {
+          releaseLock(baseBox.id);
+        },
+      },
+    );
+  }, [
+    placedBoxes,
+    requestLock,
+    releaseLock,
+    placeObject,
+    deleteObjectMutation,
+    setSelectedObjectId,
+    resetExtrude,
+    setSelectedTool,
+    addError,
+  ]);
+
+  const handleExtrudeCancel = useCallback(() => {
+    resetExtrude();
+    setSelectedTool(null);
+  }, [resetExtrude, setSelectedTool]);
+
   const handleGroundClick = useCallback(
     (point: THREE.Vector3) => {
       if (selectedTool === "clone") {
@@ -719,10 +823,15 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
         e.preventDefault();
         handleMateConfirm();
       }
+
+      if (selectedTool === "extrude" && e.key === "Enter") {
+        e.preventDefault();
+        handleExtrudeCommit();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation, handleMateConfirm]);
+  }, [cancelAll, resetEditorState, selectedObjectId, handleDeleteObject, selectedTool, handleSelectClick, setSelectedTool, handleBooleanApply, setBooleanOperation, handleMateConfirm, handleExtrudeCommit]);
 
   useEffect(() => {
     if (isObjectsError) {
@@ -805,5 +914,9 @@ export const useRoomEditor = (roomId: string, socket: Socket) => {
     setMateOffset,
     handleMateConfirm,
     handleMateCancel,
+    extrude,
+    setExtrudeDepth,
+    handleExtrudeCommit,
+    handleExtrudeCancel,
   };
 };

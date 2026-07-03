@@ -1,12 +1,13 @@
 "use client";
 
-import { MousePointer2, Move, RotateCw, Maximize, Magnet, Orbit } from "lucide-react";
+import { MousePointer2, Move, RotateCw, Maximize, Magnet, ArrowUpFromLine, Orbit } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRoomStore } from "./room-store";
 
 interface ToolRailProps {
   onSelectClick: () => void;
   onMateClick: () => void;
+  onExtrudeClick: () => void;
 }
 
 type RailButton = {
@@ -20,7 +21,7 @@ type RailButton = {
   title?: string;
 };
 
-export function ToolRail({ onSelectClick, onMateClick }: ToolRailProps) {
+export function ToolRail({ onSelectClick, onMateClick, onExtrudeClick }: ToolRailProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const selectionMode = useRoomStore((s) => s.selectionMode);
   const selectedObjectId = useRoomStore((s) => s.selectedObjectId);
@@ -72,6 +73,16 @@ export function ToolRail({ onSelectClick, onMateClick }: ToolRailProps) {
       disabled: false,
       onClick: onMateClick,
       title: "Face Mate — pick a source face, then a target face",
+    },
+    {
+      key: "extrude",
+      icon: ArrowUpFromLine,
+      label: "Extrude",
+      shortcut: "",
+      active: selectedTool === "extrude",
+      disabled: false,
+      onClick: onExtrudeClick,
+      title: "Extrude — draw a rect on a box face, then pull out or push in",
     },
   ];
 

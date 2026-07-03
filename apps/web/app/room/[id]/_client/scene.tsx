@@ -4,13 +4,16 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, FaceKey, MateMode } from "./types";
+import { DrawState, PlacedBox, PlacedCylinder, PlacedSphere, PlacedCone, PlacedMesh, FaceKey, MateMode, ExtrudeState } from "./types";
 import { ContextMenuBlocker } from "./context-menu-blocker";
 import { TransformGizmo } from "./transform-gizmo";
 import { BooleanPreviewOverlay } from "./boolean-preview-overlay";
 import { ClonePreviewOverlay } from "./clone-preview-overlay";
-import { FaceOverlay } from "./face-overlay";
+import { FaceOverlay, faceCenter } from "./face-overlay";
 import { MatePreviewOverlay } from "./mate-preview-overlay";
+import { ExtrudePreviewOverlay } from "./extrude-preview-overlay";
+import { FacePlaneCapture, NormalDepthCapture } from "./extrude-capture-planes";
+import { clampPointToFace, depthFromPoint, inPlaneAxes, MIN_EXTRUDE_SIZE } from "./extrude-math";
 import { aabbOf, Shape, ShapeType } from "./align-math";
 import { GroundPlane } from "@/app/components/ground-plane";
 import { HeightCapturePlane } from "@/app/components/height-capture-plane";
@@ -83,6 +86,7 @@ interface SceneProps {
   onDragStart?: (objectId: string) => Promise<{ ok: boolean; lockedBy?: string }>;
   onDragEnd?: (objectId: string) => void;
   onDimensionCommit: (field: "width" | "height" | "depth" | "radius", value: number) => void;
+  onExtrudeCommit: () => void;
 }
 
 // ─── Boolean helper (groups source/target lookup for the live preview) ────────
@@ -224,6 +228,84 @@ function MateSection({
   );
 }
 
+// ─── Extrude helper (face hover, rect sketch, depth-drag ghost + captures) ────
+
+function ExtrudeSection({
+  placedBoxes,
+  extrude,
+  hoveredFace,
+  onExtrudeCommit,
+}: {
+  placedBoxes: PlacedBox[];
+  extrude: ExtrudeState;
+  hoveredFace: { objectId: string; faceKey: FaceKey } | null;
+  onExtrudeCommit: () => void;
+}) {
+  const updateExtrudeRect = useRoomStore((s) => s.updateExtrudeRect);
+  const confirmExtrudeRect = useRoomStore((s) => s.confirmExtrudeRect);
+  const setExtrudeDepth = useRoomStore((s) => s.setExtrudeDepth);
+
+  const hoverBox =
+    extrude.phase === "idle" && hoveredFace
+      ? placedBoxes.find((b) => b.id === hoveredFace.objectId) ?? null
+      : null;
+
+  const baseBox = extrude.face ? placedBoxes.find((b) => b.id === extrude.face!.objectId) ?? null : null;
+  const aabb = baseBox ? aabbOf(baseBox, "box") : null;
+
+  const rectAnchor = useMemo(() => {
+    if (!aabb || !extrude.face || !extrude.rectStart || !extrude.rectEnd) return null;
+    const start = clampPointToFace(extrude.rectStart, aabb, extrude.face.faceKey);
+    const end = clampPointToFace(extrude.rectEnd, aabb, extrude.face.faceKey);
+    return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, z: (start.z + end.z) / 2 };
+  }, [aabb, extrude.face, extrude.rectStart, extrude.rectEnd]);
+
+  if (!baseBox || !aabb || !extrude.face) {
+    return hoverBox && hoveredFace ? (
+      <FaceOverlay shape={hoverBox} type="box" faceKey={hoveredFace.faceKey} color="#ffffff" fillOpacity={0.12} />
+    ) : null;
+  }
+
+  const faceKey = extrude.face.faceKey;
+  const [cx, cy, cz] = faceCenter(aabb, faceKey);
+
+  return (
+    <>
+      <ExtrudePreviewOverlay box={baseBox} extrude={extrude} />
+
+      <FacePlaneCapture
+        active={extrude.phase === "rect"}
+        faceKey={faceKey}
+        faceCenter={{ x: cx, y: cy, z: cz }}
+        onPointerMove={(p) => updateExtrudeRect(clampPointToFace({ x: p.x, y: p.y, z: p.z }, aabb, faceKey))}
+        onClick={(p) => {
+          const end = clampPointToFace({ x: p.x, y: p.y, z: p.z }, aabb, faceKey);
+          updateExtrudeRect(end);
+          // Ignore the confirming click while the rect is still degenerate —
+          // the user hasn't dragged yet.
+          const start = extrude.rectStart;
+          if (!start) return;
+          const [u, v] = inPlaneAxes(faceKey);
+          if (Math.abs(end[u] - start[u]) < MIN_EXTRUDE_SIZE || Math.abs(end[v] - start[v]) < MIN_EXTRUDE_SIZE) return;
+          confirmExtrudeRect();
+        }}
+      />
+
+      {rectAnchor && (
+        <NormalDepthCapture
+          active={extrude.phase === "depth"}
+          anchor={rectAnchor}
+          onPointerMove={(p) => setExtrudeDepth(depthFromPoint({ x: p.x, y: p.y, z: p.z }, aabb, faceKey))}
+          onClick={(p) => {
+            setExtrudeDepth(depthFromPoint({ x: p.x, y: p.y, z: p.z }, aabb, faceKey));
+            onExtrudeCommit();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── Zoom sync (camera.zoom driven by the status bar +/- buttons) ─────────────
 
 function ZoomController() {
@@ -261,6 +343,7 @@ function SceneContent({
   onDragStart,
   onDragEnd,
   onDimensionCommit,
+  onExtrudeCommit,
 }: SceneProps) {
   const selectedTool = useRoomStore((s) => s.selectedTool);
   const snapEnabled = useRoomStore((s) => s.snapEnabled);
@@ -288,6 +371,8 @@ function SceneContent({
   const setMateSource = useRoomStore((s) => s.setMateSource);
   const setMateTarget = useRoomStore((s) => s.setMateTarget);
   const setHoveredFace = useRoomStore((s) => s.setHoveredFace);
+  const extrude = useRoomStore((s) => s.extrude);
+  const startExtrudeRect = useRoomStore((s) => s.startExtrudeRect);
 
   const isMultiSelectActive = selectedObjectIds.length >= 2;
 
@@ -342,9 +427,26 @@ function SceneContent({
     setHoveredFace({ objectId, faceKey });
   }
 
+  // Extrude only works on parametric boxes (the sketch face must be a flat
+  // axis-aligned rect); starts the rect at the clicked point on the face.
+  function tryExtrudeStart(objectId: string, point: THREE.Vector3) {
+    if (extrude.phase !== "idle") return;
+    const box = placedBoxes.find((b) => b.id === objectId);
+    if (!box) return;
+    const aabb = aabbOf(box, "box");
+    const faceKey = nearestFaceKey(point, aabb);
+    const start = clampPointToFace({ x: point.x, y: point.y, z: point.z }, aabb, faceKey);
+    setHoveredFace(null);
+    startExtrudeRect({ objectId, faceKey }, start);
+  }
+
   function tryLocalSelect(objectId: string, e: ThreeEvent<MouseEvent>) {
     if (selectedTool === "mate") {
       tryFacePick(objectId, e.point);
+      return;
+    }
+    if (selectedTool === "extrude") {
+      tryExtrudeStart(objectId, e.point);
       return;
     }
     if (selectedTool === "boolean") {
@@ -387,7 +489,7 @@ function SceneContent({
         dampingFactor={0.08}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 2}
-        enabled={selectedTool !== "boolean" && selectedTool !== "mate"}
+        enabled={selectedTool !== "boolean" && selectedTool !== "mate" && selectedTool !== "extrude"}
       />
 
       <ambientLight intensity={Math.PI / 2} />
@@ -452,6 +554,15 @@ function SceneContent({
         />
       )}
 
+      {selectedTool === "extrude" && (
+        <ExtrudeSection
+          placedBoxes={placedBoxes}
+          extrude={extrude}
+          hoveredFace={hoveredFace}
+          onExtrudeCommit={onExtrudeCommit}
+        />
+      )}
+
       {selectedTool === "clone" && selectedObject && selectedObjectType && clonePreviewPosition && (
         <ClonePreviewOverlay
           source={selectedObject}
@@ -512,9 +623,12 @@ function SceneContent({
             onPointerEnter={() => { if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(box.id); }}
             onPointerLeave={() => {
               if (selectionMode === "select" || selectedTool === "boolean") setHoveredObjectId(null);
-              if (selectedTool === "mate" && hoveredFace?.objectId === box.id) setHoveredFace(null);
+              if ((selectedTool === "mate" || selectedTool === "extrude") && hoveredFace?.objectId === box.id) setHoveredFace(null);
             }}
-            onPointerMove={(e) => { if (selectedTool === "mate") handleFaceHover(box.id, e.point); }}
+            onPointerMove={(e) => {
+              if (selectedTool === "mate") handleFaceHover(box.id, e.point);
+              if (selectedTool === "extrude" && extrude.phase === "idle") handleFaceHover(box.id, e.point);
+            }}
           />
         ))}
         {placedCylinders.map((cylinder) => (
@@ -615,7 +729,7 @@ export function Scene(props: SceneProps) {
   const cursor =
     selectedTool === "boolean" || selectedTool === "mate"
       ? "pointer"
-      : selectedTool === "clone" || props.drawState.phase !== "idle" || selectionMode === "select"
+      : selectedTool === "extrude" || selectedTool === "clone" || props.drawState.phase !== "idle" || selectionMode === "select"
       ? "crosshair"
       : "default";
 

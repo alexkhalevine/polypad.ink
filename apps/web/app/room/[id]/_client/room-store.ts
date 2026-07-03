@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ToolType, RemoteUserPresence, BooleanOperation, FaceRef, MateMode } from "./types";
+import { ToolType, RemoteUserPresence, BooleanOperation, FaceRef, MateMode, ExtrudeState } from "./types";
 
 interface RoomStore {
   // Editor UI
@@ -64,6 +64,14 @@ interface RoomStore {
   setHoveredFace: (face: FaceRef | null) => void;
   resetMate: () => void;
 
+  // Extrude (push/pull) tool state
+  extrude: ExtrudeState;
+  startExtrudeRect: (face: FaceRef, point: { x: number; y: number; z: number }) => void;
+  updateExtrudeRect: (point: { x: number; y: number; z: number }) => void;
+  confirmExtrudeRect: () => void;
+  setExtrudeDepth: (depth: number) => void;
+  resetExtrude: () => void;
+
   // Boolean-operation tool state
   booleanTargetId: string | null;
   booleanOperation: BooleanOperation;
@@ -93,6 +101,14 @@ interface RoomStore {
 const ZOOM_STEP = 5;
 const ZOOM_MIN = 25;
 const ZOOM_MAX = 300;
+
+const IDLE_EXTRUDE: ExtrudeState = {
+  phase: "idle",
+  face: null,
+  rectStart: null,
+  rectEnd: null,
+  depth: 0,
+};
 
 export const useRoomStore = create<RoomStore>((set) => ({
   selectedTool: null,
@@ -147,6 +163,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
       mateMode: "flush",
       mateOffset: 0,
       hoveredFace: null,
+      extrude: IDLE_EXTRUDE,
     }),
 
   livePositions: {},
@@ -195,6 +212,17 @@ export const useRoomStore = create<RoomStore>((set) => ({
   setMateOffset: (offset) => set({ mateOffset: offset }),
   setHoveredFace: (face) => set({ hoveredFace: face }),
   resetMate: () => set({ mateSource: null, mateTarget: null, mateMode: "flush", mateOffset: 0, hoveredFace: null }),
+
+  extrude: IDLE_EXTRUDE,
+  startExtrudeRect: (face, point) =>
+    set({ extrude: { phase: "rect", face, rectStart: point, rectEnd: point, depth: 0 } }),
+  updateExtrudeRect: (point) =>
+    set((s) => (s.extrude.phase === "rect" ? { extrude: { ...s.extrude, rectEnd: point } } : {})),
+  confirmExtrudeRect: () =>
+    set((s) => (s.extrude.phase === "rect" ? { extrude: { ...s.extrude, phase: "depth" } } : {})),
+  setExtrudeDepth: (depth) =>
+    set((s) => (s.extrude.phase === "depth" ? { extrude: { ...s.extrude, depth } } : {})),
+  resetExtrude: () => set({ extrude: IDLE_EXTRUDE }),
 
   booleanTargetId: null,
   booleanOperation: "ADDITION",

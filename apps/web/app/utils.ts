@@ -22,6 +22,9 @@ export function getHelpText(ctx: HelpContext): string {
   if (selectedTool === "mate") {
     return "Click a face on the source object, then a face on the target. Enter to confirm, Esc to cancel.";
   }
+  if (selectedTool === "extrude") {
+    return "Click a box face and drag a rectangle, then pull it out or push it in. Enter to confirm, Esc to cancel.";
+  }
   if (phase === "height") {
     return "drag mouse to define the height of the primitive, left click to confirm";
   }

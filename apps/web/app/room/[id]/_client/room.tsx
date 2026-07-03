@@ -17,6 +17,7 @@ import { ToolRail } from "./tool-rail";
 import { ObjectToolbar } from "./object-toolbar";
 import { AlignBar } from "./align-bar";
 import { MatePopover } from "./mate-popover";
+import { ExtrudePopover } from "./extrude-popover";
 import { ShapeDock } from "./shape-dock";
 import { StatusBar } from "./status-bar";
 import { useRoomStore } from "./room-store";
@@ -118,12 +119,17 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           onDragStart={editor.handleDragStart}
           onDragEnd={editor.handleDragEnd}
           onDimensionCommit={editor.handleDimensionCommit}
+          onExtrudeCommit={editor.handleExtrudeCommit}
         />
       </div>
 
       {/* Docked chrome */}
       <TopBar roomName={id} onExport={() => exportModalRef.current?.showModal()} />
-      <ToolRail onSelectClick={editor.handleSelectClick} onMateClick={() => editor.handleToolSelect("mate")} />
+      <ToolRail
+        onSelectClick={editor.handleSelectClick}
+        onMateClick={() => editor.handleToolSelect("mate")}
+        onExtrudeClick={() => editor.handleToolSelect("extrude")}
+      />
       <ObjectToolbar onDelete={editor.handleDeleteObject} />
       <ShapeDock onToolSelect={editor.handleToolSelect} />
       <StatusBar
@@ -177,6 +183,15 @@ export const Room = ({ inviteCode }: { inviteCode: string }) => {
           onOffsetChange={editor.setMateOffset}
           onConfirm={editor.handleMateConfirm}
           onCancel={editor.handleMateCancel}
+        />
+      )}
+
+      {editor.selectedTool === "extrude" && editor.extrude.phase === "depth" && (
+        <ExtrudePopover
+          depth={editor.extrude.depth}
+          onDepthChange={editor.setExtrudeDepth}
+          onConfirm={editor.handleExtrudeCommit}
+          onCancel={editor.handleExtrudeCancel}
         />
       )}
 
